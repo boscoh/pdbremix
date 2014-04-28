@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+
+__doc__ = """
+Fetch PDB files from http://rcsb.org.
+
+Usage: pdbfetch.py [-f] <pdb> ...
+"""
+
+
+import os
+from pdbremix.docopt import docopt
+from pdbremix import fetch
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  if arg['-f']:
+    fetch.get_pdbs_with_ftp(arg['<pdb>'])
+  else:
+    fetch.get_pdbs_with_http(arg['<pdb>'])
+

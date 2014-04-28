@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+import glob
+from pdbremix import util
+from pdbremix import data
+from pdbremix.docopt import docopt
+
+__doc__ = """
+Skips frames and strip waters in a GROMACS trr trajectory
+usage: grotrim <in_md> <n_frame>
+
+<in_md>   basename of GROMACS trajectory files .gro and .trr 
+<n_frame>  write out every n_frame
+"""
+
+arg = docopt(__doc__)
+
+in_md = arg['<in_md>']
+n_frame = int(arg['<n_frame>'])
+temp_md = in_md + '.temp'
+out_md = in_md + '.trim'
+bin_input = in_md + '.in'
+
+print "Skip frames and delete solvent"
+open(bin_input, 'w').write('Protein\n') 
+data.binary(
+    'trjconv', 
+    '-pbc whole -f %s.trr -s %s.tpr -o %s.trr -skip %d' % \
+    (in_md, in_md, temp_md, n_frame),
+    in_md+'.trim.trr',
+    in_fname=bin_input)
+
+print "Convert GRO"
+data.binary(
+    'trjconv', 
+    '-f %s.gro -s %s.tpr -o %s.gro' % \
+    (in_md, in_md, out_md),
+    in_md+'.trim.gro',
+    in_fname=bin_input)
+
+print "Translate COM to origin",
+open(bin_input, 'w').write('System\nSystem\n') 
+data.binary(
+    'trjconv',
+    '-fit translation -f %s.trr -s %s.gro -o %s.trr' % \
+    (temp_md, out_md, out_md),
+    in_md+'.trim.center',
+    in_fname=bin_input)
+
+util.clean_fname(*glob.glob('#*trim*'))
+util.clean_fname(*glob.glob('#*temp*'))

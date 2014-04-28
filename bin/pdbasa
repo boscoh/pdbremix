@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Calculates the Accessible Surface Area of atoms in a PDB file. 
+Algorithm adapted from Rose lab's chasa.py implementation of
+Shrake & Rupley (19743) JMB:351. (c) 2007 Bosco Ho.
+
+Usage: asa.py [-n <n_sphere>] <in_pdb> [<out_pdb>]
+
+  <out_pdb>   PDB file in which the atomic ASA values are written 
+              to the b-factor column.
+  -n <n_sphere>  number of points used in generating the spherical
+              dot-density for the calculation (default=960). The 
+              more points, the more accurate (but slower) the 
+              calculation. 
+"""
+
+from pdbremix.asa import calculate_asa
+from pdbremix import pdbatoms
+from pdbremix.docopt import docopt
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+
+  n_sphere = 960
+  if arg['-n']:
+    n_sphere = int(arg['-n'])
+  print "Points on sphere: ", n_sphere
+
+  mol = pdbatoms.AtomList(arg['<in_pdb>'])
+  atoms = mol.atoms()
+  pdbatoms.add_radii(atoms)
+
+  asas = calculate_asa(atoms, 1.4, n_sphere)
+  print "%.1f angstrom squared." % sum(asas)
+
+  if arg['<out_pdb>']:
+    for asa, atom in zip(asas, atoms):
+      atom.bfactor = asa
+    mol.write_pdb(arg['<out_pdb>'])
+
+    

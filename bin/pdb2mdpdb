@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Looks for topology and restart files with name <md> and
+generates a PDB f0r it.
+
+Usage: pdb2mdpdb <ff> <pdb> 
+"""
+
+import os
+import shutil
+import time
+import random
+
+from pdbremix import util
+from pdbremix import simulate
+from pdbremix import force
+from pdbremix.docopt import docopt
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  pdb = arg['<pdb>']
+  sim = os.path.basename(pdb)
+  top, crds = simulate.pdb_to_topology(arg['<ff>'], pdb, sim)
+  mdpdb = os.path.splitext(pdb)[0] + '.md.pdb'
+  simulate.convert_restart_to_pdb(sim, mdpdb)
+  print "generated:", pdb

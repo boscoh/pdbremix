@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Strips hydrogens from a PDB file
+
+Usage: pdbnoh <pdb> [<out_pdb>]
+"""
+
+from pdbremix import pdbtext
+from pdbremix.docopt import docopt
+
+arg = docopt(__doc__)
+pdb = arg['<pdb>']
+out_pdb = arg['<out_pdb>'] if arg['<out_pdb>'] else pdb
+txt = pdbtext.strip_hydrogens(open(pdb, 'Ur').read())
+open(out_pdb, 'w').write(txt)
+print out_pdb

@@ -1,0 +1,220 @@
+#!/usr/bin/env python
+
+
+__doc__ = """
+Takes a bunch of related PDBS:
+  1. aligns sequence with MAFFT to find conserved residues
+  2. structurally aligns conserved residues with THESEUS
+  3. displays the backbone overlay with PYMOL
+
+Usage: pdboverlay [-h] [<pdb>] ...
+"""
+
+
+import os
+import shutil
+import glob 
+
+from pdbremix import pymol
+from pdbremix.docopt import docopt
+from pdbremix import pdbatoms
+from pdbremix import data
+from pdbremix import v3
+from pdbremix import util
+
+
+def align_pdbs(pdbs):
+  pdbs_str = ' '.join(pdbs)
+
+  print "theseus: get fasta sequences of PDB files..."
+  theseus = data.binary('theseus')
+  data.binary('theseus', ' -F ' + pdbs_str, 'theseus.fasta')
+  fastas = [p+'.fst' for p in pdbs]
+  util.check_files(*fastas)
+
+  with open('theseus.fasta', 'w') as out_f:
+    for in_f in fastas:
+      out_f.write(open(in_f, 'r').read())
+
+  print "mafft: sequence alignment in clustalw format..."
+  mafft = data.binary('mafft')
+  data.binary(
+      'mafft',
+      ' --localpair --maxiterate 1000 --clustalout theseus.fasta > theseus.aln',
+      'mafft')
+  util.check_output('theseus.aln')
+
+  # make theseus.filemap to link sequence ID with PDB
+  lines = ['%s %s' % (pdb, pdb) for pdb in pdbs]
+  open('theseus.filemap', 'w').write('\n'.join(lines))
+
+  # get theseus to do RMSD and optimal rotation of aligned residues
+  data.binary('theseus', ' -M theseus.filemap -A theseus.aln ' + pdbs_str, 'theseus.align')
+  util.check_files(*['theseus_'+p for p in pdbs])
+
+
+def read_clustalw2_aln(aln):
+  """
+  Returns a dictionary, key=seqid, value=alignment.
+  """
+  alignments = {}
+  lines = open(aln).readlines()
+  for line in lines[1:]:
+    if not line.startswith(' '):
+      words = line.split()
+      if len(words) > 1:
+        seqid, alignment = words
+        if seqid not in alignments:
+          alignments[seqid] = ""
+        alignments[seqid] += alignment
+  return alignments
+  
+    
+def convert_alignment_to_residue_map(align):
+  residue_map = []
+  i_res_in_seqid = 0
+  for i, c in enumerate(align):
+    if c != '-':
+      residue_map.append(i_res_in_seqid)
+      i_res_in_seqid += 1
+    else:
+      residue_map.append(-1)
+  return residue_map
+    
+
+def get_ca_pos(res, aa):
+  if res.type not in data.res_name_to_char:
+    return None
+  r = data.res_name_to_char[res.type]
+  if aa != r:
+    return None
+  if not res.has_atom("CA"):
+    return None
+  return res.atom("CA").pos
+
+
+def get_ca_positions_at_i(alignments, residue_map, soups, i):
+  positions = []
+  for seqid in alignments:
+    i_res_in_seqid = residue_map[seqid][i]
+    if i_res_in_seqid < 0:
+      continue
+    res = soups[seqid].residue(i_res_in_seqid)
+    if res.type not in data.res_name_to_char:
+      continue
+    aa = alignments[seqid][i]
+    if data.res_name_to_char[res.type] != aa:
+      continue
+    if not res.has_atom("CA"):
+      continue
+    positions.append(res.atom("CA").pos)
+  return positions
+
+
+def get_residue_pos_deviation_of_soup(
+    av_pos_list, residue_map, soup):
+  b_vals = [0 for i in range(soup.n_residue())]
+  for i_align, i_residue in enumerate(residue_map):
+    if i_residue > -1:
+      r = soup.residue(i_residue)
+      av_pos = av_pos_list[i_align]
+      if av_pos is not None and r.has_atom("CA"):
+        d = v3.distance(av_pos, r.atom("CA").pos)
+        b_vals[i_residue] = d
+      else:
+        b_vals[i_residue] = None
+  for i in range(len(b_vals)):
+    if b_vals[i] is None:
+      b_vals[i] = -1
+  return b_vals
+
+
+def make_rmsd_bfactor_pdbs(clustalw_aln, pdbs):
+  alignments = read_clustalw2_aln(clustalw_aln)
+  soups = {}
+  for seqid in alignments:
+    soups[seqid] = pdbatoms.Polymer('theseus_' + seqid)
+  residue_map = {}
+  for seqid in alignments:
+    residue_map[seqid] = convert_alignment_to_residue_map(
+        alignments[seqid])
+
+  av_pos_list = []
+  n_align = len(alignments.values()[0])
+  cutoff = 0.75*len(alignments)
+  for i in range(n_align):
+    positions = get_ca_positions_at_i(
+        alignments, residue_map, soups, i)
+    n = len(positions)
+    if n >= cutoff:
+      av_pos = sum(positions)
+      av_pos = v3.scale(av_pos, 1.0/float(n))
+    else:
+      av_pos = None
+    av_pos_list.append(av_pos)
+
+  for seqid in alignments:
+    soup = soups[seqid]
+    this_residue_map = residue_map[seqid]
+    b_vals = get_residue_pos_deviation_of_soup(
+        av_pos_list, this_residue_map, soup)
+    soup.load_residue_bfactors(b_vals)
+    pdb = pdbs[int(seqid[:-4])]
+    soup.write_pdb(pdb)
+    print "Made", pdb
+          
+
+def pymol_script(pdbs):
+  script = pymol.bgcolor_script('black')
+  script += pymol.load_pdbs_script(pdbs)
+  script += pymol.red_white_gradient_script()
+  script += pymol.cartoon_script
+  script += "cartoon tube\n"
+  script += "set cartoon_tube_radius, 0.2\n"
+  script += "set cartoon_loop_radius, 0.2\n"
+  script += "set cartoon_rect_width, 0.2\n"
+  script += "set cartoon_oval_width, 0.2\n"
+  script += "color blue, b<0\n"
+  script += pymol.ligands_as_sticks_script(pdbs, 'green')
+  script += "hide everything, resn HOH\n"
+  return script
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+
+  is_processed = False
+  if arg['<pdb>']:
+    fnames = [os.path.abspath(f) for f in arg['<pdb>']]
+    util.check_files(*fnames)
+    if os.path.isfile('pdboverlay/filelist.txt'):
+      saved_fnames = util.words_in_file('pdboverlay/filelist.txt')
+      if set(saved_fnames) == set(fnames):
+        is_processed = True
+      else:
+        util.clean_fname('pdboverlay')
+  else:
+    if os.path.isfile('pdboverlay/filelist.txt'):
+      fnames = util.words_in_file('pdboverlay/filelist.txt')
+      is_processed = True
+
+  util.goto_dir('pdboverlay')
+  pdbs = [os.path.basename(f) for f in fnames]
+
+  if not is_processed:
+    numbered_pdbs = ['%d.pdb' % i for i in range(len(fnames))]
+    for f, temp_f in zip(fnames, numbered_pdbs):
+      shutil.copy(f, temp_f)
+    align_pdbs(numbered_pdbs)
+    make_rmsd_bfactor_pdbs('theseus.aln', pdbs)
+    rescaled_pdbs, max_bfactor = \
+        pymol.rescale_positive_bfactors_of_pdbs(pdbs, 0, 15)
+    for pdb, rescaled_pdb in zip(pdbs, rescaled_pdbs):
+      os.remove(pdb)
+      os.rename(rescaled_pdb, pdb)
+    open('filelist.txt', 'w').write(' '.join(fnames))
+
+  if not arg['-h']:
+    open('overlay.pml', 'w').write(pymol_script(pdbs))
+    pymol.run_pymol_script('overlay.pml')
+  

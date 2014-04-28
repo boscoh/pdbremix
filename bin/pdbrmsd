@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Calculates RMSD of CA atoms between 2 PDB structures
+& generates the optimal superposition.
+(c) 2014, 2007 Bosco Ho
+
+Usage: pdbrmsd [-o <transform_pdb1>] <pdb1> <pdb2> [<segments1>] [<segments2>]
+
+Options:
+  -o <transform_pdb1>  PDB with the optimal superposition of pdb1 to pdb2,
+                       if not selected, optimal rotation will not
+                       be calculated
+
+  <segments1>  string that encodes the residues to be matched from pdb1,
+               if none given, all residues are considered
+
+  <segments2>  string encoding residues from pdb2, if not given,
+               assumed to be same as segments1
+
+  format of the segments string: 
+    - e.g. "A:5-A:10 B:3-B:19" gives two discrete segments on
+      chain A and on chain B, there are no spaces between the '-' characters
+    - the ":" character is optional if there are no chain identifiers
+    - insertions at the end of the residue tag "A:335E"
+"""
+
+
+from pdbremix import rmsd
+from pdbremix.docopt import docopt
+
+
+def segments_str(segments, atom_types):
+  if not segments:
+    s = 'all residues containing'
+  else:
+    pairs = []
+    for i, j in segments:
+      if i == j:
+        pairs.append(str(i))
+      else:
+        pairs.append("%s-%s" % (i,j))
+    s = 'residues ' + ', '.join(pairs)
+  return '%s containing %s atoms' % (s, ','.join(atom_types))
+  
+
+if __name__ == '__main__':
+  arg = docopt(__doc__)
+  pdb1 = arg['<pdb1>']
+  pdb2 = arg['<pdb2>']
+  transform_pdb1 = arg['-o']
+  atom_types = ['CA']
+  segments1 = []
+  if arg['<segments1>']:
+    for seg in arg['<segments1>'].split():
+      segments1.append(seg.split('-'))
+  segments2 = []
+  if not arg['<segments2>']:
+    segments2 = segments1
+  else:
+    for seg in arg['<segments2>'].split():
+      segments2.append(seg.split('-'))
+  print "%s: %s" % (pdb1, segments_str(segments1, atom_types))
+  print "%s: %s" % (pdb2, segments_str(segments2, atom_types))
+  if transform_pdb1:
+    print "Superposition %s->%s: %s" % (pdb1, pdb2, transform_pdb1)
+  calculated_rmsd = rmsd.rmsd_of_pdbs(
+    pdb1, pdb2, segments1, segments2, atom_types, transform_pdb1)
+  print "RMSD: %.3f" % calculated_rmsd
+
+

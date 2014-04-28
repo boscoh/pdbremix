@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Load AMBER, GROMACS or NAMD trajectories into CHIMERA
+
+Usage: trajchim [-c] [-e] <md> [<residue>]
+
+Options:
+  -c  CPK
+  -e  stick and ribbons
+  <residue>  focus on this residue
+"""
+
+import sys
+import os
+from pdbremix.docopt import docopt
+from pdbremix import data
+from pdbremix import util
+
+basic_script = """
+open movie:%(load_fname)s
+repr stick
+ribbon
+ribrepr edged
+~display H
+color byelement
+clip yon 10
+start Side View
+setattr m stickScale 2
+""" 
+
+stick_script = """
+~ribbon
+repr wire
+display
+display @H,H1,H2,H3,HH31,HH32,HH33
+represent stick :1-5000
+represent sphere @CA,N,H,C,O,OXT,CH3,HH31,HH32,HH33,H1,H2,H3,O1,O2,HT1,HT2,HT3,HA,OT1,OT2
+repr wire :TIP3
+repr wire :SOL
+"""
+
+residue_script = """
+focus :%(residue)s
+select :%(residue)s
+scale 0.25
+display :%(residue)s
+"""
+
+
+arg = docopt(__doc__, sys.argv[1:])
+
+working_dir, base = os.path.split(arg['<md>'])
+if working_dir:
+  os.chdir(working_dir)
+
+if os.path.isfile(base + '.psf'):
+  top = base + '.psf'
+  sim_type = "namd"
+  trj = base + ".dcd"
+elif os.path.isfile(base + '.tpr'):
+  top = base + '.tpr'
+  sim_type = "gromacs"
+  trj = base + ".trr"
+elif os.path.isfile(base + '.top'):
+  top = base + '.top'
+  sim_type = "amber"
+  trj = base + ".trj"
+else:
+  raise Exception("Can't find any molecular trajectories.")
+
+print "Detected", sim_type.upper(), "trajectory"
+
+load_fname = base + '.chimera.load'
+load_script = "\n".join([sim_type, top, trj, ""])
+open(load_fname, 'w').write(load_script)
+
+chimera_script = basic_script % {'load_fname': load_fname }
+if arg['-c']:
+  chimera_script = chimera_script.replace('repr stick', 'repr cpk')
+if arg['-e']:
+  chimera_script += stick_script
+if arg['<residue>']:
+  chimera_script += residue_script % {'residue': arg['<residue>']}
+
+chimera = data.binary("chimera")
+chimera_fname = base + '.chimera.cmd'
+open(chimera_fname, "w").write(chimera_script)
+os.system(chimera + ' ' + chimera_fname)
+
+util.clean_fname(chimera_fname, load_fname)
+
+

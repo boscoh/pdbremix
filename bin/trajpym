@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Displays an AMBER MD trajectory using PYMOL
+*Not recommended for large systems
+Defaults to cartoon w/stick sidechains and no hydrogens
+
+Usage: trajpymol [-fdeb <bgcolor>] <md> [<res>]
+
+Options:
+  -f   show all atoms, including hydrogens
+  -d   show dot density of the atoms
+  -e   show backbone in sphere, sidechain in stick
+  -b <bgcolor>  background color
+  <md>   name of trajectory, assumes md.top and md.trj
+  <res>  highlight this residue in sequential numbering, starting from 1
+"""
+
+
+import os
+from pdbremix.docopt import docopt
+from pdbremix import traj
+from pdbremix import data
+
+
+basic_script = """
+load %(md)s.top
+load %(md)s.trj
+hide
+select backbone, name c+o+n+h+oxt
+deselect
+"""
+
+cartoon_script = """
+show sticks
+hide sticks, backbone
+hide sticks, hydro
+set cartoon_flat_sheets, 0
+set cartoon_loop_radius, 0.4
+show cartoon
+"""
+
+dot_density_script = """
+show dots
+set dot_density, 2
+"""
+
+peptide_script = """
+select bb, name ca+n+h+o+c+oxt+h1+h2+h3+ch3+hh31+hh32+hh33+3hh3+2hh3+1hh3
+show sphere, bb
+hide stick, bb
+util.cbaw bb
+select sc, not bb and not hydro
+show stick, sc
+hide sphere, sc
+util.cbag sc
+set sphere_quality, 2
+deselect
+"""
+
+grey_carbon_script = """
+util.cba(29,"%(name)s")
+"""
+
+select_residue_script = """
+select x, resi %(res)s
+util.cba(26, 'x') # 26=gree, 154=pink
+center x
+hide sticks, hydro or not x
+select neighbors, (byres center around 5)
+show sticks, neighbors and not backbone and not hydro
+deselect
+"""
+
+
+def secondary_structure_in_frames_script(md):
+  n_frame = traj.open_trajectory(md).n_frame
+  ss_lines = ['dss all, %s\n' % (i+1) for i in range(n_frame)]
+  return ''.join(ss_lines)
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  md = arg['<md>']
+  path, name = os.path.split(md)
+  if not os.path.isfile(md+'.top') or not os.path.isfile(md+'.trj'):
+    raise Exception("Can't find AMBER trajectory files for " + md)
+
+  script = basic_script % { 'md':md }
+  if arg['-f']:
+    script += "show sticks\n"
+  else:
+    script += cartoon_script
+  if arg['-d']:
+    script += dot_density_script
+    if not arg['-f']:
+      script += "hide dots, backbone\n"
+  if arg['-e']:
+    script += peptide_script
+  script += grey_carbon_script % {'name':name}
+  if arg['-b']:
+    script += "cmd.bg_color('%s')\n" % arg['-b']
+  script += secondary_structure_in_frames_script(md)
+  if arg['<res>']:
+    script += select_residue_script % { 'res':arg['<res>'] }
+
+  pymol = data.binary("pymol")
+  fname = md + '.pml'
+  open(fname, "w").write(script)
+  os.system(pymol + " " + fname + "  > /dev/null")
+  if os.path.isfile(fname):
+    os.remove(fname)
+

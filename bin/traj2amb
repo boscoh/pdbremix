@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Usage: traj2amb <md> 
+"""
+
+import glob
+from pdbremix import util
+from pdbremix import amber
+from pdbremix import traj
+from pdbremix.docopt import docopt
+
+
+arg = docopt(__doc__)
+md = arg['<md>']
+amber_md = md + '.amber'
+amber_top = amber_md + '.top'
+amber_crd = amber_md + '.crd'
+amber_trj = amber_md + '.trj'
+frame_pdb = md + '.frame.pdb'
+
+input_traj = traj.open_trajectory(md)
+
+# create the amber trajectory 
+amber_traj = open(amber_trj, 'w')
+amber_traj.write(' '.center(80, ' ') + '\n')
+for i in range(input_traj.n_frame):
+  print('frame %i' % i)
+  input_traj.load_frame(i)
+  input_traj.soup.write_pdb(frame_pdb)
+  amber.pdb_to_topology('AMBER11-GBSA', frame_pdb, amber_md)
+  frame = amber.convert_crd_to_trj_frame(amber_crd)
+  amber_traj.write(frame)
+amber_traj.close()
+
+util.clean_fname(amber_crd, frame_pdb)
+util.clean_fname(*glob.glob(amber_md + '*tleap*'))
+

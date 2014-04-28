@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+
+
+__doc__ = """
+Inserts a loop after <resname> with <seq>. Uses modeller to make
+five best loops. All the results are saved in the directory <name>.
+
+Usage: pdbinsert <pdb> <name> [<resname> <seq>] ...
+"""
+
+
+import os
+import glob
+
+from pdbremix.docopt import docopt
+from pdbremix import pdbatoms
+from pdbremix import data
+from pdbremix import pdbtext
+from pdbremix import util
+
+
+def format_string(s, width=60):
+  len_seq = len(s)
+  result = ""
+  for i in range(0, len_seq, width):
+    result += s[i:i + width] + '\n'
+  return result
+  
+
+def make_align(
+    align_file, pdb, initial_name, target_name,
+    template_seq, target_seq):
+  f = open(align_file, 'w')
+  f.write('C; alignment in the PIR format\n')
+
+  f.write('\n>P1;' + initial_name + '\n')
+  protein = pdbatoms.Polymer(pdb)
+  chain1 = protein.residue(0).chain_id
+  res_num1 = protein.residue(0).num
+  n = protein.n_residue()
+  i = n-1
+  chain2 = protein.residue(i).chain_id
+  res_num2 = protein.residue(i).num
+  f.write('structureX:' + pdb.replace('.pdb', '') + ':%d:%s:%d:%s::::\n' % \
+          (res_num1, chain1, res_num2, chain2))
+  f.write(format_string(template_seq))
+
+  f.write('\n>P1;' + target_name + '\n')
+  f.write('sequence:' + target_name + '::::::::\n')
+  f.write(format_string(target_seq))
+
+  f.close()
+
+
+modeller = """
+# Homology modeling by the automodel class
+from modeller import *
+from modeller.automodel import *    # Load the automodel class
+
+log.verbose()
+env = environ()
+
+# directories for input atom files
+env.io.atom_files_directory = ['.']
+
+a = loopmodel(
+    env,
+    alnfile  = 'align.ali',     # alignment filename
+    knowns   = 'in_pdb',              # codes of the templates
+    sequence = 'out_target')              # code of the target
+a.starting_model= 1                 # index of the first model
+a.ending_model  = 1                 # index of the last model
+                                    # (determines how many models to calculate)
+a.md_level = None                   # No refinement of model
+
+a.loop.starting_model = 1           # First loop model
+a.loop.ending_model   = n_loop      # Last loop model
+a.loop.md_level       = refine.fast # Loop model refinement level
+
+a.make()                            # do homology modeling
+"""
+
+def model_loop(
+    align_file, template_seq, 
+    initial_name, target_name, n_loop=4):
+    
+  loops = []
+  is_loop = False
+  for i in range(len(template_seq)):
+    if not is_loop and template_seq[i] == "-":
+      is_loop = True
+      loops.append([i+1, None])
+    if is_loop and template_seq[i] != "-":
+      loops[-1][1] = i
+      is_loop = False
+  loop_strs = \
+      ["self.residue_range('%d', '%d')" % (x,y)
+       for x,y in loops]
+  loop_str = ', '.join(loop_strs)
+    
+  script = modeller.replace('in_pdb', initial_name)
+  script = script.replace('out_target', target_name)
+  script = script.replace('align.ali', align_file)
+  script = script.replace('n_loop', str(n_loop))
+  script = script.replace('loops', loop_str)
+
+  py_name = target_name + '.py'
+  f = open(py_name,'w')
+  f.write(script)
+  f.close()
+  
+  data.binary('mod9v8', py_name, target_name+'.modeller')
+
+
+def match_pair(in_res_id, pairs):
+  for res_id, seq in pairs:
+    if res_id == in_res_id:
+      return res_id, seq
+  return '', ''
+  
+  
+def make_templates(
+    raw_pdb, pdb, insertions):
+  p = pdbatoms.Polymer(raw_pdb)
+  template_seq = ""
+  target_seq = ""
+  # must do reversed because deleting residues needs
+  # to start from the end in order for the indices not
+  # to get screwed up
+  for i in reversed(range(len(p.residues()))):
+    residue = p.residue(i)
+    res_id = residue.name()
+
+    insert_res_id, insert_seq = match_pair(res_id, insertions)
+    if insert_res_id:
+      print "test (%s)==(%s)" % (res_id, insertions)
+      blank_seq = "-"*len(insert_seq)
+      template_seq = blank_seq + template_seq
+      target_seq = insert_seq + target_seq
+
+    if residue.type in data.res_name_to_char:
+      c = data.res_name_to_char[residue.type]
+      template_seq = c + template_seq
+      target_seq = c + target_seq
+    else:
+      template_seq = '.' + template_seq
+      target_seq = '.' + target_seq
+
+    if (i>0):
+      chain_id = p.residue(i).chain_id
+      prev_chain_id = p.residue(i-1).chain_id
+      if chain_id != prev_chain_id:
+        template_seq = '/' + template_seq
+        target_seq = '/' + target_seq
+
+  template_seq += "*"
+  target_seq += "*"
+  
+  f = open(pdb.replace('.pdb', '.resid'), 'w')
+  i = 0
+  for a, b in zip(template_seq, target_seq):
+    if a=="*" or a=="/":
+      break
+    if a != "-":
+      chain_id = p.residue(i).chain_id
+      num = p.residue(i).num
+      res_type = p.residue(i).type
+      i += 1
+    else:
+      res_type = data.res_char_to_name[b]
+      num += 1
+    f.write("%s:%d %s\n" % (chain_id, num, res_type))
+  f.close()
+  
+  p.write_pdb(pdb)  
+  
+  return template_seq, target_seq
+
+
+def make_summary_text(name):
+  tag = name + '.DL*'
+  f = open(name + '.energy.txt', 'w')
+  energies = []
+  for fname in glob.glob(tag):
+    lines = open(fname, 'r').readlines()
+    for l in reversed(lines):
+      if l:
+        words = l.split()
+        s = ' '.join(words)
+        f.write(fname + ': ' + s + '\n')
+        energies.append((float(words[1]), fname))
+        break
+  f.close()
+  energies.sort()
+  fname = energies[0][1].replace('DL', 'BL') + '.pdb'
+
+  init_pdb = fname
+  out_pdb = '%s.pdb' % (name)
+  p = pdbatoms.Polymer(init_pdb)
+  resids = [l.split()[0] for l in open(name + '.init.resid')]
+  for resid, r in zip(resids, p.residues()):
+    chain_id, num = resid.split(":")
+    num = int(num)
+    r.set_chain_id(chain_id)
+    r.set_num(num)
+  p.write_pdb(out_pdb)  
+        
+  
+def process_pdb(raw_pdb, target_name, insertions):
+  """
+  insertions: list of pairs, each pair 
+  [('B:23', 'Q')] insertion point and insert
+  """
+  clean_pdb = target_name + '.clean.pdb'
+  pdbtext.clean_pdb(raw_pdb, clean_pdb)
+  pdb = target_name + '.init.pdb'
+  template_seq, target_seq = make_templates(
+      clean_pdb, pdb, insertions)
+  initial_name = 'init'
+  align_file = target_name + '.ali'
+  make_align(
+      align_file, pdb, initial_name, target_name,
+      template_seq, target_seq)
+  model_loop(
+      align_file, template_seq, initial_name, target_name)
+  make_summary_text(target_name)
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  pdb = os.path.abspath(arg['<pdb>'])
+  name = arg['<name>']
+  insertions = list(zip(arg['<resname>'], arg['<seq>']))
+  print "inputs", pdb, name, insertions
+  util.goto_dir(name)
+  process_pdb(pdb, 'go', insertions)
