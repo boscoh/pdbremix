@@ -1,5 +1,6 @@
 import v3
 import pdbatoms
+import lib.pyqcprot
 
 try:
   import numpy as np
@@ -7,8 +8,15 @@ except:
   raise Exception("Can't use RMSD routines without NUMPY.")
 
 
-def rmsd(in_crds1, in_crds2):
-  """Returns RMSD between 2 sets of [nx3] np array"""
+def numpy_svd_rmsd_rot(in_crds1, in_crds2):
+  """
+  Returns best transform m between two sets of [nx3] arrays.
+  
+  Requires numpy
+
+  Returns RMSD between 2 sets of [nx3] np array
+  Direction: transform(m, ref_crd) => target_crd.
+  """
 
   crds1 = np.array(in_crds1)
   crds2 = np.array(in_crds2)
@@ -19,37 +27,31 @@ def rmsd(in_crds1, in_crds2):
   correlation_matrix = np.dot(np.transpose(crds1), crds2)
   v, s, w = np.linalg.svd(correlation_matrix)
   is_reflection = (np.linalg.det(v) * np.linalg.det(w)) < 0.0
+
   if is_reflection:
     s[-1] = - s[-1]
   E0 = sum(sum(crds1 * crds1)) + \
        sum(sum(crds2 * crds2))
   rmsd_sq = (E0 - 2.0*sum(s)) / float(n_vec)
   rmsd_sq = max([rmsd_sq, 0.0])
-  return np.sqrt(rmsd_sq)
+  rmsd = np.sqrt(rmsd_sq)
 
-
-def superposition(in_ref_crds, in_target_crds):
-  """
-  Returns best transform m between two sets of [nx3] arrays.
-  
-  Direction: transform(m, ref_crd) => target_crd.
-  """
-  ref_crds = np.array(in_ref_crds)
-  target_crds = np.array(in_target_crds)
-  assert(ref_crds.shape[1] == 3)
-  assert(ref_crds.shape == target_crds.shape)
-
-  correlation_matrix = np.dot(np.transpose(ref_crds), target_crds)
-  v, s, w = np.linalg.svd(correlation_matrix)
-  is_reflection = (np.linalg.det(v) * np.linalg.det(w)) < 0.0
   if is_reflection:
     v[-1,:] = -v[-1,:]
-
   rot33 = np.dot(v, w)
   m = v3.identity()
   m[:3,:3] = rot33.transpose()
 
-  return m
+  return rmsd, m
+
+
+def fast_rmsd_rot(crds1, crds2):
+  rms, rot9 = pyqcprot.calc_rms_rot(crds1, crds2)
+  matrix = v3.identity()
+  for i in range(3):
+    for j in range(3):
+       v3.matrix_elem(matrix, i, j, rot9[i*3+j])
+  return rms, matrix
 
 
 def sum_rmsd(crds1, crds2):
@@ -97,10 +99,11 @@ def rmsd_of_pdbs(
   polymer1.transform(v3.translation(-center1))
   polymer2.transform(v3.translation(-center2))
 
-  if not transform_pdb1:
-    return rmsd(crds1, crds2)
+  rmsd, transform_1_to_2 = numpy_svd_rmsd_rot(crds1, crds2)
 
-  transform_1_to_2 = superposition(crds1, crds2)
+  if not transform_pdb1:
+    return rmsd
+
   polymer1.transform(transform_1_to_2)
 
   polymer1.transform(v3.translation(center2))
