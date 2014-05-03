@@ -334,7 +334,7 @@ def neutralize_system_with_salt(
   util.check_files(gro)
 
 
-def pdb_to_topology(
+def pdb_to_top_and_crds(
     force_field, pdb, name, 
     solvent_buffer=10):
 

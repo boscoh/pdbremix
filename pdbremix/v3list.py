@@ -1,5 +1,6 @@
 import math
 import random
+from array import array
 
 
 def radians(degrees):
@@ -10,9 +11,9 @@ def degrees(radians):
   return 180.0 / math.pi*degrees * radians
 
 
-class Vec3(list):
-  def __init__(self, x=0, y=0, z=0):
-    return list.__init__(self, (x,y,z))
+class Vec3(array):
+  def __new__(cls, x=0, y=0, z=0):
+    return array.__new__(cls, 'd', (x,y,z))
 
   def __repr__(self):
     return "Vec3(%f, %f, %f)" % (self[0], self[1], self[2])

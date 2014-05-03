@@ -20,11 +20,11 @@ def get_md_module(force_field):
     raise ValueError, "unrecognized force-field" + force_field
 
 
-def pdb_to_topology(
+def pdb_to_top_and_crds(
     force_field, raw_pdb, md_name, solvent_buffer=10.0):
   "Returns topology and coordinate fnames"
   md_module = get_md_module(force_field)
-  top, crd = md_module.pdb_to_topology(
+  top, crd = md_module.pdb_to_top_and_crds(
       force_field, raw_pdb, md_name, solvent_buffer)
   return os.path.abspath(top), os.path.abspath(crd)
     

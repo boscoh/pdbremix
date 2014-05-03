@@ -23,7 +23,7 @@ save_dir = os.getcwd()
 
 def prepare_for_md():
   util.goto_dir(sim_dir)
-  top, crds = simulate.pdb_to_topology(ff, pdb, 'sim')
+  top, crds = simulate.pdb_to_top_and_crds(ff, pdb, 'sim')
   util.goto_dir('min')
   top, crds, vels = simulate.get_restart_files('../sim')
   simulate.minimize(ff, top, crds, 'min')

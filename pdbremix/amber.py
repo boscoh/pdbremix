@@ -254,7 +254,7 @@ def disulfide_script_and_rename_cysteines(in_pdb, out_pdb):
   return script
 
 
-def pdb_to_topology(
+def pdb_to_top_and_crds(
     force_field, pdb, name, solvent_buffer=0.0): 
   "Convert a .pdb file into amber .top and .crd file."
   util.check_output(pdb)

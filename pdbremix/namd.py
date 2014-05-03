@@ -307,7 +307,7 @@ def make_disulfide_script(soup):
   return script
 
 
-def pdb_to_topology(
+def pdb_to_top_and_crds(
     force_field, pdb, name,
     solvent_buffer=10.0): 
   """
