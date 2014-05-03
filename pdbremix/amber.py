@@ -78,18 +78,6 @@ def read_top(top):
   return topology
 
 
-def guess_element_from_atom_type(atom_type):
-  element = ""
-  for c in atom_type:
-    if not c.isdigit() and c != " ":
-      element += c
-  if element[:2] in pdbatoms.two_char_elements:
-    element = element[:2]
-  else:
-    element = element[0]  
-  return element
-
-
 def soup_from_topology(topology):
   soup = pdbatoms.Polymer()
   chain_id = ''
@@ -118,7 +106,8 @@ def soup_from_topology(topology):
       atom.type = topology['ATOM_NAME'][i_atom].strip()
       atom.mass = topology['MASS'][i_atom]
       atom.charge = topology['CHARGE'][i_atom]
-      atom.element = guess_element_from_atom_type(atom.type)
+      atom.element = pdbatoms.guess_element(
+          atom.res_type, atom.type)
       soup.insert_atom(-1, atom)
   # TODO detect chains
   return soup

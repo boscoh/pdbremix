@@ -2,6 +2,7 @@ import v3
 import copy
 import string
 
+import data
 
 class Atom:
   def __init__(
@@ -115,32 +116,44 @@ def cmp_atom(a1, a2):
 
 
 radii = { 
- 'H': 1.20,
- 'N': 1.55,
+ 'H':  1.20,
+ 'N':  1.55,
  'NA': 2.27,
  'CU': 1.40,
  'CL': 1.75,
- 'C': 1.70,
- 'O': 1.52,
- 'I': 1.98,
- 'P': 1.80,
- 'B': 1.85,
+ 'C':  1.70,
+ 'O':  1.52,
+ 'I':  1.98,
+ 'P':  1.80,
+ 'B':  1.85,
  'BR': 1.85,
- 'S': 1.80,
+ 'S':  1.80,
  'SE': 1.90,
- 'F': 1.47,
+ 'F':  1.47,
  'FE': 1.80,
  'K':  2.75,
  'MN': 1.73,
  'MG': 1.73,
  'ZN': 1.39,
- 'HG': 1.8,
- 'XE': 1.8,
- 'AU': 1.8,
- 'LI': 1.8,
- '.': 1.8
+ 'HG': 1.80,
+ 'XE': 1.80,
+ 'AU': 1.80,
+ 'LI': 1.80,
+ '.':  1.80
 }
 two_char_elements = [e for e in radii.keys() if len(e) == 2]
+
+
+def guess_element(res_type, atom_type):
+  if res_type in data.res_name_to_char:
+    return atom_type[0]
+  element = ""
+  for c in atom_type:
+    if not c.isdigit() and c != " ":
+      element += c
+  if len(element) == 2 and element in two_char_elements:
+    return element
+  return element[0]  
 
 
 def add_radii(atoms):

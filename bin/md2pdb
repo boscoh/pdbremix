@@ -38,4 +38,6 @@ if __name__ == "__main__":
   vels = relpath(vels)
   simulate.convert_restart_to_pdb(md, pdb)
   print "restart-files:", top, crds, vels 
+  soup = simulate.soup_from_restart_files(top, crds, vels)
+  print "elements", ' '.join(set([a.element for a in soup.atoms()]))
   print "generated:", pdb

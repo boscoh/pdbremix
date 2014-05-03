@@ -6,7 +6,6 @@
   "mafft": "mafft",
 
   "sander": "sander",
-  "ambpdb": "ambpdb",
   "tleap": "tleap",
 
   "mdrun": "mdrun",

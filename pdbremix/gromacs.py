@@ -129,14 +129,8 @@ def AtomFromGroLine(line):
   atom.res_num = int(line[0:5])
   atom.res_type = line[5:8]
   atom.type = line[10:15].strip(" ")
-  element = ''
-  for c in line[12:15]:
-    if not c.isdigit() and c != " ":
-      element += c
-  if element[:2] in pdbatoms.two_char_elements:
-    atom.element = element[:2]
-  else:
-    atom.element = element[0]
+  atom.element = pdbatoms.guess_element(
+      atom.res_type, line[12:15])
   atom.num = int(line[15:20])
   x = 10.0*float(line[20:28])
   y = 10.0*float(line[28:36])
