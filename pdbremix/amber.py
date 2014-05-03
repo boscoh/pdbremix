@@ -105,7 +105,7 @@ def soup_from_topology(topology):
         atom.is_hetatm = True
       atom.type = topology['ATOM_NAME'][i_atom].strip()
       atom.mass = topology['MASS'][i_atom]
-      atom.charge = topology['CHARGE'][i_atom]
+      atom.charge = topology['CHARGE'][i_atom]/18.2223
       atom.element = pdbatoms.guess_element(
           atom.res_type, atom.type)
       soup.insert_atom(-1, atom)
@@ -254,8 +254,8 @@ def disulfide_script_and_rename_cysteines(in_pdb, out_pdb):
   return script
 
 
-def pdb_to_top_and_crds(
-    force_field, pdb, name, solvent_buffer=0.0): 
+def run_tleap(
+    force_field, pdb, name, solvent_buffer=0.0, excess_charge=0): 
   "Convert a .pdb file into amber .top and .crd file."
   util.check_output(pdb)
   tleap_pdb = pdb.replace('.pdb', '.tleap.pdb')
@@ -291,11 +291,19 @@ def pdb_to_top_and_crds(
   script += "pdb = loadpdb %(pdb)s\n"
   script += disulfide_script_and_rename_cysteines(tleap_pdb, tleap_pdb)
   util.check_output(tleap_pdb)
+
   if 'GBSA' not in force_field:
+    if excess_charge != 0:
+      if excess_charge > 0:
+        script += "addions pdb Cl- 0\n"
+      else:
+        script += "addions pdb Na+ 0\n"
     solvent_buffer = 10
     params['solvent_buffer'] = solvent_buffer
     script += explicit_water_box_script
+
   script += save_and_quit_script
+
   script = script % params
 
   tleap_in = name + ".tleap.in"
@@ -308,10 +316,23 @@ def pdb_to_top_and_crds(
   util.check_output(top)
   util.check_output(crd)
 
-  convert_restart_to_pdb(name, name+'.pdb')
-
   return top, crd
   
+
+def pdb_to_top_and_crds(
+    force_field, pdb, name, solvent_buffer=0.0): 
+  top, crd = run_tleap(
+      force_field, pdb, name, solvent_buffer, 0)
+  if 'GBSA' not in force_field:
+    # redo for counterions
+    charges = read_top(name+'.top')['CHARGE']
+    charge = int(round(sum(charges)/18.2223))
+    if charge != 0:
+      top, crd = run_tleap(
+          force_field, pdb, name, solvent_buffer, charge)
+  convert_restart_to_pdb(name, name+'.pdb')
+  return top, crd
+
 
 # Simulation routines
 

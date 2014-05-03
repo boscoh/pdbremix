@@ -626,25 +626,23 @@ class DcdReader:
     
     self._file = open(fname, 'rb')
 
-    # Read header size, should be 84 bytes
+    # Read header, should be 84 bytes
     if self._read_fmt_val('i') != 84:
       raise Exception("DCD: 1st integer is not 84, the size of header")
+
     if self._read_fmt_vals('4c') != ('C', 'O', 'R', 'D') :
      raise Exception("DCD: Missing CORD tag string")
 
     self.n_frame = self._read_fmt_val('i') 
-
     self.i_start = self._read_fmt_val('i')
-
     self.n_step_save = self._read_fmt_val('i')
-
     # skip some 
     self._read_fmt_val('5i')
     self.n_fixed_atom = self._read_fmt_val('i')
-
     self.timeStep = self._read_fmt_val('d')
 
     self._read_fmt_vals('9i')
+
     if self._read_fmt_val('i') != 84 :
       raise Exeption("DCD: couldn't find ending 84 of the header")
 
@@ -717,7 +715,7 @@ class DcdReader:
     size_rest_of_file = last_pos - self.pos_after_header
     implied_size_frame = size_rest_of_file / self.n_frame
     self.extra_block_size = implied_size_frame - self.size_frame 
-    if self.extra_block_size:
+    if self.extra_block_size > 0:
       self.size_frame += self.extra_block_size
 
   def _read_fmt_vals(self, fmt):

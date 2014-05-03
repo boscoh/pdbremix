@@ -39,7 +39,8 @@ def vector(*args):
   if len(args) == 0:
     return Vec3(0, 0, 0)
   elif len(args) == 1:
-    return Vec3(*args[0])
+    v = args[0]
+    return Vec3(v[0], v[1], v[2])
   elif len(args) == 3:
     return Vec3(*args)
   else:

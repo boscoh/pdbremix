@@ -114,7 +114,7 @@ def combine(m1, m2):
 
 
 
-# common to v3list and v3numpy
+# common to v3array and v3numpy
 
 
 def parallel(v, axis):

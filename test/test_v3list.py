@@ -1,4 +1,4 @@
-from pdbremix import v3list as v3
+from pdbremix import v3array as v3
 
 
 def test_vector_make():

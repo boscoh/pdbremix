@@ -30,7 +30,7 @@ import data
 #
 # We will always solvate, use periodic 
 # boundaries and Particle Ewald Mesh.
-3
+#
 # topology: sim.top
 # coordinates/velocities/restart : sim.gro
 #
@@ -246,22 +246,6 @@ def write_soup_to_crds_and_vels(soup, name):
   write_soup_to_gro(soup, name + '.gro')
   return name + '.gro', ''
   
-
-def convert_to_pdb(gro, pdb):
-  data.binary('editconf', '-f %s -o %s' % (editconf, gro, pdb), gro)
-  # fix the naming conflict with ILE CD
-  lines = open(pdb, 'r')
-  new_lines = []
-  for l in lines:
-    res = l[17:20]
-    atom = l[13:16]
-    if res == "ILE" and atom == "CD ":
-      new_l = l[:13] + "CD1" + l[16:]
-    else:
-      new_l = l
-    new_lines.append(new_l)
-  open(pdb, 'w').write(''.join(new_lines))
-
 
 # Routines to generate topology and gro files
 
