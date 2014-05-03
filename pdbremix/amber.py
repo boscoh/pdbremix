@@ -13,6 +13,7 @@ import os
 import copy
 import shutil
 import string
+import re
 
 import util
 import v3
@@ -38,57 +39,93 @@ def get_restart_files(name):
   return top, crds, vels
 
 
-def convert_ambpdb_to_pdb(ambpdb_pdb, pdb):
-  lines = open(ambpdb_pdb, 'r').readlines()
-  i_chain = 0
-  is_water = False
-  new_lines = []
-  for line in lines:
-    is_water = False
-    if line.startswith('ATOM'):
-      is_water = line[17:20] == 'WAT'
-    if line.startswith('ATOM'):
-      if is_water:
-        # make water HETATMS
-        new_lines.append("HETATM" + line[6:17] + "HOH" + line[20:])
-      else: 
-        # name chains between TER fields
-        chain_id = string.ascii_uppercase[i_chain]
-        new_lines.append(line[:21] + chain_id + line[22:])
-    elif line.startswith('TER'):
-      if not is_water:
-        new_lines.append(line)
+def read_top(top):
+  section = None
+  len_field = None
+  parse = None
+  parse_map = { 'a':str, 'I':int, 'E':float }
+
+  topology = {}
+  for line in open(top, "rU"):
+    line = line[:-1]
+    if line.startswith("%"):
+      words = line.split()
+      key = words[0][1:]
+      if key == "FLAG":
+        section = words[1]
+        topology[section] = []
+      elif key.startswith("FORMAT"):
+        format_str = key[7:-1]
+        len_field = int(re.split(r'\D+', format_str)[1])
+        val_type = re.search('(a|I|E)', format_str).group(0)
+        parse = parse_map[val_type]
     else:
-      new_lines.append(line)
-    if not is_water and line.startswith('TER'):
-      i_chain += 1
-  txt = ''.join(new_lines)
-  open(pdb, 'w').write(txt)
+      indices = range(0, len(line), len_field)
+      pieces = [line[i:i+len_field] for i in indices]
+      topology[section].extend(map(parse, pieces))
+
+  name_str = """
+  NATOM NTYPES NBONH MBONA NTHETH 
+  MTHETA NPHIH MPHIA NHPARM NPARM 
+  NNB NRES NBONA NTHETA NPHIA 
+  NUMBND NUMANG NPTRA NATYP NPHB 
+  IFPERT NBPER NGPER NDPER MBPER 
+  MGPER MDPER IFBOX NMXRS IFCAP
+  NUMEXTRA NCOPY  """
+  for name, val in zip(name_str.split(), topology['POINTERS']):
+    topology[name] = val
+
+  return topology
 
 
-def convert_top_crd_to_pdb(top, crd, pdb):
-  "Converts AMBER .crd (or .rst) to .pdb."
-  util.check_files(top, crd)
-  rel_top = 'temp.top'
-  rel_crd = 'temp.crd'
-  rel_pdb = 'temp.pdb'
-  shutil.copy(top, rel_top)
-  shutil.copy(crd, rel_crd)
-  data.binary('ambpdb', "-bres -p %s < %s > %s" % (rel_top, rel_crd, rel_pdb))
-  util.check_output(rel_pdb)
-  convert_ambpdb_to_pdb(rel_pdb, pdb)
-  util.clean_fname(rel_top)
-  util.clean_fname(rel_crd)
-  util.clean_fname(rel_pdb)
+def guess_element_from_atom_type(atom_type):
+  element = ""
+  for c in atom_type:
+    if not c.isdigit() and c != " ":
+      element += c
+  if element[:2] in pdbatoms.two_char_elements:
+    element = element[:2]
+  else:
+    element = element[0]  
+  return element
 
 
-def convert_restart_to_pdb(md_name, pdb):
-  top, crds, vels = get_restart_files(md_name)
-  convert_top_crd_to_pdb(top, crds, pdb)
-    
+def soup_from_topology(topology):
+  soup = pdbatoms.Polymer()
+  chain_id = ''
+  n_res = topology['NRES']
+  n_atom = topology['NATOM']
+  for i_res in range(n_res):
+    res_type = topology['RESIDUE_LABEL'][i_res].strip()
+    if res_type == "WAT":
+      res_type = "HOH"
+    res = pdbatoms.Residue(res_type, chain_id, i_res+1)
+    soup.append_residue(res)
+    res = soup.residue(i_res)
+    i_atom_start = topology['RESIDUE_POINTER'][i_res] - 1
+    if i_res == n_res-1:
+      i_atom_end = n_atom
+    else:
+      i_atom_end = topology['RESIDUE_POINTER'][i_res+1] - 1
+    for i_atom in range(i_atom_start, i_atom_end):
+      atom = pdbatoms.Atom()
+      atom.vel = v3.vector()
+      atom.num = i_atom+1
+      atom.res_num = i_res+1
+      atom.res_type = res_type
+      if atom.res_type == data.solvent_res_types:
+        atom.is_hetatm = True
+      atom.type = topology['ATOM_NAME'][i_atom].strip()
+      atom.mass = topology['MASS'][i_atom]
+      atom.charge = topology['CHARGE'][i_atom]
+      atom.element = guess_element_from_atom_type(atom.type)
+      soup.insert_atom(-1, atom)
+  # TODO detect chains
+  return soup
 
-def load_rst_into_soup(soup, rst):
-  f = open(rst, "r")
+
+def load_crd_or_rst_into_soup(soup, crd_or_rst):
+  f = open(crd_or_rst, "r")
   f.readline()
 
   n_atom = int(f.readline().split()[0])
@@ -106,83 +143,40 @@ def load_rst_into_soup(soup, rst):
   for i, atom in enumerate(sorted(soup.atoms(), pdbatoms.cmp_atom)):
     v3.set_vector(atom.pos, vals[i*3], vals[i*3+1], vals[i*3+2])
 
-  line_list = [f.readline()[:-1] for i in range(0, n_line)]
-  s = "".join(line_list)
-  vals = [float(s[i:i+12]) for i in xrange(0, len(s), 12)]
-  if len(vals) != n_crd:
-    raise ValueError, "Improper number of coordinates in rst file."
+  if crd_or_rst.endswith('.rst'):
+    line_list = [f.readline()[:-1] for i in range(0, n_line)]
+    s = "".join(line_list)
+    vals = [float(s[i:i+12]) for i in xrange(0, len(s), 12)]
+    if len(vals) != n_crd:
+      raise ValueError, "Improper number of coordinates in rst file."
 
-  convert_amber_vel_to_angstroms_per_ps = 20.455
-  for i, atom in enumerate(sorted(soup.atoms(), pdbatoms.cmp_atom)):
-    v3.set_vector(atom.vel, vals[i*3], vals[i*3+1], vals[i*3+2])
-    atom.vel = v3.scale(atom.vel, convert_amber_vel_to_angstroms_per_ps)
-
-  f.close()
-
-
-def get_attribute_list(top, attribute, length):
-  """Gets a list of attribute (of length) from .top file."""
-
-  f = open(top, "rU")
-
-  # skip lines until tag is found
-  tag = "%%FLAG %s" % attribute
-  while True:
-    line = f.readline()
-    if len(line) == 0:
-      raise ValueError, "Can't find %s in file." % tag
-    if line.startswith(tag):
-      break
-
-  # skip format line
-  f.readline()
-
-  # read string containing property
-  s = ""
-  while True:
-    line = f.readline()
-    if len(line) == 0 or line.startswith("%"):
-      break
-    s += line.replace("\n", "")
+    convert_amber_vel_to_angstroms_per_ps = 20.455
+    for i, atom in enumerate(sorted(soup.atoms(), pdbatoms.cmp_atom)):
+      v3.set_vector(atom.vel, vals[i*3], vals[i*3+1], vals[i*3+2])
+      atom.vel = v3.scale(atom.vel, convert_amber_vel_to_angstroms_per_ps)
 
   f.close()
-  
-  return [s[i:i+length] for i in xrange(0, len(s)-1, length)]
-    
 
-def is_top_has_box_dimension(top):
-  attributes = get_attribute_list(top, 'POINTERS', 8)
-  return int(attributes[27]) > 0
-  
 
-def SoupFromAmberTop(top, crds_or_rst):
-  "Make a protein from an AMBER structure"
-
-  base = os.path.split(top)[0]
-  temp_pdb = base + '.temp.pdb'
-  convert_top_crd_to_pdb(top, crds_or_rst, temp_pdb)
-  soup = pdbatoms.Polymer(temp_pdb)
-  if crds_or_rst.endswith('.rst'):
-    load_rst_into_soup(soup, crds_or_rst)
-
-  soup.box_dimension_str = None
-  if is_top_has_box_dimension(top):
-    lines = open(crds_or_rst, "r").readlines()
-    i = -1
-    while lines[i].strip() == "":
-      i -= 1
-    soup.box_dimension_str = lines[i][:-1]
-
-  masses = get_attribute_list(top, 'MASS', 16)
-  for m, a in zip(masses, soup.atoms()):
-    a.mass = float(m)
-
-  util.clean_fname(temp_pdb)
+def soup_from_top_and_crd_or_rst(top, crd_or_rst):
+  topology = read_top(top)
+  soup = soup_from_topology(topology)
+  load_crd_or_rst_into_soup(soup, crd_or_rst)
+  if topology['IFBOX'] > 0:
+    lines = open(crd_or_rst, "r").readlines()
+    lines = [l for l in reversed(lines) if l.strip()]
+    soup.box_dimension_str = lines[0]
   return soup
 
 
 def soup_from_restart_files(top, crds, vels):
-  return SoupFromAmberTop(top, crds)
+  return soup_from_top_and_crd_or_rst(top, crds)
+
+
+def convert_restart_to_pdb(md_name, pdb):
+  top, crds, vels = get_restart_files(md_name)
+  soup = soup_from_restart_files(top, crds, vels)
+  soup.write_pdb(pdb)
 
 
 def write_soup_to_rst(soup, rst):
@@ -222,7 +216,7 @@ def write_soup_to_rst(soup, rst):
   f.close()
   
   
-def write_soup_to_crds_vels(soup, name):
+def write_soup_to_crds_and_vels(soup, name):
   write_soup_to_rst(soup, name + '.rst')
   return name + '.rst', ''
   
@@ -404,8 +398,12 @@ thermostat_script = """
 
 
 def make_sander_input_file(parms):
-  soup = SoupFromAmberTop(parms['topology'], parms['input_crds'])
-  has_periodic_box = hasattr(soup, 'box_dimension_str') and soup.box_dimension_str
+  soup = soup_from_top_and_crd_or_rst(
+      parms['topology'], parms['input_crds'])
+
+  has_periodic_box = \
+      hasattr(soup, 'box_dimension_str') and \
+      soup.box_dimension_str
 
   script = sander_script % parms
 
@@ -625,8 +623,10 @@ class TrjReader:
     self.trj = trj
     self.top = top
 
+    self.topology = read_top(top)
+
     if '.trj' in trj:
-      self.is_skip_box_dims = is_top_has_box_dimension(self.top)
+      self.is_skip_box_dims = self.topology['IFBOX'] > 0
     else:
       self.is_skip_box_dims = False
 
@@ -641,7 +641,7 @@ class TrjReader:
     self.pos_start_frame = len(self.file.readline())
 
     # calculate the size of each frame
-    self.n_atom = len(get_attribute_list(self.top, 'ATOM_NAME', 4))
+    self.n_atom = self.topology['NATOM']
     if self.n_atom == 0:
       raise "No names found in .top file"
 
@@ -745,17 +745,22 @@ class Trajectory:
   """
   def __init__(self, name):
     self.name = name
-    self.topology = name + '.top'
+    self.top = name + '.top'
+
     coor_trj_fname = name + '.trj'
-    self.coor_traj = TrjReader(self.topology, coor_trj_fname)
+    self.coor_traj = TrjReader(self.top, coor_trj_fname)
+
     vel_trj_fname = name + '.vel'
     if os.path.isfile(vel_trj_fname):
-      self.vel_traj = TrjReader(self.topology, vel_trj_fname)
+      self.vel_traj = TrjReader(self.top, vel_trj_fname)
     else:
       self.vel_traj = None
+
     self.coor_traj.save_to_crd(self.name+'temp.crd', 0)
-    self.soup = SoupFromAmberTop(self.topology, self.name+'temp.crd')
+    self.soup = soup_from_topology(self.coor_traj.topology)
+    load_crd_or_rst_into_soup(self.soup, self.name+'temp.crd')
     util.clean_fname(self.name+'temp.crd')
+
     self.n_frame = len(self.coor_traj)
     self.i_frame = 0
     self.load_frame(self.i_frame)

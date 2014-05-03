@@ -248,7 +248,7 @@ def write_soup_to_gro(in_soup, gro):
   f.close()
   
 
-def write_soup_to_crds_vels(soup, name):
+def write_soup_to_crds_and_vels(soup, name):
   write_soup_to_gro(soup, name + '.gro')
   return name + '.gro', ''
   

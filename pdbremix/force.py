@@ -107,9 +107,11 @@ def kinetic_energy(atoms):
 def gas_randomize(atoms, temp):
   "Heats residues uses gas approximation: vel: angstroms/ps"
   for atom in atoms:
-    atom.vel.x = maxwell_velocity(temp, atom.mass)
-    atom.vel.y = maxwell_velocity(temp, atom.mass)
-    atom.vel.z = maxwell_velocity(temp, atom.mass)
+    v3.set_vector(
+        atom.vel,
+        maxwell_velocity(temp, atom.mass),
+        maxwell_velocity(temp, atom.mass),
+        maxwell_velocity(temp, atom.mass))
 
 
 def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):

@@ -73,9 +73,9 @@ def convert_restart_to_pdb(md_name, pdb):
   raise Exception("Couldn't find restart files for " + md_name)
 
 
-def write_soup_to_crds_vels(force_field, soup, md_name):
+def write_soup_to_crds_and_vels(force_field, soup, md_name):
   md_module = get_md_module(force_field)
-  return md_module.write_soup_to_crds_vels(soup, md_name)
+  return md_module.write_soup_to_crds_and_vels(soup, md_name)
 
 
 def soup_from_restart_files(top, crds, vels, skip_solvent=True):
@@ -200,7 +200,7 @@ def pulse(
 
     pulse_fn(soup)
 
-    crds, vels = write_soup_to_crds_vels(
+    crds, vels = write_soup_to_crds_and_vels(
         force_field, soup, md_name + '.pulse.in')
     pulse_parms['input_crds'] = crds
     pulse_parms['input_vels'] = vels

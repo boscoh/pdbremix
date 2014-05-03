@@ -6,11 +6,11 @@ from pdbremix import force
 from pdbremix import util
 
 
-ff = 'AMBER11'
 ff = 'GROMACS4.5.5'
-ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
 ff = 'GROMACS4.5.5'
+ff = 'AMBER11-GBSA'
+ff = 'AMBER11'
 pdb = 'pdb/hairpin.pdb'
 
 pdb = os.path.abspath(pdb)
@@ -61,7 +61,7 @@ def test_rip():
   i_residue = 2
   res = soup.residue(i_residue)
   pulse_fn = force.make_rip_fn(i_residue, 300)
-  simulate.pulse(ff, md, 'md', 500, pulse_fn, 100)
+  simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
   util.goto_dir(save_dir)
 
 
@@ -73,7 +73,7 @@ def test_puff():
   top, crds, vels = simulate.get_restart_files(md)
   n = len(simulate.soup_from_restart_files(top, crds, vels).residues())
   pulse_fn = force.make_puff_fn([0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
-  simulate.pulse(ff, md, 'md', 1000, pulse_fn, 100)
+  simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
   util.goto_dir(save_dir)
 
 def test_restraint():

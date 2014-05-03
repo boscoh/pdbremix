@@ -107,7 +107,7 @@ def soup_from_restart_files(psf, in_coor, in_vel):
   return soup
 
 
-def write_soup_to_crds_vels(in_soup, name):
+def write_soup_to_crds_and_vels(in_soup, name):
   soup = in_soup.copy()
   convert_to_namd_atom_names(soup)
   coor = name + '.coor'
