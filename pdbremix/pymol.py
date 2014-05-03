@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import os
 import pdbatoms
 import v3
