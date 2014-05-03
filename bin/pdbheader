@@ -6,7 +6,7 @@ Shows a quick one-line summary of PDB files
 Usage: pdbheader <pdb> ...
 """
 
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 def get_key_value(key, line):

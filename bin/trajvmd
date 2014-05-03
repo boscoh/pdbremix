@@ -10,7 +10,7 @@ usage: trajvmd <md>
 
 import os
 import sys
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import data
 
 

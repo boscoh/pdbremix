@@ -10,7 +10,7 @@ Usage: pdbchain <pdb> [<chain_id> ...]
 
 
 from pdbremix import pdbatoms
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 arg = docopt(__doc__)
 

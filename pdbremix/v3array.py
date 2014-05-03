@@ -178,6 +178,52 @@ def transform(matrix, v):
 
 
 
+def matrix_elem(matrix, i, j, val=None):
+  if val is not None:
+    if j==0:
+      if i==0: matrix.elem00 = val
+      if i==1: matrix.elem10 = val
+      if i==2: matrix.elem20 = val
+      if i==3: matrix.elem30 = val
+    if j==1:
+      if i==0: matrix.elem01 = val
+      if i==1: matrix.elem11 = val
+      if i==2: matrix.elem21 = val
+      if i==3: matrix.elem31 = val
+    if j==2:
+      if i==0: matrix.elem02 = val
+      if i==1: matrix.elem12 = val
+      if i==2: matrix.elem22 = val
+      if i==3: matrix.elem32 = val
+    if j==3:
+      if i==0: matrix.elem03 = val
+      if i==1: matrix.elem13 = val
+      if i==2: matrix.elem23 = val
+      if i==3: matrix.elem33 = val
+
+  if j==0:
+    if i==0: return matrix.elem00
+    if i==1: return matrix.elem10
+    if i==2: return matrix.elem20
+    if i==3: return matrix.elem30
+  if j==1:
+    if i==0: return matrix.elem01
+    if i==1: return matrix.elem11
+    if i==2: return matrix.elem21
+    if i==3: return matrix.elem31
+  if j==2:
+    if i==0: return matrix.elem02
+    if i==1: return matrix.elem12
+    if i==2: return matrix.elem22
+    if i==3: return matrix.elem32
+  if j==3:
+    if i==0: return matrix.elem03
+    if i==1: return matrix.elem13
+    if i==2: return matrix.elem23
+    if i==3: return matrix.elem33
+
+
+
 def combine(a, b):
   c = identity()
   for i in range(0, 3):

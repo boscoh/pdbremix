@@ -9,7 +9,7 @@ Usage: trajstep <md>
 
 import sys
 import os
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import traj
 from pdbremix import util
 

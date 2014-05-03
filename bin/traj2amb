@@ -8,7 +8,7 @@ import glob
 from pdbremix import util
 from pdbremix import amber
 from pdbremix import traj
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 arg = docopt(__doc__)

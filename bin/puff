@@ -31,7 +31,7 @@ import random
 from pdbremix import util
 from pdbremix import simulate
 from pdbremix import force
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 def make_abs_fnames_in_dict(params):

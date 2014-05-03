@@ -11,7 +11,7 @@ Options:
 """
 
 import os
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import traj
 
 if __name__ == "__main__":

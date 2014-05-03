@@ -15,7 +15,7 @@ import random
 from pdbremix import util
 from pdbremix import simulate
 from pdbremix import force
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 if __name__ == "__main__":

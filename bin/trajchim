@@ -13,7 +13,7 @@ Options:
 
 import sys
 import os
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import data
 from pdbremix import util
 

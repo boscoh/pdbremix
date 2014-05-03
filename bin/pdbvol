@@ -13,7 +13,7 @@ Usage: pdbvol [-s <spacing>] <pdb> ...
 """
 
 
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import pdbatoms
 from pdbremix.volume import volume
 

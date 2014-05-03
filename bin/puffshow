@@ -12,7 +12,7 @@ Usage: puffshow [options] <puff-config>
 
 
 import re
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import pdbatoms
 from pdbremix import util
 from pdbremix import data

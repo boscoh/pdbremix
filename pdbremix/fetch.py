@@ -2,7 +2,6 @@ import os
 import urllib
 import gzip
 
-from docopt import docopt
 import util
 
 

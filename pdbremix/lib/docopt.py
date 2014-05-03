@@ -524,7 +524,7 @@ def docopt(doc, argv=None, help=True, version=None, options_first=False):
 
     Example
     -------
-    >>> from docopt import docopt
+    >>> from lib.docopt import docopt
     >>> doc = '''
     Usage:
         my_program tcp <host> <port> [--timeout=<seconds>]

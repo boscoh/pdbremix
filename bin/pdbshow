@@ -30,7 +30,7 @@ Usage: pdbshow [options] <pdb> ...
 
 
 import os
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import util
 from pdbremix import pymol
 from pdbremix import data

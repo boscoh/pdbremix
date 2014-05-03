@@ -12,7 +12,7 @@ Usage: pdbinsert <pdb> <name> [<resname> <seq>] ...
 import os
 import glob
 
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 from pdbremix import pdbatoms
 from pdbremix import data
 from pdbremix import pdbtext

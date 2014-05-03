@@ -75,6 +75,13 @@ def identity():
   return m
 
 
+def matrix_elem(matrix, i, j, val=None):
+  if val is None:
+    return matrix[j,i]
+  else:
+    matrix[j,i] = val
+
+
 def transform(matrix, vector):
   return np.dot(matrix[:3,:3], vector) + matrix[3,:]  
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-from docopt import docopt
 import pdbatoms
 import v3
 import util

@@ -3,7 +3,7 @@
 import glob
 from pdbremix import util
 from pdbremix import data
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 __doc__ = """
 Skips frames and strip waters in a GROMACS trr trajectory

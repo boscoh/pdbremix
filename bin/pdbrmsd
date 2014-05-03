@@ -27,7 +27,7 @@ Options:
 
 
 from pdbremix import rmsd
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 def segments_str(segments, atom_types):

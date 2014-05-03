@@ -7,7 +7,7 @@ Usage: pdbnoh <pdb> [<out_pdb>]
 """
 
 from pdbremix import pdbtext
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 arg = docopt(__doc__)
 pdb = arg['<pdb>']

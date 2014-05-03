@@ -17,7 +17,7 @@ Usage: asa.py [-n <n_sphere>] <in_pdb> [<out_pdb>]
 
 from pdbremix.asa import calculate_asa
 from pdbremix import pdbatoms
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 if __name__ == "__main__":
   arg = docopt(__doc__)

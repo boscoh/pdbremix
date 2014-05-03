@@ -12,7 +12,7 @@ import os
 from pdbremix import pdbatoms
 from pdbremix import data
 from pdbremix import v3
-from pdbremix.docopt import docopt
+from pdbremix.lib.docopt import docopt
 
 
 cached = {}
