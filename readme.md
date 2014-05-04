@@ -10,6 +10,8 @@ To use, install using pip?
 
 Then run the command with the `-h` option 
 
+Run with `pypy` option
+
 ### Standalone tools
 
 `pdbremix` provides a bunch of structural biology algorithms, all written in standard Python:
@@ -51,18 +53,21 @@ These files must have a common base name, say `md`.If the filenames do not corre
 This is the path to sanity. 
 
 In AMBER, an example set of files would be:
+
 1. md.top
 2. md.in.crd or md.in.rst
 3. md.trj and md.vel.trj
 4. md.rst
 
 In GROMACS:
+
 1. md.top and associated md.\*.itp files
 2. md.in.gro
 3. md.trr and md.vel.trr
 4. md.gro
 
 In NAMD:
+
 1. md.psf
 2. md.in.coor and md.in.vel
 3. md.dcd and md.vel.dcd
