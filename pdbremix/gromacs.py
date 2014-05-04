@@ -212,6 +212,7 @@ def soup_from_restart_files(top, crds, vels, skip_solvent=True):
 def convert_restart_to_pdb(md_name, pdb):
   top, crds, vels = get_restart_files(md_name)
   soup = soup_from_restart_files(top, crds, vels)
+  convert_to_pdb_atom_names(soup)
   soup.write_pdb(pdb)
 
 
@@ -409,7 +410,8 @@ nsteps      = %(n_step_minimization)s    ; Maximum number of (minimization) step
 nstlist     = 1        ; Frequency to update the neighbor list and long range forces
 ns_type     = grid     ; Method to determine neighbor list (simple, grid)
 rlist       = 1.0      ; Cut-off for making neighbor list (short range forces)
-coulombtype = PME      ; Treatment of long range electrostatic interactions
+coulombtype = PME-Switch   ; Treatment of long range electrostatic interactions
+vdwtype = Shift   ;  To do VdW cutoff with NVE
 rcoulomb    = 1.0      ; Short-range electrostatic cut-off
 rvdw        = 1.0      ; Short-range Van der Waals cut-off
 pbc         = xyz      ; 3-dimensional periodic boundary conditions (xyz|no)
@@ -551,9 +553,9 @@ restraint_header = """
 
 def run(parms):
   name = parms['output_name']
-  in_mdp = name + '.in.mdp'
+  in_mdp = name + '.grompp.mdp'
   open(in_mdp, 'w').write(make_mdp(parms))
-  mdp = name + '.mdp'
+  mdp = name + '.mdrun.mdp'
 
   # Copies across topology files and does
   # some name mangling so that all new topology
@@ -592,7 +594,7 @@ def run(parms):
       'grompp',
       '-f %s -po %s -c %s -p %s -o %s' \
           % (in_mdp, mdp, in_gro, top, tpr),
-      tpr)
+      name + '.grompp')
   util.check_files(tpr)
 
   data.binary(
@@ -622,7 +624,7 @@ def merge_simulations(name, pulses):
   for pulse in reversed(pulses):
     gro = "%s/%s.gro" % (pulse, name)
     if os.path.isfile(gro):
-      for ext in ['.top', '.itp', '.tpr', '.mdp', '.in.mdp', '.gro']:
+      for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', '.grompp.mdp', '.gro']:
         os.system('cp %s/%s*%s .' % (pulse, name, ext))
       os.chdir(save_dir)
       return
