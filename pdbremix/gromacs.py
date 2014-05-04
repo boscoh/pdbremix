@@ -8,6 +8,7 @@ Copyright (c) 2009 __MyCompanyName__. All rights reserved.
 
 import os
 import shutil
+import copy
 import glob
 import xdrlib
 
@@ -250,6 +251,7 @@ def write_soup_to_crds_and_vels(soup, name):
 force_field_mdp = """
 ; Bond parameters
 constraints     = hbonds        ; bonds from heavy atom to H, constrained
+continuation    = yes           ; first dynamics run
 ; constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained
 ; constraint-algorithm = lincs    ; holonomic constraints 
 ; lincs_iter      = 1             ; accuracy of LINCS
@@ -269,6 +271,12 @@ pme_order       = 4             ; cubic interpolation
 fourierspacing  = 0.16          ; grid spacing for FFT
 rcoulomb        = 1.0           ; short-range electrostatic cutoff (in nm)
 rvdw            = 1.0           ; short-range van der Waals cutoff (in nm)
+
+; Add also refcoord-scaling to work with position restraints and pressure coupling
+refcoord-scaling = all
+
+; Dispersion correction
+DispCorr        = EnerPres      ; account for cut-off vdW scheme
 """
 
 ions_mdp = """
@@ -454,7 +462,6 @@ dynamics_mdp = """
 integrator      = md            ; leap-frog integrator
 nsteps          = %(n_step_dynamics)s  ; time = n_step_dynamics*dt
 dt              = 0.001         ; time-step in fs
-continuation    = yes           ; first dynamics run
 
 ; Output control
 nstxout         = %(n_step_per_snapshot)s  ; save coordinates every 0.05 ps
@@ -469,11 +476,6 @@ tau_p           = 2.0           ; time constant, in ps
 ref_p           = 1.0           ; reference pressure, in bar
 compressibility = 4.5e-5        ; isothermal compressibility of water, bar^-1
 
-; Add also refcoord-scaling to work with position restraints and pressure coupling
-refcoord-scaling = all
-
-; Dispersion correction
-DispCorr        = EnerPres      ; account for cut-off vdW scheme
 """
 
 temp_mdp = """
@@ -518,6 +520,8 @@ def make_mdp(parms):
     mdp = "title           = Template for constant temperature/pressure\n" +\
           mdp
   if 'restraint_pdb' in parms and parms['restraint_pdb']:
+    mdp += "\n"
+    mdp += "; Restaints turned on \n"
     mdp += "define            = -DPOSRES  ; position restrain the protein\n"
 
   mdp += force_field_mdp
@@ -535,6 +539,7 @@ def replace_include_file(chain, r1, r2):
       new_lines.append(l)
   open(chain, 'w').write(''.join(new_lines))
 
+
 restraint_header = """
 ; In this topology include file, you will find position restraint
 ; entries for all the heavy atoms in your original pdb file.
@@ -545,8 +550,15 @@ restraint_header = """
 ; atom  type      fx      fy      fz
 """
 
-def run(parms):
+def run(in_parms):
+  parms = copy.deepcopy(in_parms)
   name = parms['output_name']
+
+  config = name + ".config"
+  if util.is_same_dict_in_file(parms, config):
+    print "simulation already run."
+    return
+
   in_mdp = name + '.grompp.mdp'
   open(in_mdp, 'w').write(make_mdp(parms))
 
@@ -574,11 +586,13 @@ def run(parms):
     indices = range(1, len(atoms)+1)
     for fname in restraint_files:
       chain_id = fname.replace('.itp', '').split('_')[-1]
+      if chain_id == 'posre':
+        chain_id = ' '
       with open(fname, 'w') as f:
         f.write(restraint_header)
         for i, atom in zip(indices, atoms):
           if atom.chain_id == chain_id and atom.bfactor > 0.0:
-            f.write("%6s     1  1000  1000  1000\n" % i)
+            f.write("%6s     1 10000 10000 10000\n" % i)
 
   mdp = name + '.mdrun.mdp'
   in_gro = name + '.in.gro'
@@ -600,6 +614,8 @@ def run(parms):
   util.check_files(top, crds)
 
   delete_backup_files(name)
+
+  util.write_dict(config, in_parms)
 
 
 def merge_simulations(name, pulses):

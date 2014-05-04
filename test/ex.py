@@ -92,9 +92,9 @@ def test_restraint():
 
 
 if __name__ == "__main__":
-  test_basic_md_merge()
-  test_rip()
-  test_puff()
+  # test_basic_md_merge()
+  # test_rip()
+  # test_puff()
   test_restraint()
 
 
