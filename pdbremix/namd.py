@@ -34,14 +34,15 @@ def get_restart_files(name):
 def convert_to_namd_atom_names(soup):
   for res in soup.residues():
     if res.type == "ILE" and res.has_atom('CD1'):
-      res.atom('CD1').type = 'CD'
+      res.change_atom_type('CD1', 'CD')
     if res.has_atom('OXT'):
-      res.atom('OXT').type = 'OT2'
+      res.change_atom_type('OXT', 'OT2')
       if res.has_atom('O'):
-        res.atom('O').type = 'OT1'
+        res.change_atom_type('O', 'OT1')
     for atom in res.atoms():
       if atom.type[0].isdigit() and atom.type[1] == "H":
-        atom.type = atom.type[1:] + atom.type[0]
+        new_atom_type = atom.type[1:] + atom.type[0]
+        res.change_atom_type(atom.type, new_atom_type)
     if res.type == "HOH":
       res.set_type("TIP3")
       res.set_chain_id("W")
@@ -53,11 +54,11 @@ def convert_to_pdb_atom_names(soup):
   for res in soup.residues():
     if res.type == "ILE":
       if res.has_atom('CD'):
-        res.atom('CD').type = 'CD1'
+        res.change_atom_type('CD', 'CD1')
     if res.has_atom('OT2'):
-      res.atom('OT2').type = 'OXT'
+      res.change_atom_type('OT2', 'OXT')
       if res.has_atom('OT1'):
-        res.atom('OT1').type = 'O'
+        res.change_atom_type('OT1', 'O')
     if res.type == "TIP3":
       res.set_type("HOH")
       res.set_chain_id(" ")
@@ -65,7 +66,8 @@ def convert_to_pdb_atom_names(soup):
       res.set_type("HIS")
     for atom in res.atoms():
       if atom.type[-1].isdigit() and atom.type[0] == "H":
-        atom.type = atom.type[-1] + atom.type[:-1]
+        new_atom_type = atom.type[-1] + atom.type[:-1]
+        res.change_atom_type(atom.type, new_atom_type)
 
 
 def read_psf(psf):

@@ -95,7 +95,7 @@ def run_parms(parms):
 
 def minimize(
     force_field, top, crds, md_name, 
-    restraint_pdb="", n_step=100):
+    restraint_pdb="", n_step=200):
   parms = fetch_parms(
       force_field, top, crds, restraint_pdb, 
       'minimization', md_name)

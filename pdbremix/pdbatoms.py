@@ -278,6 +278,12 @@ class Residue:
   def has_atom(self, atom_type):
     return atom_type in self._atom_dict.keys()
     
+  def change_atom_type(self, atom_type1, atom_type2):
+    atom = self._atom_dict[atom_type1]
+    atom.type = atom_type2
+    del self._atom_dict[atom_type1]
+    self._atom_dict[atom_type2] = atom
+
   def atoms(self):
     return self._atom_dict.values()
   

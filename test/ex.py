@@ -6,9 +6,9 @@ from pdbremix import force
 from pdbremix import util
 
 
-ff = 'GROMACS4.5.5'
 ff = 'AMBER11'
 ff = 'AMBER11-GBSA'
+ff = 'GROMACS4.5.5'
 ff = 'NAMD2.8'
 pdb = 'pdb/hairpin.pdb'
 

@@ -126,7 +126,7 @@ def AtomFromGroLine(line):
   """
   atom = pdbatoms.Atom()
   atom.res_num = int(line[0:5])
-  atom.res_type = line[5:8]
+  atom.res_type = line[5:8].strip()
   atom.type = line[10:15].strip(" ")
   atom.element = pdbatoms.guess_element(
       atom.res_type, line[12:15])
@@ -147,23 +147,23 @@ def convert_to_pdb_atom_names(soup):
   for res in soup.residues():
     if res.type == "ILE":
       if res.has_atom("CD"):
-        res.atom("CD").type = "CD1"
+        res.change_atom_type("CD", "CD1")
     if res.has_atom("OC2"):
-      res.atom("OC2").type = "OXT"
+      res.change_atom_type("OC2", "OXT")
     if res.has_atom("OC1"):
-      res.atom("OC1").type = "O"
+      res.change_atom_type("OC1", "O")
 
 
 def convert_to_gromacs_atom_names(soup):
   for res in soup.residues():
     if res.type == "ILE":
       if res.has_atom("CD1"):
-        res.atom("CD1").type = "CD"
+        res.change_atom_type("CD1", "CD")
     if res.has_atom("OXT"):
-      res.atom("OXT").type = "OC2"
+      res.change_atom_type("OXT", "OC2")
       if res.has_atom("O"):
-        res.atom("O").type = "OC1"
-
+        res.change_atom_type("O", "OC1")
+ 
 
 def soup_from_top_gro(top, gro, skip_solvent=True):
   """
@@ -223,10 +223,8 @@ def write_soup_to_gro(in_soup, gro):
   atoms = soup.atoms()
   n_atom = len(atoms) + soup.n_remaining_text
   f.write(str(n_atom) + '\n')
-  for a in atoms:
-    if a.res_type == "ILE" and a.type == "CD1":
-      a.type = "CD"
-    # GRO doesn't care about actual numbering,
+  for a in atoms: 
+   # GRO doesn't care about actual numbering,
     # will wrap when the columns are fill
     res_num = a.res_num % 100000
     atom_num = a.num % 100000
@@ -470,9 +468,9 @@ rvdw            = 1.0           ; short-range van der Waals cutoff (in nm)
 ; Periodic boundary conditions
 pbc             = xyz           ; 3-dimensional periodic boundary conditions (xyz|no)
 ; Electrostatics
-; coulombtype     = PME           ; Particle Mesh Ewald for long-range electrostatics
-; pme_order       = 4             ; cubic interpolation
-; fourierspacing  = 0.16          ; grid spacing for FFT
+coulombtype     = PME           ; Particle Mesh Ewald for long-range electrostatics
+pme_order       = 4             ; cubic interpolation
+fourierspacing  = 0.16          ; grid spacing for FFT
 ; Pressure coupling is on
 pcoupl          = Parrinello-Rahman   ; Pressure coupling on in NPT
 pcoupltype      = isotropic     ; uniform scaling of box vectors
