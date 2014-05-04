@@ -471,9 +471,9 @@ cellBasisVector3    0.0           0.0           %(len_z)s
 cellOrigin          %(x_origin)s  %(y_origin)s  %(z_origin)s
 """
 
-def calculate_periodic_box_script(pdb):
+def calculate_periodic_box_script(parms):
   script = new_periodic_box_script
-  p = pdbatoms.Polymer(pdb)
+  p = pdbatoms.Polymer(parms['input_crds'])
   atoms = p.atoms()
   parms = {}
   for i_v, v in enumerate(['x', 'y', 'z']):
@@ -524,21 +524,17 @@ numsteps 200
 
 def make_namd_input_file(parms):
   name = parms['output_name']
-  shutil.copy(parms['topology'], name + '.psf')
-  xsc = parms['topology'].replace('.psf', '.xsc')
   script = io_script % parms
   script += simulation_parameters_script % parms
-  if 'restraint_pdb' in parms and parms['restraint_pdb']:
+  if parms['restraint_pdb']:
     script += restraint_script % parms
-  if os.path.isfile(xsc):
-    new_xsc = name + '.in.xsc'
-    shutil.copy(xsc, new_xsc)
-    script += extended_periodic_box_script % new_xsc
+  if parms['xsc']:
+    script += extended_periodic_box_script % parms['xsc']
   else:
-    script += calculate_periodic_box_script(parms['input_crds'])
+    script += calculate_periodic_box_script(parms)
   if 'n_step_dynamics' in parms:
     script += molecular_dynamics_script % parms
-    if 'input_vels' in parms and parms['input_vels'] != "":
+    if parms['input_vels']:
       script += import_velocities_script % parms
     elif 'temp_initial' in parms and parms['temp_initial'] > 0.0:
       script += generate_velocities_script % parms
@@ -558,7 +554,7 @@ def run(in_parms):
   for simulation
   """
   name = in_parms['output_name']
-  namd_in = name + ".in"
+  namd_in = name + ".namd2.in"
   config = name + ".config"
 
   parms = copy.deepcopy(in_parms)
@@ -569,9 +565,33 @@ def run(in_parms):
   parms['parameter'] = os.path.join(data.data_dir, 'charmm22.parameter')
   parms['psf_type'] =  'paraTypeCharmm on'
 
+  xsc = parms['topology'].replace('.psf', '.xsc')
+  if os.path.isfile(xsc):
+    shutil.copy(xsc, name + '.in.xsc')
+    parms['xsc'] = name + '.in.xsc'
+  else:
+    parms['xsc'] = ''
+  shutil.copy(parms['topology'], name + '.psf')
+  parms['topology'] = name + '.psf'
+
+  shutil.copy(parms['input_crds'], name + '.in.coor')
+  parms['input_crds'] = name + '.in.coor'
+
+  if 'input_vels' in parms and parms['input_vels']:
+    shutil.copy(parms['input_vels'], name + '.in.vel')
+    parms['input_vels'] = name + '.in.vel'
+  else:
+    parms['input_vels'] = ''
+
+  if 'restraint_pdb' in parms and parms['restraint_pdb']:
+    shutil.copy(parms['restraint_pdb'], name + '.restraint.pdb')
+    parms['restraint_pdb'] = name + '.restraint.pdb'
+  else:
+    parms['restraint_pdb'] = ''
+    
   open(namd_in, "w").write(make_namd_input_file(parms))
   
-  data.binary('namd2', namd_in, name + '.namd')
+  data.binary('namd2', namd_in, name + '.namd2')
 
   top, crds, vels = get_restart_files(name)
   util.check_output(top)
