@@ -2,7 +2,15 @@
 
 `pdbremix` is a python library for computational structural biology. It provides a unified interface to manipulate PDB structures, setup basic molecular-dynamics simulations, and analyse the resultant trajectories. 
 
-# Command-line Utilities
+The library attempts to provide the lightest API for the given functionality. For instance, even `numpy` dependency is optional. Trajectory readers are written in pure Python.
+
+## Command-line Utilities
+
+To use, install using pip?
+
+Then run the command with the `-h` option 
+
+### Standalone tools
 
 `pdbremix` provides a bunch of structural biology algorithms, all written in standard Python:
 
@@ -15,45 +23,84 @@
 - `pdbchain` extracts individual chains from a PDB file
 - `pdbcheck` checks common defects that affect MD simulations
 
-## Wrappers around external tools
+### Wrappers around external tools
 
 There are many wonderful tools for computational structural biology that have less-than-stellar command-line interfaces. `pdbremix` can be used to wrap these tools with a friendlier interface, and add some useful extra functionality.
 
 First though, to use these tools, you have to tell `pdbremix` where the binaries are. **HOW SHOULD THIS BE DONE?**
 
-*PDB manipulation wrappers.* These command-line tools provide a much better interface to commonly used tools such as PYMOL, MODELLER and THESEUS:
+These command-line tools provide a much better interface to commonly used tools such as PYMOL, MODELLER and THESEUS:
 
-- `pdbshow` displays PDB files with PYMOL, with extra options such as residue centring and b-factor colouring
-- `pdboverlay` uses MAFFT and THESEUS to align homologous proteins and displays them with PYMOL
-- `pdbinsert` uses MODELLER to build loops for gaps in a PDB structure
+- `pdbshow` wrapper for PYMOL to display PDB with useful defaults and extras such as residue centring and b-factor colouring
+- `pdboverlay` wraps MAFFT, THESEUS and PYMOL to display homologous proteins
+- `pdbinsert` wraps MODELLER to build loops for gaps in a PDB structure
 
-*trajectory tools* The simulation functions of `pdbremix` is best accessed by user-written Python scripts, which will be described below. However, several useful command-line utilities for simulation and trajectoy analysis are provided:
+### Trajectory analysis tools
 
-- `puff` runs a PUFF steered molecular-dynamics from a special configuration file
-- `puffshow` displays residues that are pulled in the PUFF configuration files
-- `grotrim` used to delete frames from a Gromacs .trr trajectory
-- `traj2amb` converts NAMD and GROMACS trajectories to AMBER trajectories _without_ solvent
+`pdbremix` provides a simplified interface to run molecular-dynamics on 3 standard MD packages: AMBER11+, GROMACS4.5+ and NAMD2.8+.
+
+In order to this, `pdbremix` makes a strong assumption that all associated files for an MD trajectory *has a common base name*. Typically an MD simulation will include:
+
+1. topology file
+2. initial coordinate/velocity file(s)
+3. trajectory file(s)
+4. restart coordinate/velocity file(s)
+
+These files must have a common base name, say `md`.If the filenames do not correspond to this naming pattern, the `pdbremix` tools will not recognise the simulation and trajectory. 
+
+This is the path to sanity. 
+
+In AMBER, an example set of files would be:
+1. md.top
+2. md.in.crd or md.in.rst
+3. md.trj and md.vel.trj
+4. md.rst
+
+In GROMACS:
+1. md.top and associated md.\*.itp files
+2. md.in.gro
+3. md.trr and md.vel.trr
+4. md.gro
+
+In NAMD:
+1. md.psf
+2. md.in.coor and md.in.vel
+3. md.dcd and md.vel.dcd
+4. md.coor and md.vel
+
+Once named properly, these `pdbremix` tools can be used to analyse trajectories:
+
+- `trajvar` calculates kinetic energy and RMSD on trajectories
 - `md2pdb` converts MD restart files into PDB
 - `trajstep` gets basic MD parameters from a trajectory
-- `trajvar` calculates kinetic energy and RMSD on trajectories
+- `traj2amb` converts NAMD and GROMACS trajectories to AMBER trajectories _without_ solvent
+
 - `trajvmd` wrapper to open trajectories in VMD *recommended*
 - `trajchim` wrapper to open trajectories in CHIMERA
 - `trajpym` wrapper to open trajectories in PYMOL, only works with AMBER trajectories
+- `grotrim` wrapper to trim GROMACS .trr trajectory files
 
 
-## Structure of MD simulation files
+### PUFF steered molecular dynamics
 
-trajectory files
+The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
 
-## Structure of restart files
+- `puff` runs a PUFF steered molecular-dynamics from a special configuration file
+- `puffshow` displays residues that are pulled in the PUFF configuration files
+
+## Modules in pdbremix
+
 asa.py
 data.py
 fetch.py
 force.py
-gromacs.py* namd.py* pdbatoms.py
+gromacs.py
+namd.py
+pdbatoms.py
 pdbtext.py
 protein.py
-pymol.py\* rmsd.py
+pymol.py
+rmsd.py
 simulate.py
 traj.py
 util.py
@@ -61,8 +108,6 @@ v3.py
 v3array.py
 v3numpy.py
 volume.py
-
-# Manipulation PDB structures
 
 ## A vector library
 
