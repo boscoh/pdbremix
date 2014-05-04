@@ -513,7 +513,7 @@ def run(in_parms):
     pdb = parms['restraint_pdb']
     script += make_restraint_script(pdb)
     soup = pdbatoms.Polymer(pdb)
-    ref_crd = name + '.ref.crd'
+    ref_crd = name + '.restraint.crd'
     write_soup_to_rst(soup, ref_crd)
     util.check_output(ref_crd)
     args += " -ref %s" % ref_crd

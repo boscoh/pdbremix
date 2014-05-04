@@ -584,8 +584,8 @@ def run(in_parms):
     parms['input_vels'] = ''
 
   if 'restraint_pdb' in parms and parms['restraint_pdb']:
-    shutil.copy(parms['restraint_pdb'], name + '.restraint.pdb')
-    parms['restraint_pdb'] = name + '.restraint.pdb'
+    shutil.copy(parms['restraint_pdb'], name + '.restraint.coor')
+    parms['restraint_pdb'] = name + '.restraint.coor'
   else:
     parms['restraint_pdb'] = ''
     
