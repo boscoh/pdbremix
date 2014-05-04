@@ -8,9 +8,9 @@ from pdbremix import util
 
 ff = 'GROMACS4.5.5'
 ff = 'GROMACS4.5.5'
-ff = 'AMBER11-GBSA'
 ff = 'AMBER11'
 ff = 'NAMD2.8'
+ff = 'AMBER11-GBSA'
 pdb = 'pdb/hairpin.pdb'
 
 pdb = os.path.abspath(pdb)

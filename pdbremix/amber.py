@@ -498,7 +498,7 @@ def run(in_parms):
   else:
     rst = name + ".rst"
   trj = name + ".trj"
-  vel = name + ".vel"
+  vel_trj = name + ".vel.trj"
   ene = name + ".ene"
   inf = name + ".inf"
   sander_out = name + ".sander.out"
@@ -507,7 +507,7 @@ def run(in_parms):
   sander = data.binary("sander")
   script = make_sander_input_file(parms)
   args = "-O -i %s -o %s -p %s -c %s -r %s -x %s -v %s -e %s -inf %s" \
-          % (sander_in, sander_out, new_top, new_crd, rst, trj, vel, ene, inf)
+          % (sander_in, sander_out, new_top, new_crd, rst, trj, vel_trj, ene, inf)
 
   if parms['restraint_pdb']:
     pdb = parms['restraint_pdb']
@@ -760,7 +760,7 @@ class Trajectory:
     coor_trj_fname = name + '.trj'
     self.coor_traj = TrjReader(self.top, coor_trj_fname)
 
-    vel_trj_fname = name + '.vel'
+    vel_trj_fname = name + '.vel.trj'
     if os.path.isfile(vel_trj_fname):
       self.vel_traj = TrjReader(self.top, vel_trj_fname)
     else:
@@ -855,8 +855,8 @@ def merge_simulations(name, pulses):
   trajs = [os.path.join(pulse, name + '.trj') for pulse in pulses]
   merge_trajectories(name + '.top', trajs, name + '.trj')
 
-  vels = [os.path.join(pulse, name + '.vel') for pulse in pulses]
-  merge_trajectories(name + '.top', vels, name + '.vel')
+  vels = [os.path.join(pulse, name + '.vel.trj') for pulse in pulses]
+  merge_trajectories(name + '.top', vels, name + '.vel.trj')
   
 
 def read_time_blocks(fname):
