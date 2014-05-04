@@ -21,6 +21,18 @@ class Vec3(array):
   def __add__(self, rhs):
     return Vec3(self[0]+rhs[0], self[1]+rhs[1], self[2]+rhs[2])
 
+  def __iadd__(self, rhs):
+    self[0] += rhs[0]
+    self[1] += rhs[1]
+    self[2] += rhs[2]
+    return self
+
+  def __isub__(self, rhs):
+    self[0] -= rhs[0]
+    self[1] -= rhs[1]
+    self[2] -= rhs[2]
+    return self
+
   def __sub__(self, rhs):
     return Vec3(self[0]-rhs[0], self[1]-rhs[1], self[2]-rhs[2])
 

@@ -4,13 +4,15 @@
 
 The library attempts to provide the lightest API for the given functionality. For instance, even `numpy` dependency is optional. Trajectory readers are written in pure Python.
 
-## Command-line Utilities
+## Installation
 
 To use, install using pip?
 
 Then run the command with the `-h` option 
 
 Run with `pypy` option
+
+First though, to use these tools, you have to tell `pdbremix` where the binaries are. **HOW SHOULD THIS BE DONE?**
 
 ### Standalone tools
 
@@ -28,8 +30,6 @@ Run with `pypy` option
 ### Wrappers around external tools
 
 There are many wonderful tools for computational structural biology that have less-than-stellar command-line interfaces. `pdbremix` can be used to wrap these tools with a friendlier interface, and add some useful extra functionality.
-
-First though, to use these tools, you have to tell `pdbremix` where the binaries are. **HOW SHOULD THIS BE DONE?**
 
 These command-line tools provide a much better interface to commonly used tools such as PYMOL, MODELLER and THESEUS:
 

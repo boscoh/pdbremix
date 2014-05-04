@@ -168,7 +168,8 @@ def get_center(atoms):
   center = v3.vector()
   for atom in atoms:
     center += atom.pos
-  return v3.scale(center, 1.0/float(len(atoms)))
+  result = v3.scale(center, 1.0/float(len(atoms)))
+  return result
 
 
 def get_width(atoms, center):
