@@ -1,29 +1,70 @@
 # PDBREMIX
 
-# Introduction
+`pdbremix` is a python library for computational structural biology. It provides a unified interface to manipulate PDB structures, setup basic molecular-dynamics simulations, and analyse the resultant trajectories. 
 
-PDBSTRUCT2 is a python library for computational structural biology. It provides a unified interface to manipulate PDB structures, setup basic molecular-dynamics simulations, and analyse the resultant trajectories. 
+# Command-line Utilities
 
-# Standalone Command-line Utilities
+`pdbremix` provides a bunch of structural biology algorithms, all written in standard Python:
 
-For analysis and manipulation of PDB structures:
-
-- `pdbheader` displays header information in table format
-- `pdbvol` calculates the volume of the molecule
-- `pdbasa` calculates the solvent-accessible surface-area
 - `pdbfetch` fetches PDB files from the RCSB website
-- `pdbrmsd` calculates the RMSD between PDB structures
+- `pdbheader` displays header information in table format
+- `pdbvol` calculates the volume
+- `pdbasa` calculates the solvent-accessible surface-area
 - `pdbseq` displays the sequence actually in the PDB
+- `pdbrmsd` calculates the RMSD between two PDB structures
 - `pdbchain` extracts individual chains from a PDB file
-- `pdbcheck` checks for defects that will prevent MD simulation
+- `pdbcheck` checks common defects that affect MD simulations
 
-# Wrappers around external tools
+## Wrappers around external tools
+
+There are many wonderful tools for computational structural biology that have less-than-stellar command-line interfaces. `pdbremix` can be used to wrap these tools with a friendlier interface, and add some useful extra functionality.
+
+First though, to use these tools, you have to tell `pdbremix` where the binaries are. **HOW SHOULD THIS BE DONE?**
+
+*PDB manipulation wrappers.* These command-line tools provide a much better interface to commonly used tools such as PYMOL, MODELLER and THESEUS:
 
 - `pdbshow` displays PDB files with PYMOL, with extra options such as residue centring and b-factor colouring
 - `pdboverlay` uses MAFFT and THESEUS to align homologous proteins and displays them with PYMOL
 - `pdbinsert` uses MODELLER to build loops for gaps in a PDB structure
 
-# Vector3d
+*trajectory tools* The simulation functions of `pdbremix` is best accessed by user-written Python scripts, which will be described below. However, several useful command-line utilities for simulation and trajectoy analysis are provided:
+
+- `puff` runs a PUFF steered molecular-dynamics from a special configuration file
+- `puffshow` displays residues that are pulled in the PUFF configuration files
+- `grotrim` used to delete frames from a Gromacs .trr trajectory
+- `traj2amb` converts NAMD and GROMACS trajectories to AMBER trajectories _without_ solvent
+- `md2pdb` converts MD restart files into PDB
+- `trajstep` gets basic MD parameters from a trajectory
+- `trajvar` calculates kinetic energy and RMSD on trajectories
+- `trajvmd` wrapper to open trajectories in VMD *recommended*
+- `trajchim` wrapper to open trajectories in CHIMERA
+- `trajpym` wrapper to open trajectories in PYMOL, only works with AMBER trajectories
+
+
+## Structure of MD simulation files
+
+trajectory files
+
+## Structure of restart files
+asa.py
+data.py
+fetch.py
+force.py
+gromacs.py* namd.py* pdbatoms.py
+pdbtext.py
+protein.py
+pymol.py\* rmsd.py
+simulate.py
+traj.py
+util.py
+v3.py
+v3array.py
+v3numpy.py
+volume.py
+
+# Manipulation PDB structures
+
+## A vector library
 
 - numerics
 - function based, not object based
@@ -32,7 +73,7 @@ For analysis and manipulation of PDB structures:
 - allows non-numpy library, so pypy
   pypy `which pdbasa` 1be9.pdb
 
-# reading pdb structures
+# representing PDB structures
 
 - I have written quite a few variations of the pdbatoms library, I've found the right level of abstraction, the simplest required to do all the things that I find useful
 - the PDB really has 
@@ -110,5 +151,5 @@ gromacs ligand http://www.dddc.ac.cn/embo04/practicals/9\_15.htm
 installing amber on mac http://amberonmac.blogspot.com.au/
 amber ff on gromacs http://www.somewhereville.com/?p=114
 ffamber http://ffamber.cnsm.csulb.edu/
-http://web.mit.edu/vmd_v1.9.1/namd-tutorial-unix.pdf
+http://web.mit.edu/vmd\_v1.9.1/namd-tutorial-unix.pdf
 http://bionano.physics.illinois.edu/Tutorials/ssbTutorial.pdf
