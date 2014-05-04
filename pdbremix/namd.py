@@ -134,12 +134,12 @@ set pad %(solvent_buffer)s
 # Run solvate with automatic padding option
 package require solvate
 resetpsf
-solvate %(in_psf)s %(in_pdb)s -o %(name)s.solvate -rotate -rotinc 5 -t $pad
+solvate %(in_psf)s %(in_pdb)s -o %(name)s.vmd -rotate -rotinc 5 -t $pad
 
 # Find the periodic box size.
-mol load psf %(name)s.solvate.psf
+mol load psf %(name)s.vmd.psf
 set mol1 [molinfo top get id]
-animate read pdb %(name)s.solvate.pdb $mol1
+animate read pdb %(name)s.vmd.pdb $mol1
 
 set sel1 [atomselect $mol1 all]
 set cent1 [measure center $sel1]
@@ -184,13 +184,13 @@ set zmin [expr $zpad + [lindex $cent1 2]]
 
 # Rerun solvate on the original structure using calculated padding to make the box cubic
 resetpsf
-solvate %(name)s.psf %(name)s.pdb -o %(name)s.solvate -rotate -rotinc 5 -x $xmin +x $xplus -y $ymin +y $yplus -z $zmin +z $zplus
+solvate %(name)s.psf %(name)s.pdb -o %(name)s.vmd -rotate -rotinc 5 -x $xmin +x $xplus -y $ymin +y $yplus -z $zmin +z $zplus
 
 # Check that it worked
 mol delete all
-mol load psf %(name)s.solvate.psf
+mol load psf %(name)s.vmd.psf
 set mol1 [molinfo top get id]
-animate read pdb %(name)s.solvate.pdb $mol1
+animate read pdb %(name)s.vmd.pdb $mol1
 
 set sel1 [atomselect $mol1 all]
 set cent1 [measure center $sel1]
@@ -218,12 +218,12 @@ set q [measure sumweights $all weight charge]
 set natom [expr round($q)]
 if {$natom < 0} {
 	set natom [expr abs($natom)]
-	autoionize -psf %(name)s.solvate.psf -pdb %(name)s.solvate.pdb -nna $natom -ncl 0 -o %(name)s
+	autoionize -psf %(name)s.vmd.psf -pdb %(name)s.vmd.pdb -nna $natom -ncl 0 -o %(name)s
 } elseif {$natom > 0} {
-	autoionize -psf %(name)s.solvate.psf -pdb %(name)s.solvate.pdb -nna 0 -ncl $natom -o %(name)s
+	autoionize -psf %(name)s.vmd.psf -pdb %(name)s.vmd.pdb -nna 0 -ncl $natom -o %(name)s
 } elseif {$natom == 0} {
-	exec cp %(name)s.solvate.psf %(name)s.psf
-	exec cp %(name)s.solvate.pdb %(name)s.pdb
+	exec cp %(name)s.vmd.psf %(name)s.psf
+	exec cp %(name)s.vmd.pdb %(name)s.pdb
 }
 
 # Check that it worked
@@ -243,10 +243,10 @@ def solvate_psf(in_psf, in_pdb, out_name, solvent_buffer=10.0):
     'name': out_name,
     'solvent_buffer': solvent_buffer,
   }
-  tcl = out_name + '.solvate.tcl'
+  tcl = out_name + '.vmd.tcl'
   open(tcl, 'w').write(solvate_script % parms)
-  data.binary('vmd', '-dispdev text -eofexit', out_name+'.solvate', tcl)
-  util.check_output(out_name + '.solvate.pdb')
+  data.binary('vmd', '-dispdev text -eofexit', out_name+'.vmd', tcl)
+  util.check_output(out_name + '.vmd.pdb')
   util.check_output(out_name + '.pdb')
  
 
@@ -366,7 +366,8 @@ minimization_parms = {
   'input_crds' : 'in.pdb', 
   'output_name' : 'min', 
   'force_field': 'NAMD', 
-  'restraint_pdb': ''
+  'restraint_pdb': '',
+  'n_step_minimization' : 100, 
 } 
 
 constant_energy_parms = { 
@@ -460,7 +461,7 @@ fullElectFrequency 2
 
 extended_periodic_box_script = """    
 # Periodic Box from file
-extendedSystem %s
+extendedSystem %(xsc)s
 """
 
 new_periodic_box_script = """
@@ -519,7 +520,7 @@ langevinPistonTemp    %(temp_thermometer)s
 minimization_script = """
 # Minimization Parameters
 minimization on
-numsteps 200
+numsteps %(n_step_minimization)s
 """
 
 def make_namd_input_file(parms):
@@ -529,7 +530,7 @@ def make_namd_input_file(parms):
   if parms['restraint_pdb']:
     script += restraint_script % parms
   if parms['xsc']:
-    script += extended_periodic_box_script % parms['xsc']
+    script += extended_periodic_box_script % parms
   else:
     script += calculate_periodic_box_script(parms)
   if 'n_step_dynamics' in parms:
@@ -544,7 +545,7 @@ def make_namd_input_file(parms):
       script += temperature_coupling_script % parms
       script += constant_pressure_script % parms
   else:
-    script += minimization_script
+    script += minimization_script % parms
   return script
 
 
