@@ -247,6 +247,30 @@ def write_soup_to_crds_and_vels(soup, name):
 
 # Routines to generate topology and gro files
 
+force_field_mdp = """
+; Bond parameters
+constraints     = hbonds        ; bonds from heavy atom to H, constrained
+; constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained
+; constraint-algorithm = lincs    ; holonomic constraints 
+; lincs_iter      = 1             ; accuracy of LINCS
+; lincs_order     = 4             ; also related to accuracy
+
+; Neighborsearching
+ns_type         = grid          ; search neighboring grid cels
+nstlist         = 5             ; 10 fs
+rlist           = 1.0           ; short-range neighborlist cutoff (in nm)
+
+; Periodic boundary conditions
+pbc             = xyz           ; 3-dimensional periodic boundary conditions (xyz|no)
+
+; Electrostatics
+coulombtype     = PME           ; Particle Mesh Ewald for long-range electrostatics
+pme_order       = 4             ; cubic interpolation
+fourierspacing  = 0.16          ; grid spacing for FFT
+rcoulomb        = 1.0           ; short-range electrostatic cutoff (in nm)
+rvdw            = 1.0           ; short-range van der Waals cutoff (in nm)
+"""
+
 ions_mdp = """
 ; ions.mdp - used as input into grompp to generate ions.tpr
 ; Parameters describing what to do, when to stop and what to save
@@ -254,15 +278,6 @@ integrator  = steep   ; Algorithm (steep = steepest descent minimization)
 emtol       = 1000.0  ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
 emstep      = 0.01    ; Energy step size
 nsteps      = 50000   ; Maximum number of (minimization) steps to perform
-
-; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
-nstlist     = 1       ; Frequency to update the neighbor list and long range forces
-ns_type     = grid    ; Method to determine neighbor list (simple, grid)
-rlist       = 1.0     ; Cut-off for making neighbor list (short range forces)
-coulombtype = PME     ; Treatment of long range electrostatic interactions
-rcoulomb    = 1.0     ; Short-range electrostatic cut-off
-rvdw        = 1.0     ; Short-range Van der Waals cut-off
-pbc         = xyz     ; Periodic Boundary Conditions (xyz/no)
 """
 
 
@@ -276,7 +291,7 @@ def neutralize_system_with_salt(
     return
 
   in_mdp = out_name + '.salt.grompp.mdp'
-  open(in_mdp, 'w').write(ions_mdp)
+  open(in_mdp, 'w').write(ions_mdp + force_field_mdp)
   top = out_name + '.top'
   if in_top != top:
     shutil.copy(in_top, top)
@@ -405,16 +420,6 @@ integrator  = steep    ; Algorithm (steep = steepest descent minimization)
 emtol       = 1000.0   ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
 emstep      = 0.01     ; Energy step size
 nsteps      = %(n_step_minimization)s    ; Maximum number of (minimization) steps to perform
-
-; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
-nstlist     = 1        ; Frequency to update the neighbor list and long range forces
-ns_type     = grid     ; Method to determine neighbor list (simple, grid)
-rlist       = 1.0      ; Cut-off for making neighbor list (short range forces)
-coulombtype = PME-Switch   ; Treatment of long range electrostatic interactions
-vdwtype = Shift   ;  To do VdW cutoff with NVE
-rcoulomb    = 1.0      ; Short-range electrostatic cut-off
-rvdw        = 1.0      ; Short-range Van der Waals cut-off
-pbc         = xyz      ; 3-dimensional periodic boundary conditions (xyz|no)
 """
 
 constant_energy_parms = { 
@@ -449,38 +454,24 @@ dynamics_mdp = """
 integrator      = md            ; leap-frog integrator
 nsteps          = %(n_step_dynamics)s  ; time = n_step_dynamics*dt
 dt              = 0.001         ; time-step in fs
+continuation    = yes           ; first dynamics run
+
 ; Output control
 nstxout         = %(n_step_per_snapshot)s  ; save coordinates every 0.05 ps
 nstvout         = %(n_step_per_snapshot)s  ; save velocities every 0.05 ps
 nstenergy       = %(n_step_per_snapshot)s  ; save energies every 0.05 ps
 nstlog          = %(n_step_per_snapshot)s  ; update log file every 0.05 ps
-; Bond parameters
-continuation    = yes           ; first dynamics run
-constraints     = hbonds        ; bonds from heavy atom to H, constrained
-; constraints     = all-bonds     ; all bonds (even heavy atom-H bonds) constrained
-; constraint_algorithm = lincs    ; holonomic constraints 
-; lincs_iter      = 1             ; accuracy of LINCS
-; lincs_order     = 4             ; also related to accuracy
-; Neighborsearching
-ns_type         = grid          ; search neighboring grid cels
-nstlist         = 5             ; 10 fs
-rlist           = 1.0           ; short-range neighborlist cutoff (in nm)
-rcoulomb        = 1.0           ; short-range electrostatic cutoff (in nm)
-rvdw            = 1.0           ; short-range van der Waals cutoff (in nm)
-; Periodic boundary conditions
-pbc             = xyz           ; 3-dimensional periodic boundary conditions (xyz|no)
-; Electrostatics
-coulombtype     = PME           ; Particle Mesh Ewald for long-range electrostatics
-pme_order       = 4             ; cubic interpolation
-fourierspacing  = 0.16          ; grid spacing for FFT
+
 ; Pressure coupling is on
 pcoupl          = Parrinello-Rahman   ; Pressure coupling on in NPT
 pcoupltype      = isotropic     ; uniform scaling of box vectors
 tau_p           = 2.0           ; time constant, in ps
 ref_p           = 1.0           ; reference pressure, in bar
 compressibility = 4.5e-5        ; isothermal compressibility of water, bar^-1
+
 ; Add also refcoord-scaling to work with position restraints and pressure coupling
 refcoord-scaling = all
+
 ; Dispersion correction
 DispCorr        = EnerPres      ; account for cut-off vdW scheme
 """
@@ -528,6 +519,9 @@ def make_mdp(parms):
           mdp
   if 'restraint_pdb' in parms and parms['restraint_pdb']:
     mdp += "define            = -DPOSRES  ; position restrain the protein\n"
+
+  mdp += force_field_mdp
+  
   return mdp
   
   
@@ -555,7 +549,6 @@ def run(parms):
   name = parms['output_name']
   in_mdp = name + '.grompp.mdp'
   open(in_mdp, 'w').write(make_mdp(parms))
-  mdp = name + '.mdrun.mdp'
 
   # Copies across topology files and does
   # some name mangling so that all new topology
@@ -587,6 +580,7 @@ def run(parms):
           if atom.chain_id == chain_id and atom.bfactor > 0.0:
             f.write("%6s     1  1000  1000  1000\n" % i)
 
+  mdp = name + '.mdrun.mdp'
   in_gro = name + '.in.gro'
   shutil.copy(parms['input_crds'], in_gro)
   tpr = name + '.tpr'
