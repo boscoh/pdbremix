@@ -12,6 +12,7 @@ ff = 'AMBER11'
 ff = 'GROMACS4.5'
 ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
+ff = 'GROMACS4.5'
 pdb = 'pdb/hairpin.pdb'
 pdb = 'pdb/1cph.pdb'
 

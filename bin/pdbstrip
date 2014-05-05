@@ -3,9 +3,9 @@
 __doc__ = """
 Strips PDB file for further processing
 
-Usage: pdbstrip [-hsano] <pdb> [<out_pdb>]
+Usage: pdbstrip [-ysano] <pdb> [<out_pdb>]
 
--h   strip hydrogens
+-y   strip hydrogens
 -s   strip solvent
 -a   strip alternative conformation
 -n   strip out all other models
@@ -20,7 +20,7 @@ arg = docopt(__doc__)
 
 raw_txt = open(arg['<pdb>'], 'Ur').read()
 txt = raw_txt
-if arg['-h']:
+if arg['-y']:
   print "Stripping hydrogens"
   txt = pdbtext.strip_hydrogens(txt)
 if arg['-s']:

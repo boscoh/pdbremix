@@ -287,6 +287,7 @@ writepsf %(out_psf)s
 
 def make_disulfide_script(soup):
   n = len(soup.residues())
+
   chain_id = None
   i_res = None
   patch_names = []

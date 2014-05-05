@@ -379,6 +379,9 @@ def pdb_to_top_and_crds(
   util.goto_dir(solv_dir)
 
   pdbtext.clean_pdb(full_pdb, pdb)
+  # renumber residues as merge in pdb2gmx uses this for order
+  txt = pdbtext.renumber_residues(open(pdb).read())
+  open(pdb, 'w').write(txt)
 
   pdb2gmx_gro = name + '.pdb2gmx.gro'
   top = name + '.top'
@@ -391,7 +394,7 @@ def pdb_to_top_and_crds(
   else:
     raise ValueError, "Couldn't work out pdb2gmx for " + force_field
      
-  args = '-ignh -ff %s -water spc -missing -f %s -o %s -p %s -i %s' \
+  args = '-ignh -ff %s -water spc -missing -f %s -o %s -p %s -i %s -chainsep id_or_ter -merge all' \
           % (ff, pdb, pdb2gmx_gro, top, itp)
   data.binary('pdb2gmx', args, name+'.pdb2gmx')
   util.check_files(pdb2gmx_gro)
@@ -603,24 +606,18 @@ def run(in_parms):
   for f in new_files:
     replace_include_file(f, in_name + "_", name + "_")
 
-  restraint_files = [f for f in new_files if 'posre' in f]
   if parms['restraint_pdb']:
     atoms = pdbatoms.Polymer(parms['restraint_pdb']).atoms()
     indices = range(1, len(atoms)+1)
-    for fname in restraint_files:
-      if 'Protein_chain' in fname:
-        chain_id = fname.replace('.itp', '').split('_')[-1]
-      else:
-        chain_id = ' '
-      with open(fname, 'w') as f:
-        f.write(restraint_header)
-        for i, atom in zip(indices, atoms):
-          if atom.chain_id == chain_id and atom.bfactor > 0.0:
-            # convert from kcal/mol/angs^2 to kJ/mol/nm^2
-            # 1kcal*mol*A**-2 = 4.184 kJ*mol*(0.1 nm)**2 
-            #                 = 400.184 kJ*mol*nm**2
-            f_cons = parms['restraint_force'] * 400.184 
-            f.write("%6s     1 %5.f %5.f %5.f\n" % (i, f_cons, f_cons, f_cons))
+    with open(name + '_posre.itp', 'w') as f:
+      f.write(restraint_header)
+      for i, atom in zip(indices, atoms):
+        if atom.bfactor > 0.0:
+          # convert from kcal/mol/angs^2 to kJ/mol/nm^2
+          # 1kcal*mol*A**-2 = 4.184 kJ*mol*(0.1 nm)**2 
+          #                 = 400.184 kJ*mol*nm**2
+          f_cons = parms['restraint_force'] * 400.184 
+          f.write("%6s     1 %5.f %5.f %5.f\n" % (i, f_cons, f_cons, f_cons))
 
   mdp = name + '.mdrun.mdp'
   in_gro = name + '.in.gro'
