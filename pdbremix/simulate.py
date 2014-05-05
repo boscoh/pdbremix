@@ -89,9 +89,19 @@ def soup_from_restart_files(top, crds, vels, skip_solvent=True):
 
 
 def run_parms(parms):
+  name = parms['output_name']
+  config = name + ".config"
+
+  if util.is_same_dict_in_file(parms, config):
+    print "Skipping:simulation already run."
+    return
+
   md_module = get_md_module(parms['force_field'])
+
   md_module.run(parms)
   
+  util.write_dict(config, parms)
+
 
 def minimize(
     force_field, top, crds, md_name, 

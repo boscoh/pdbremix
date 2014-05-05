@@ -556,14 +556,9 @@ def run(in_parms):
   Read parms and creates the appropriate NAMD input files
   for simulation
   """
-  name = in_parms['output_name']
-  namd_in = name + ".namd2.in"
-  config = name + ".config"
-
   parms = copy.deepcopy(in_parms)
-  if util.is_same_dict_in_file(parms, config):
-    print "simulation already run."
-    return
+  name = parms['output_name']
+  namd_in = name + ".namd2.in"
 
   parms['parameter'] = os.path.join(data.data_dir, 'charmm22.parameter')
   parms['psf_type'] =  'paraTypeCharmm on'
@@ -599,8 +594,6 @@ def run(in_parms):
   top, crds, vels = get_restart_files(name)
   util.check_output(top)
   util.check_output(crds)
-
-  util.write_dict(config, in_parms)
 
 
 def merge_simulations(name, pulses):

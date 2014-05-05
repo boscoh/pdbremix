@@ -102,6 +102,7 @@ def soup_from_topology(topology):
       atom.res_num = i_res+1
       atom.res_type = res_type
       if atom.res_type == data.solvent_res_types:
+        print 'hetatm'
         atom.is_hetatm = True
       atom.type = topology['ATOM_NAME'][i_atom].strip()
       atom.mass = topology['MASS'][i_atom]
@@ -111,6 +112,19 @@ def soup_from_topology(topology):
       soup.insert_atom(-1, atom)
   # TODO detect chains
   return soup
+
+
+def convert_to_pdb_atom_names(soup):
+  for res in soup.residues():
+    if res.type in data.solvent_res_types:
+      for a in res.atoms():
+        a.is_hetatm = True
+    if res.type == "HSE":
+      res.set_type("HIS")
+    for atom in res.atoms():
+      if atom.type[-1].isdigit() and atom.type[0] == "H":
+        new_atom_type = atom.type[-1] + atom.type[:-1]
+        res.change_atom_type(atom.type, new_atom_type)
 
 
 def load_crd_or_rst_into_soup(soup, crd_or_rst):
@@ -147,14 +161,23 @@ def load_crd_or_rst_into_soup(soup, crd_or_rst):
   f.close()
 
 
+def strip_cr(line):
+  if line.endswith('\n'):
+    return line[:-1]
+  if line.endswith('\r\n'):
+    return line[:-1]
+  return line
+
+
 def soup_from_top_and_crd_or_rst(top, crd_or_rst):
   topology = read_top(top)
   soup = soup_from_topology(topology)
+  convert_to_pdb_atom_names(soup)
   load_crd_or_rst_into_soup(soup, crd_or_rst)
   if topology['IFBOX'] > 0:
     lines = open(crd_or_rst, "r").readlines()
     lines = [l for l in reversed(lines) if l.strip()]
-    soup.box_dimension_str = lines[0]
+    soup.box_dimension_str = strip_cr(lines[0])
   return soup
 
 
@@ -200,7 +223,7 @@ def write_soup_to_rst(soup, rst):
     f.write("\n")
 
   if hasattr(soup, 'box_dimension_str') and soup.box_dimension_str is not None:
-    f.write(soup.box_dimension_str + '\n')
+    f.write(soup.box_dimension_str + "\n")
     
   f.close()
   
@@ -258,7 +281,7 @@ def run_tleap(
     force_field, pdb, name, solvent_buffer=0.0, excess_charge=0): 
   "Convert a .pdb file into amber .top and .crd file."
   util.check_output(pdb)
-  tleap_pdb = pdb.replace('.pdb', '.tleap.pdb')
+  tleap_pdb = name + '.clean.pdb'
   pdbtext.clean_pdb(pdb, tleap_pdb)
   util.check_output(tleap_pdb)
 
@@ -330,7 +353,9 @@ def pdb_to_top_and_crds(
     if charge != 0:
       top, crd = run_tleap(
           force_field, pdb, name, solvent_buffer, charge)
+
   convert_restart_to_pdb(name, name+'.pdb')
+
   return top, crd
 
 
@@ -471,14 +496,8 @@ def make_restraint_script(pdb):
 
 def run(in_parms):
   "Runs AMBER with in_parms"
-
   parms = copy.deepcopy(in_parms)
   name = parms['output_name']
-
-  config = name + ".config"
-  if util.is_same_dict_in_file(in_parms, config):
-    print "Skipping: simulation already run."
-    return
 
   input_top = parms['topology'] 
   util.check_files(input_top)
@@ -519,12 +538,13 @@ def run(in_parms):
     args += " -ref %s" % ref_crd
 
   open(sander_in, "w").write(script)
+
   data.binary('sander', args, name)
+
   util.check_output(sander_out, ['FATAL'])
-
   top, crds, vels = get_restart_files(name)
-
-  util.write_dict(config, in_parms)
+  util.check_output(top)
+  util.check_output(crds)
 
 
 def low_temperature_equilibrate(in_name, out_name, temperature):

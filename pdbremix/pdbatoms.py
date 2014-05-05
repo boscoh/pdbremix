@@ -27,11 +27,14 @@ class Atom:
     return copy.deepcopy(self)
 
   def type_str(self):
-    atom_type = self.type
+    atom_type = self.type.strip()
     if len(atom_type) == 1:
       atom_type = " %s  " % atom_type
     elif len(atom_type) == 2:
-      atom_type = " %s " % atom_type
+      if atom_type[0].isdigit():
+        atom_type = "%s  " % atom_type
+      else:
+        atom_type = " %s " % atom_type
     elif len(atom_type) == 3:
       if atom_type[0].isdigit():
         atom_type = "%s " % atom_type

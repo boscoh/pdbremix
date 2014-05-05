@@ -6,10 +6,11 @@ from pdbremix import force
 from pdbremix import util
 
 
-ff = 'AMBER11'
-ff = 'AMBER11-GBSA'
-ff = 'NAMD2.8'
 ff = 'GROMACS4.5.5'
+ff = 'NAMD2.8'
+ff = 'AMBER11-GBSA'
+ff = 'AMBER11'
+pdb = 'pdb/1cph.pdb'
 pdb = 'pdb/hairpin.pdb'
 
 pdb = os.path.abspath(pdb)
@@ -19,6 +20,7 @@ sim_dir = 'md/%s/%s' % (ff, name)
 # util.clean_fname(sim_dir)
 
 save_dir = os.getcwd()
+
 
 def prepare_for_md():
   util.goto_dir(sim_dir)
@@ -92,9 +94,9 @@ def test_restraint():
 
 
 if __name__ == "__main__":
-  # test_basic_md_merge()
-  # test_rip()
-  # test_puff()
+  test_basic_md_merge()
+  test_rip()
+  test_puff()
   test_restraint()
 
 

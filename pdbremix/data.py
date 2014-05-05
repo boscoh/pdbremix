@@ -41,6 +41,6 @@ backbone_atoms = [
     
 solvent_res_types = [
     'WAT', 'TIP', 'HOH', 'SOL', 'CLA', 'SOD',
-    'NA', 'CL', 'NA+', 'CL-']
+    'NA', 'CL', 'NA+', 'CL-', 'Na', 'Na+', 'Cl', 'Cl-']
 
     

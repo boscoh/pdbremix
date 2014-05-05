@@ -16,6 +16,7 @@ import util
 import pdbatoms
 import v3
 import data
+import pdbtext
 
 
 # mdrun = "mpiexec -np 8 /home/bosco/Packages/gromacs-4.0.7/bin/mdrun"
@@ -345,14 +346,13 @@ def pdb_to_top_and_crds(
 
   util.check_files(pdb)
   full_pdb = os.path.abspath(pdb)
+  pdb = name + '.clean.pdb'
 
   solv_dir = name + '.solvate'
   save_dir = os.getcwd()
   util.goto_dir(solv_dir)
 
-  pdb_copy = os.path.basename(pdb)
-  if not os.path.isfile(pdb_copy):
-    shutil.copy(full_pdb, pdb_copy)
+  pdbtext.clean_pdb(full_pdb, pdb)
 
   pdb2gmx_gro = name + '.pdb2gmx.gro'
   top = name + '.top'
@@ -553,12 +553,6 @@ restraint_header = """
 def run(in_parms):
   parms = copy.deepcopy(in_parms)
   name = parms['output_name']
-
-  config = name + ".config"
-  if util.is_same_dict_in_file(parms, config):
-    print "simulation already run."
-    return
-
   in_mdp = name + '.grompp.mdp'
   open(in_mdp, 'w').write(make_mdp(parms))
 
@@ -585,14 +579,15 @@ def run(in_parms):
     atoms = pdbatoms.Polymer(parms['restraint_pdb']).atoms()
     indices = range(1, len(atoms)+1)
     for fname in restraint_files:
-      chain_id = fname.replace('.itp', '').split('_')[-1]
-      if chain_id == 'posre':
+      if 'Protein_chain' in fname:
+        chain_id = fname.replace('.itp', '').split('_')[-1]
+      else:
         chain_id = ' '
       with open(fname, 'w') as f:
         f.write(restraint_header)
         for i, atom in zip(indices, atoms):
           if atom.chain_id == chain_id and atom.bfactor > 0.0:
-            f.write("%6s     1 10000 10000 10000\n" % i)
+            f.write("%6s     1 50000 50000 50000\n" % i)
 
   mdp = name + '.mdrun.mdp'
   in_gro = name + '.in.gro'
@@ -611,11 +606,9 @@ def run(in_parms):
       name + '.mdrun')
 
   top, crds, vels = get_restart_files(name)
-  util.check_files(top, crds)
-
+  util.check_output(top)
+  util.check_output(crds)
   delete_backup_files(name)
-
-  util.write_dict(config, in_parms)
 
 
 def merge_simulations(name, pulses):
