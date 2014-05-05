@@ -286,22 +286,26 @@ writepsf %(out_psf)s
 
 
 def make_disulfide_script(soup):
-  script = ""
   n = len(soup.residues())
+  chain_id = None
+  i_res = None
+  patch_names = []
+  for i in range(n):
+    res = soup.residue(i)
+    if res.chain_id != chain_id:
+      chain_id = res.chain_id
+      i_res = 1
+    patch_names.append("%s:%s" % (chain_id, i_res))
+    i_res += 1
+
+  script = ""
   for i in range(n):
     for j in range(i+1, n):
       if soup.residue(i).type in 'CYS' and soup.residue(j).type in 'CYS':
         sg1 = soup.residue(i).atom('SG')
         sg2 = soup.residue(j).atom('SG')
         if v3.distance(sg1.pos, sg2.pos) < 3.0:
-          chain_id1 = sg1.chain_id
-          if chain_id1 == ' ':
-            chain_id1 = "A"
-          chain_id2 = sg2.chain_id
-          if chain_id2 == ' ':
-            chain_id2 = "A"
-          script += "patch DISU %s:%s %s:%s\n" % (
-            chain_id1, sg1.res_num, chain_id2, sg2.res_num)
+          script += "patch DISU %s %s\n" % (patch_names[i], patch_names[j])
   if script:
      script = "# disulfide bonds\n" + script + "\n"
   return script
