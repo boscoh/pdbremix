@@ -368,6 +368,7 @@ minimization_parms = {
   'output_name' : 'min', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'n_step_minimization' : 100, 
 } 
 
@@ -377,6 +378,7 @@ constant_energy_parms = {
   'output_name' : 'md', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'n_step_per_snapshot' : 5, 
   'n_step_dynamics' : 1000, 
 } 
@@ -387,6 +389,7 @@ langevin_thermometer_parms = {
   'output_name' : 'md', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'random_seed' : 2342, 
   'temp_thermometer' : 300.0, 
   'temp_initial': 0.0, # ignored if it is 0.0
@@ -481,10 +484,9 @@ SEARCH
 """
 
 
-def make_restraint_script(pdb):
+def make_restraint_script(pdb, restraint_weight=100.0):
   util.check_output(pdb)
   script = "Restrained atoms from %s\n" % pdb
-  restraint_weight = 100.0
   script += "%s\n" % restraint_weight
   script += restraint_script
   for i, atom in enumerate(pdbatoms.AtomList(pdb).atoms()):
@@ -531,7 +533,7 @@ def run(in_parms):
 
   if parms['restraint_pdb']:
     pdb = parms['restraint_pdb']
-    script += make_restraint_script(pdb)
+    script += make_restraint_script(pdb, parms['restraint_force'])
     soup = pdbatoms.Polymer(pdb)
     ref_crd = name + '.restraint.crd'
     write_soup_to_rst(soup, ref_crd)

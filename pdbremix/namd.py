@@ -301,7 +301,7 @@ def make_disulfide_script(soup):
           if chain_id2 == ' ':
             chain_id2 = "A"
           script += "patch DISU %s:%s %s:%s\n" % (
-            chain_id1, i+1, chain_id2, j+1)
+            chain_id1, sg1.res_num, chain_id2, sg2.res_num)
   if script:
      script = "# disulfide bonds\n" + script + "\n"
   return script
@@ -369,6 +369,7 @@ minimization_parms = {
   'output_name' : 'min', 
   'force_field': 'NAMD', 
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'n_step_minimization' : 100, 
 } 
 
@@ -382,6 +383,7 @@ constant_energy_parms = {
   'n_step_per_snapshot' : 5, 
   'n_step_dynamics' : 1000, 
   'restraint_pdb': '',
+  'restraint_force': 100.0,
 } 
 
 langevin_thermometer_parms = { 
@@ -396,6 +398,7 @@ langevin_thermometer_parms = {
   'n_step_per_snapshot' : 5, 
   'n_step_dynamics' : 1000, 
   'restraint_pdb': '',
+  'restraint_force': 100.0,
 } 
 
 
@@ -442,7 +445,7 @@ consExp 2
 consKFile %(restraint_pdb)s
 consKCol B
 consRef %(restraint_pdb)s
-constraintScaling 100
+constraintScaling %(restraint_force)s
 """
 
 molecular_dynamics_script = """

@@ -37,6 +37,7 @@ import pdbtext
 #
 # positions: nanometers
 # velocities: nanometers/picosecond
+# force constant: kJ/mol/nm^2
 
 
 # Routines to read topology and restart files
@@ -442,6 +443,7 @@ minimization_parms = {
   'output_name' : 'min', 
   'force_field': 'GROMACS',
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'n_step_minimization' : 100, 
 } 
 
@@ -463,6 +465,7 @@ constant_energy_parms = {
   'solvent_state': 2,
   'surface_area': 1,
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'n_step_per_snapshot' : 50, 
   'n_step_dynamics' : 1000, 
   'temp_initial': 0.0, # ignored if it is 0.0
@@ -475,6 +478,7 @@ langevin_thermometer_parms = {
   'force_field': 'GROMACS',
   'cutoff': 16.0,  # non-bonded cutoff
   'restraint_pdb': '',
+  'restraint_force': 100.0,
   'random_seed' : 2342, 
   'temp_thermometer' : 300.0, 
   'temp_initial': 0.0, # ignored if it is 0.0
@@ -612,7 +616,11 @@ def run(in_parms):
         f.write(restraint_header)
         for i, atom in zip(indices, atoms):
           if atom.chain_id == chain_id and atom.bfactor > 0.0:
-            f.write("%6s     1 50000 50000 50000\n" % i)
+            # convert from kcal/mol/angs^2 to kJ/mol/nm^2
+            # 1kcal*mol*A**-2 = 4.184 kJ*mol*(0.1 nm)**2 
+            #                 = 400.184 kJ*mol*nm**2
+            f_cons = parms['restraint_force'] * 400.184 
+            f.write("%6s     1 %5.f %5.f %5.f\n" % (i, f_cons, f_cons, f_cons))
 
   mdp = name + '.mdrun.mdp'
   in_gro = name + '.in.gro'

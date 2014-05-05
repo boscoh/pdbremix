@@ -93,7 +93,7 @@ def run_parms(parms):
   config = name + ".config"
 
   if util.is_same_dict_in_file(parms, config):
-    print "Skipping:simulation already run."
+    print "Skipping: simulation already run."
     return
 
   md_module = get_md_module(parms['force_field'])
@@ -177,7 +177,7 @@ def pulse(
 
   config = md_name + ".config"
   if util.is_same_dict_in_file(parms, config):
-    print "simulation already run."
+    print "Skipping: pulsing simulation already run."
     return
 
   timer = util.Timer()
