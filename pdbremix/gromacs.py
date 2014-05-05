@@ -154,6 +154,18 @@ def convert_to_pdb_atom_names(soup):
       res.change_atom_type("OC2", "OXT")
     if res.has_atom("OC1"):
       res.change_atom_type("OC1", "O")
+    if res.type == "SOL":
+      res.set_type("HOH")
+      res.change_atom_type("HW1", "1H")
+      res.change_atom_type("HW2", "2H")
+      res.change_atom_type("OW", "O")
+    if res.type in data.solvent_res_types:
+      for a in res.atoms():
+        a.is_hetatm = True
+    for atom in res.atoms():
+      if atom.type[-1].isdigit() and atom.type[0] == "H":
+        new_atom_type = atom.type[-1] + atom.type[:-1]
+        res.change_atom_type(atom.type, new_atom_type)
 
 
 def convert_to_gromacs_atom_names(soup):
@@ -165,9 +177,21 @@ def convert_to_gromacs_atom_names(soup):
       res.change_atom_type("OXT", "OC2")
       if res.has_atom("O"):
         res.change_atom_type("O", "OC1")
- 
+    if res.type == "HOH":
+      res.set_type("SOL")
+      res.change_atom_type("1H", "HW1")
+      res.change_atom_type("2H", "HW2")
+      res.change_atom_type("O", "OW")
+    if res.type in data.solvent_res_types:
+      for a in res.atoms():
+        a.is_hetatm = False
+    for atom in res.atoms():
+      if atom.type[0].isdigit() and atom.type[1] == "H":
+        new_atom_type = atom.type[1:] + atom.type[0]
+        res.change_atom_type(atom.type, new_atom_type)
 
-def soup_from_top_gro(top, gro, skip_solvent=True):
+
+def soup_from_top_gro(top, gro, skip_solvent=False):
   """
   Returns a Polymer object built from GROMACS restart files.
   Will read all atoms until the solvent. 
@@ -207,14 +231,15 @@ def soup_from_top_gro(top, gro, skip_solvent=True):
   return soup
 
 
-def soup_from_restart_files(top, crds, vels, skip_solvent=True):
-  return soup_from_top_gro(top, crds, skip_solvent)
+def soup_from_restart_files(top, crds, vels, skip_solvent=False):
+  soup = soup_from_top_gro(top, crds, skip_solvent)
+  convert_to_pdb_atom_names(soup)
+  return soup
 
 
 def convert_restart_to_pdb(md_name, pdb):
   top, crds, vels = get_restart_files(md_name)
   soup = soup_from_restart_files(top, crds, vels)
-  convert_to_pdb_atom_names(soup)
   soup.write_pdb(pdb)
 
 

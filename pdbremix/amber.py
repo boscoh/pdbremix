@@ -1,11 +1,12 @@
 """
-This modules interaces with the amber molecular dynamics package,
-which should already be installed and available on the path. The
-routines are used to access the topology files and get the frames
-of a trajectory. The interface is mainly through pdb files and
-strings.
+Interfaces with the AMBER molecular dynamics package.
 
 valid force-fields are AMBER11 and AMBER8
+
+units:
+
+charges: e*18.312 = e*sqrt(k) where k = 332, the electrostatic constant
+force constant: kcal/mol/angs^2
 """
 
 
