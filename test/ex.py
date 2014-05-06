@@ -6,15 +6,14 @@ from pdbremix import force
 from pdbremix import util
 
 
-ff = 'GROMACS4.5'
 ff = 'NAMD2.8'
-ff = 'GROMACS4.5'
 ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
-ff = 'GROMACS4.5'
 ff = 'AMBER11'
+ff = 'GROMACS4.5'
 pdb = 'pdb/hairpin.pdb'
 pdb = 'pdb/1cph.pdb'
+
 
 pdb = os.path.abspath(pdb)
 name = os.path.splitext(os.path.basename(pdb))[0]

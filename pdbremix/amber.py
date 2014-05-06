@@ -1,10 +1,17 @@
-"""
-Interfaces with the AMBER molecular dynamics package.
+# encoding: utf-8
 
-valid force-fields are AMBER11 and AMBER8
+__doc__ = """
 
-units:
+PDBREMIX interface to the AMBER molecular-dynamics package.
 
+The library is split into three sections:
+
+1. Read and write restart files
+2. Generate restart files from PDB
+3. Run simulations from restart files
+4. Read trajectories with some post-processing
+
+Copyright (C) 2009, 2014, Bosco K. Ho
 charges: e*18.312 = e*sqrt(k) where k = 332, the electrostatic constant
 force constant: kcal/mol/angs^2
 """
@@ -22,29 +29,38 @@ import pdbatoms
 import data
 import protein
 
-# Routines to handle topology coordinate, and restart files
 
-def expand_restart_files(name):
-  top = os.path.abspath(name + '.top')
-  crds = os.path.abspath(name + '.rst')
-  if not os.path.isfile(crds):
-    crds = os.path.abspath(name + '.crd')
-  vels = ''
-  return top, crds, vels
+# ##########################################################
 
+# 1. Reading and writing restart files
 
-def get_restart_files(name):
-  top, crds, vels = expand_restart_files(name)
-  util.check_files(top, crds)
-  return top, crds, vels
+# In PDBREMIX, restart files for AMBER are assumed to
+# have the naming scheme:
+
+# 1. topology file: sim.top
+# 2. coordinate/velocity file: sim.crd(coor) or sim.rst (coor/vel)
+
+# Parsers have been written to read .top and .crd/.rst files into
+# Python structures, and to write these back into .top and .crd/.rst
+# files, and to convert them into .pdb files
+
+# The units used in AMBER are:
+# - positions: angs
+# - velocities: angs/ps/20.455 *magic number
+# - force constant: kcal/mol/ang^2
 
 
 def read_top(top):
+  """
+  Returns a topology dictionary containing all the fields in the
+  AMBER .top file referenced by their FLAG name, and formatted into
+  python data types. POINTER variables are given their own key-value
+  fields.
+  """
   section = None
   len_field = None
   parse = None
   parse_map = { 'a':str, 'I':int, 'E':float }
-
   topology = {}
   for line in open(top, "rU"):
     line = line[:-1]
@@ -55,6 +71,7 @@ def read_top(top):
         section = words[1]
         topology[section] = []
       elif key.startswith("FORMAT"):
+        # interprets FORTRAN string format to parse section
         format_str = key[7:-1]
         len_field = int(re.split(r'\D+', format_str)[1])
         val_type = re.search('(a|I|E)', format_str).group(0)
@@ -63,7 +80,6 @@ def read_top(top):
       indices = range(0, len(line), len_field)
       pieces = [line[i:i+len_field] for i in indices]
       topology[section].extend(map(parse, pieces))
-
   name_str = """
   NATOM NTYPES NBONH MBONA NTHETH 
   MTHETA NPHIH MPHIA NHPARM NPARM 
@@ -74,11 +90,32 @@ def read_top(top):
   NUMEXTRA NCOPY  """
   for name, val in zip(name_str.split(), topology['POINTERS']):
     topology[name] = val
-
   return topology
 
 
+def convert_to_pdb_atom_names(soup):
+  for res in soup.residues():
+    if res.type in data.solvent_res_types:
+      for a in res.atoms():
+        a.is_hetatm = True
+    if res.type == "HSE":
+      res.set_type("HIS")
+    if res.type == "HIE":
+      res.set_type("HIS")
+    if res.type == "CYX":
+      res.set_type("CYS")
+    for atom in res.atoms():
+      if atom.type[-1].isdigit() and atom.type[0] == "H":
+        new_atom_type = atom.type[-1] + atom.type[:-1]
+        res.change_atom_type(atom.type, new_atom_type)
+      if atom.res_type == data.solvent_res_types:
+        atom.is_hetatm = True
+
+
 def soup_from_topology(topology):
+  """
+  Returns a PDBREMIX soup object from a topology dictionary.
+  """
   soup = pdbatoms.Polymer()
   chain_id = ''
   n_res = topology['NRES']
@@ -101,55 +138,44 @@ def soup_from_topology(topology):
       atom.num = i_atom+1
       atom.res_num = i_res+1
       atom.res_type = res_type
-      if atom.res_type == data.solvent_res_types:
-        print 'hetatm'
-        atom.is_hetatm = True
       atom.type = topology['ATOM_NAME'][i_atom].strip()
       atom.mass = topology['MASS'][i_atom]
       atom.charge = topology['CHARGE'][i_atom]/18.2223
       atom.element = pdbatoms.guess_element(
           atom.res_type, atom.type)
       soup.insert_atom(-1, atom)
-  # TODO detect chains
+  protein.find_chains(soup)
+  convert_to_pdb_atom_names(soup)
   return soup
 
 
-def convert_to_pdb_atom_names(soup):
-  for res in soup.residues():
-    if res.type in data.solvent_res_types:
-      for a in res.atoms():
-        a.is_hetatm = True
-    if res.type == "HSE":
-      res.set_type("HIS")
-    if res.type == "HIE":
-      res.set_type("HIS")
-    if res.type == "CYX":
-      res.set_type("CYS")
-    for atom in res.atoms():
-      if atom.type[-1].isdigit() and atom.type[0] == "H":
-        new_atom_type = atom.type[-1] + atom.type[:-1]
-        res.change_atom_type(atom.type, new_atom_type)
-
-
 def load_crd_or_rst_into_soup(soup, crd_or_rst):
+  """
+  Loads the coordinates and velocities of .crd or .rst into the soup.
+  """
   f = open(crd_or_rst, "r")
-  f.readline()
-
+  
+  f.readline() # skip first line
   n_atom = int(f.readline().split()[0])
+
+  # calculate size of file based on field sizes
   n_crd = n_atom * 3
   n_line = n_crd / 6
   if n_crd % 6 > 0:
     n_line += 1
 
+  # read all the numbers in the coordinate section
   line_list = [f.readline()[:-1] for i in range(0, n_line)]
   s = "".join(line_list)
   vals = [float(s[i:i+12]) for i in xrange(0, len(s), 12)]
   if len(vals) != n_crd:
     raise ValueError, "Improper number of coordinates in rst file."
-    
+
+  # load numbers into soup object  
   for i, atom in enumerate(sorted(soup.atoms(), pdbatoms.cmp_atom)):
     v3.set_vector(atom.pos, vals[i*3], vals[i*3+1], vals[i*3+2])
 
+  # if .rst file, then there will be velocity values
   if crd_or_rst.endswith('.rst'):
     line_list = [f.readline()[:-1] for i in range(0, n_line)]
     s = "".join(line_list)
@@ -157,51 +183,42 @@ def load_crd_or_rst_into_soup(soup, crd_or_rst):
     if len(vals) != n_crd:
       raise ValueError, "Improper number of coordinates in rst file."
 
-    convert_amber_vel_to_angstroms_per_ps = 20.455
+    # now convert amber velocities to angs/ps and load into soup
+    convert_vel_to_angs_per_ps = 20.455
     for i, atom in enumerate(sorted(soup.atoms(), pdbatoms.cmp_atom)):
       v3.set_vector(atom.vel, vals[i*3], vals[i*3+1], vals[i*3+2])
-      atom.vel = v3.scale(atom.vel, convert_amber_vel_to_angstroms_per_ps)
+      atom.vel = v3.scale(atom.vel, convert_vel_to_angs_per_ps)
 
   f.close()
 
 
-def strip_cr(line):
-  if line.endswith('\n'):
-    return line[:-1]
-  if line.endswith('\r\n'):
-    return line[:-1]
-  return line
-
-
 def soup_from_top_and_crd_or_rst(top, crd_or_rst):
+  """
+  Returns a soup object from AMBER .top and .crd/.rst files.
+  """
   topology = read_top(top)
   soup = soup_from_topology(topology)
-  convert_to_pdb_atom_names(soup)
-  protein.find_chains(soup)
   load_crd_or_rst_into_soup(soup, crd_or_rst)
   if topology['IFBOX'] > 0:
+    # if periodic cells are in .crd or .rst then save
+    # for later, if we need to write modified .crd or .rst 
     lines = open(crd_or_rst, "r").readlines()
     lines = [l for l in reversed(lines) if l.strip()]
-    soup.box_dimension_str = strip_cr(lines[0])
+    soup.box_dimension_str = lines[0].rstrip()
   return soup
 
 
-def soup_from_restart_files(top, crds, vels):
-  return soup_from_top_and_crd_or_rst(top, crds)
-
-
-def convert_restart_to_pdb(md_name, pdb):
-  top, crds, vels = get_restart_files(md_name)
-  soup = soup_from_restart_files(top, crds, vels)
-  soup.write_pdb(pdb)
-
-
 def write_soup_to_rst(soup, rst):
+  """
+  Writes a .rst file mainly for pulsing simulations.
+  """
   f = open(rst, "w")
 
+  # header with number of atoms in first row
   f.write(" ".ljust(80) + "\n")
   f.write("%5d  0.0000000E+00\n" % len(soup.atoms()))
 
+  # write coordinates
   i = 0
   for atom in sorted(soup.atoms(), pdbatoms.cmp_atom):
     x, y, z = atom.pos
@@ -213,6 +230,7 @@ def write_soup_to_rst(soup, rst):
   if len(soup.atoms()) % 2 != 0:
     f.write("\n")
 
+  # write velocities
   i = 0
   convert_to_amber_vel = 1.0 / 20.455
   for atom in sorted(soup.atoms(), pdbatoms.cmp_atom):
@@ -227,15 +245,51 @@ def write_soup_to_rst(soup, rst):
   if len(soup.atoms()) % 2 != 0:
     f.write("\n")
 
-  if hasattr(soup, 'box_dimension_str') and soup.box_dimension_str is not None:
-    f.write(soup.box_dimension_str + "\n")
+  # write box dimensions
+  if hasattr(soup, 'box_dimension_str'):
+    if soup.box_dimension_str:
+      f.write(soup.box_dimension_str.rstrip() + "\n")
     
   f.close()
   
   
-def write_soup_to_crds_and_vels(soup, name):
-  write_soup_to_rst(soup, name + '.rst')
-  return name + '.rst', ''
+# The following functions wrap the above functions into a
+# standard API that does not explicitly reference AMBER
+
+
+def expand_restart_files(basename):
+  """Returns expanded restart files based on basename"""
+  top = os.path.abspath(basename + '.top')
+  crds = os.path.abspath(basename + '.rst')
+  if not os.path.isfile(crds):
+    crds = os.path.abspath(basename + '.crd')
+  vels = ''
+  return top, crds, vels
+
+
+def get_restart_files(basename):
+  """Returns restart files only if they exist"""
+  top, crds, vels = expand_restart_files(basename)
+  util.check_files(top, crds)
+  return top, crds, vels
+
+
+def soup_from_restart_files(top, crds, vels):
+  """Reads pdbatoms.Polymer object from restart files."""
+  return soup_from_top_and_crd_or_rst(top, crds)
+
+
+def write_soup_to_crds_and_vels(soup, basename):
+  """From soup, writes out the coordinate/velocities, used for pulsing"""
+  write_soup_to_rst(soup, basename + '.rst')
+  return basename + '.rst', ''
+
+
+def convert_restart_to_pdb(basename, pdb):
+  """Converts restart files with basename into PDB file"""
+  top, crds, vels = get_restart_files(basename)
+  soup = soup_from_restart_files(top, crds, vels)
+  soup.write_pdb(pdb)
   
 
 # Routines to genearte topology and coordinate files from PDB

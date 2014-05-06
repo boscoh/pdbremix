@@ -1,9 +1,8 @@
 import v3
 import pdbatoms
 import math
-
 try:
-  import numpy as np
+  import numpy
   is_numpy = True
 except:
   import lib.pyqcprot
@@ -12,23 +11,21 @@ except:
 
 def numpy_svd_rmsd_rot(in_crds1, in_crds2):
   """
-  Returns best transform m between two sets of [nx3] arrays.
+  Returns rmsd and optional rotation between 2 sets of [nx3] arrays.
   
-  Requires numpy
-
-  Returns RMSD between 2 sets of [nx3] np array
-  Direction: transform(m, ref_crd) => target_crd.
+  This requires numpy for svd decomposition.
+  The transform direction i: transform(m, ref_crd) => target_crd.
   """
 
-  crds1 = np.array(in_crds1)
-  crds2 = np.array(in_crds2)
+  crds1 = numpy.array(in_crds1)
+  crds2 = numpy.array(in_crds2)
   assert(crds1.shape[1] == 3)
   assert(crds1.shape == crds2.shape)
 
-  n_vec = np.shape(crds1)[0]
-  correlation_matrix = np.dot(np.transpose(crds1), crds2)
-  v, s, w = np.linalg.svd(correlation_matrix)
-  is_reflection = (np.linalg.det(v) * np.linalg.det(w)) < 0.0
+  n_vec = numpy.shape(crds1)[0]
+  correlation_matrix = numpy.dot(numpy.transpose(crds1), crds2)
+  v, s, w = numpy.linalg.svd(correlation_matrix)
+  is_reflection = (numpy.linalg.det(v) * numpy.linalg.det(w)) < 0.0
 
   if is_reflection:
     s[-1] = - s[-1]
@@ -36,11 +33,11 @@ def numpy_svd_rmsd_rot(in_crds1, in_crds2):
        sum(sum(crds2 * crds2))
   rmsd_sq = (E0 - 2.0*sum(s)) / float(n_vec)
   rmsd_sq = max([rmsd_sq, 0.0])
-  rmsd = np.sqrt(rmsd_sq)
+  rmsd = numpy.sqrt(rmsd_sq)
 
   if is_reflection:
     v[-1,:] = -v[-1,:]
-  rot33 = np.dot(v, w)
+  rot33 = numpy.dot(v, w)
   m = v3.identity()
   m[:3,:3] = rot33.transpose()
 
@@ -48,6 +45,13 @@ def numpy_svd_rmsd_rot(in_crds1, in_crds2):
 
 
 def pyqcprot_rmsd_rot(crds1, crds2):
+  """
+  Returns rmsd and optional rotation between 2 sets of [nx3] arrays.
+  
+  This requires Joshua Adelman's pyqcrot library for quaternion-based
+  calculation of Theobauld. 
+  The transform direction i: transform(m, ref_crd) => target_crd.
+  """
   rms, rot9 = lib.pyqcprot.calc_rms_rot(crds1, crds2)
   matrix = v3.identity()
   for i in range(3):
