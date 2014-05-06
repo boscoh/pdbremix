@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Usage: ambout <md>
+"""
+
+import os
+from pdbremix import amber
+from pdbremix.lib.docopt import docopt
+
+args = docopt(__doc__)
+md = args['<md>']
+if os.path.isfile(md+'.trj'):
+  if os.path.isfile(md+'.sander.out'):
+    for block in amber.read_dynamics_sander_out(md+'.sander.out'):
+      print block
+elif os.path.isfile(md+'.crd'):
+  if os.path.isfile(md+'.sander.out'):
+    for block in amber.read_minimization_sander_out(md+'.sander.out'):
+      print block
+else:
+  print "No sander output found."
+

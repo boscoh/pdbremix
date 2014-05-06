@@ -240,7 +240,7 @@ def write_soup_to_gro(in_soup, gro):
     # GRO doesn't care about numbering so wrap when full
     res_num = a.res_num % 100000
     atom_num = a.num % 100000
-    # 0.1 x multiplier converts from angs bac to nm
+    # 0.1 x multiplier converts from angs back to nm
     s = "%5d%-5s%5s%5d%8.3f%8.3f%8.3f%8.4f%8.4f%8.4f\n" % \
         (res_num, a.res_type, a.type, atom_num, 
          a.pos[0]*0.1, a.pos[1]*0.1, a.pos[2]*0.1,
@@ -421,7 +421,7 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10):
   """
   Converts a PDB file into GROMACS topology and coordinate files,
   and fully converted PDB file. These constitute the restart files
-   of a GROMACS simulation.
+  of a GROMACS simulation.
   """
   util.check_files(pdb)
   full_pdb = os.path.abspath(pdb)
@@ -501,12 +501,11 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10):
 
 # Simulation approach: 
 # - cubic periodic box 
-# - optional positional constraints
+# - optional positional restraints: 100 kcal/mol/angs**2  
 # - PME electrostatics on the periodic box
 # - Langevin thermostat for constant temperature
 # - Nose-Hoover barometer with flexible periodic box size
 # - constraints on hydrogen atoms bonded to heavy atoms
-# - positional restraints: 100.0 kcal/mol/angs**2  
 
 # Binaries used:
 # 1. grompp - process topology files for .tpr file
@@ -514,9 +513,8 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10):
 #    mpi version - mpiexec -np 8 /...dir.../gromacs-4.0.7/bin/mdrun
 
 # Files for trajectories:
-# 1. coordinate trajectory: md.trj
-# 2. velocitiy trajectory: md.vel.trj
-# 3. restart coordinate/velocity: md.gro
+# 1. coordinate trajectory: md.trr
+# 2. restart coordinate/velocity: md.gro
 
 
 minimization_parms = { 
@@ -741,35 +739,6 @@ def run(in_parms):
 # - force constant: kJ/mol/nm^2
 
 
-def merge_simulations(basename, pulses):
-  """
-  Given a bunch of directories with consecutive trajectories, all with
-  the same basename, the function will splice them into a single 
-  trajctory with basename in the current directory.
-  """
-  save_dir = os.getcwd()
-
-  trr_fname = basename + '.trr'
-  trr_list = [os.path.join(p, trr_fname) for p in pulses]
-  util.check_files(*trr_list)
-
-  f = open(trr_fname, 'w')
-  for trr in trr_list:
-    trr = TrrReader(trr)
-    for i_frame in range(trr.n_frame-1):
-      trr.file.seek(trr.size_frame*i_frame)
-      txt = trr.file.read(trr.size_frame)
-      f.write(txt)
-  f.close()
-
-  # Copy parameters of last pulse into current directory
-  pulse = pulses[-1]
-  for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', '.grompp.mdp', '.gro']:
-    os.system('cp %s/%s*%s .' % (pulse, basename, ext))
-
-  os.chdir(save_dir)
-    
-    
 n_dim = 3
 
 class TrrReader:
@@ -778,7 +747,7 @@ class TrrReader:
 
   It is initialized by:
     trr = TrrReader('sample.trr')
-    trr.fname
+    trr.trr
     trr.file
     trr.n_frame
 
@@ -793,9 +762,9 @@ class TrrReader:
     frame = trr[i]
   """
 
-  def __init__(self, fname):
-    self.fname = fname
-    self.file = open(self.fname, 'r')
+  def __init__(self, trr):
+    self.trr = trr
+    self.file = open(self.trr, 'r')
     self.read_header()
     self.calc_precision()
     self.calc_frame_info()
@@ -848,7 +817,7 @@ class TrrReader:
     if self.size_f: n_vec += self.n_atom
     self.size_frame = n_vec*n_dim*self.precision + self.pos_after_header
 
-    # Go to end of file
+    # Calculates n_frame from end of file
     self.file.seek(0, 2)
     size_file = self.file.tell()
     self.n_frame = size_file / self.size_frame
@@ -895,30 +864,30 @@ class TrrReader:
 
 class Trajectory(object):
   """
-  A class to interaction with a GROMACS trajctory.
+  Class to interaction with a GROMACS trajctory.
 
   It is initialized by:
-    trr = Trajectory('md')
-    trr.name
-    trr.top
-    trr.gro
-    trr.trr
-    trr.n_frame
-    trr.trr_reader
+    traj = Trajectory('md')
+    traj.basename
+    traj.top
+    traj.gro
+    traj.trr
+    traj.n_frame
+    traj.trr_reader
 
   Main method is:
-    trr.load_frame(35)
+    traj.load_frame(35)
 
   Which modifies:
-    trr.i_frame
-    trr.soup - a PDBREMIX pdbatoms.Polymer object
+    traj.i_frame
+    traj.soup - a PDBREMIX pdbatoms.Polymer object
   """
 
-  def __init__(self, name):
-    self.name = name
-    self.top = name + '.top'
-    self.gro = name + '.gro'
-    self.trr = name + '.trr'
+  def __init__(self, basename):
+    self.basename = basename
+    self.top = basename + '.top'
+    self.gro = basename + '.gro'
+    self.trr = basename + '.trr'
     self.trr_reader = TrrReader(self.trr)
     self.n_frame = self.trr_reader.n_frame
     self.soup = soup_from_top_gro(self.top, self.gro)
@@ -943,5 +912,36 @@ class Trajectory(object):
           velocities[i][0]*10,
           velocities[i][1]*10,
           velocities[i][2]*10)
+
+
+def merge_simulations(basename, pulses):
+  """
+  Given a bunch of directories with consecutive trajectories, all with
+  the same basename, the function will splice them into a single 
+  trajctory with basename in the current directory.
+  """
+  save_dir = os.getcwd()
+
+  trr_fname = basename + '.trr'
+  trr_list = [os.path.join(p, trr_fname) for p in pulses]
+  util.check_files(*trr_list)
+
+  f = open(trr_fname, 'w')
+  for trr in trr_list:
+    trr = TrrReader(trr)
+    for i_frame in range(trr.n_frame-1):
+      trr.file.seek(trr.size_frame*i_frame)
+      txt = trr.file.read(trr.size_frame)
+      f.write(txt)
+  f.close()
+
+  # Copy parameters of last pulse into current directory
+  pulse = pulses[-1]
+  for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', '.grompp.mdp', '.gro']:
+    os.system('cp %s/%s*%s .' % (pulse, basename, ext))
+
+  os.chdir(save_dir)
+    
+    
 
 

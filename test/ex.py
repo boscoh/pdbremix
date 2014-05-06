@@ -9,9 +9,9 @@ from pdbremix import util
 ff = 'NAMD2.8'
 ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
-ff = 'AMBER11'
 ff = 'GROMACS4.5'
 pdb = 'pdb/hairpin.pdb'
+ff = 'AMBER11'
 pdb = 'pdb/1cph.pdb'
 
 
