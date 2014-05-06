@@ -1,11 +1,13 @@
 import v3
 import pdbatoms
-import lib.pyqcprot
+import math
 
 try:
   import numpy as np
+  is_numpy = True
 except:
-  raise Exception("Can't use RMSD routines without NUMPY.")
+  import lib.pyqcprot
+  is_numpy = False
 
 
 def numpy_svd_rmsd_rot(in_crds1, in_crds2):
@@ -45,8 +47,8 @@ def numpy_svd_rmsd_rot(in_crds1, in_crds2):
   return rmsd, m
 
 
-def fast_rmsd_rot(crds1, crds2):
-  rms, rot9 = pyqcprot.calc_rms_rot(crds1, crds2)
+def pyqcprot_rmsd_rot(crds1, crds2):
+  rms, rot9 = lib.pyqcprot.calc_rms_rot(crds1, crds2)
   matrix = v3.identity()
   for i in range(3):
     for j in range(3):
@@ -54,11 +56,18 @@ def fast_rmsd_rot(crds1, crds2):
   return rms, matrix
 
 
+def calc_rmsd_rot(crds1, crds2):
+  if is_numpy:
+    return numpy_svd_rmsd_rot(crds1, crds2)
+  else:
+    return pyqcprot_rmsd_rot(crds1, crds2)
+
+
 def sum_rmsd(crds1, crds2):
   sum_squared = 0.0
   for crd1, crd2 in zip(crds1, crds2):
     sum_squared += v3.distance(crd1, crd2)**2
-  return np.sqrt(sum_squared/float(len(crds1)))
+  return math.sqrt(sum_squared/float(len(crds1)))
   
 
 def get_superposable_atoms(polymer, segments, atom_types):
@@ -99,7 +108,7 @@ def rmsd_of_pdbs(
   polymer1.transform(v3.translation(-center1))
   polymer2.transform(v3.translation(-center2))
 
-  rmsd, transform_1_to_2 = numpy_svd_rmsd_rot(crds1, crds2)
+  rmsd, transform_1_to_2 = calc_rmsd_rot(crds1, crds2)
 
   if not transform_pdb1:
     return rmsd

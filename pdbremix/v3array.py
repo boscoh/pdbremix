@@ -63,6 +63,7 @@ def set_vector(*args):
   "Changes values of a vector in place"
   v = args[0]
   if len(args) == 2:
+    w = args[1]
     v[:] = w
   elif len(args) == 4:
     v[0], v[1], v[2] = args[1:4]
