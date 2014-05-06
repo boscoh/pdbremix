@@ -1,4 +1,6 @@
 
+import string
+
 import data
 import pdbatoms
 import util
@@ -97,4 +99,40 @@ def transformed_soup_from_pdb(
   if width: soup.width = width
   if height: soup.height = height
   return soup
-  
+
+
+def is_peptide_connected(res1, res2):
+  if res1.has_atom('CA') and \
+     res1.has_atom('C') and \
+     res1.has_atom('O') and \
+     res2.has_atom('N') and \
+     res2.has_atom('CA'):
+     d = v3.distance(res1.atom('C').pos, res2.atom('N').pos)
+     if d < 2.0:
+       return True
+  return False
+
+
+def find_chains(soup):
+  residues = soup.residues()
+  n = len(residues)
+  if n == 0:
+    return
+  i_chain = 0
+  chain_id = string.ascii_uppercase[i_chain]
+  for i in range(0, n-1):
+    res = residues[i]
+    next_res = residues[i+1]
+    is_connected_to_next = is_peptide_connected(res, next_res)
+    if i == 0:
+      is_connected_to_prev = False
+    else:
+      prev_res = residues[i-1]
+      is_connected_to_prev = is_peptide_connected(prev_res, res)
+    if is_connected_to_prev or is_connected_to_next:
+      res.set_chain_id(chain_id)
+      if not is_connected_to_next:
+        i_chain += 1
+        chain_id = string.ascii_uppercase[i_chain]
+
+

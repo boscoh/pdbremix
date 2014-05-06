@@ -13,7 +13,6 @@ force constant: kcal/mol/angs^2
 import os
 import copy
 import shutil
-import string
 import re
 
 import util
@@ -21,7 +20,7 @@ import v3
 import pdbtext
 import pdbatoms
 import data
-
+import protein
 
 # Routines to handle topology coordinate, and restart files
 
@@ -122,6 +121,10 @@ def convert_to_pdb_atom_names(soup):
         a.is_hetatm = True
     if res.type == "HSE":
       res.set_type("HIS")
+    if res.type == "HIE":
+      res.set_type("HIS")
+    if res.type == "CYX":
+      res.set_type("CYS")
     for atom in res.atoms():
       if atom.type[-1].isdigit() and atom.type[0] == "H":
         new_atom_type = atom.type[-1] + atom.type[:-1]
@@ -174,6 +177,7 @@ def soup_from_top_and_crd_or_rst(top, crd_or_rst):
   topology = read_top(top)
   soup = soup_from_topology(topology)
   convert_to_pdb_atom_names(soup)
+  protein.find_chains(soup)
   load_crd_or_rst_into_soup(soup, crd_or_rst)
   if topology['IFBOX'] > 0:
     lines = open(crd_or_rst, "r").readlines()

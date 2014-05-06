@@ -8,11 +8,11 @@ from pdbremix import util
 
 ff = 'GROMACS4.5'
 ff = 'NAMD2.8'
-ff = 'AMBER11'
 ff = 'GROMACS4.5'
 ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
 ff = 'GROMACS4.5'
+ff = 'AMBER11'
 pdb = 'pdb/hairpin.pdb'
 pdb = 'pdb/1cph.pdb'
 
@@ -97,9 +97,9 @@ def test_restraint():
 
 
 if __name__ == "__main__":
-  # test_basic_md_merge()
-  # test_rip()
-  # test_puff()
+  test_basic_md_merge()
+  test_rip()
+  test_puff()
   test_restraint()
 
 

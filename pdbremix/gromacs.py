@@ -17,7 +17,7 @@ import pdbatoms
 import v3
 import data
 import pdbtext
-
+import protein
 
 # mdrun = "mpiexec -np 8 /home/bosco/Packages/gromacs-4.0.7/bin/mdrun"
 
@@ -234,6 +234,7 @@ def soup_from_top_gro(top, gro, skip_solvent=False):
 
 def soup_from_restart_files(top, crds, vels, skip_solvent=False):
   soup = soup_from_top_gro(top, crds, skip_solvent)
+  protein.find_chains(soup)
   convert_to_pdb_atom_names(soup)
   return soup
 
