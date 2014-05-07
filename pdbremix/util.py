@@ -11,6 +11,7 @@ import math
 import pprint
 import sys
 
+
 def re_glob(dir_tag, reg_exp=""):
   fnames = glob.glob(dir_tag)
   return [f for f in fnames if re.search(reg_exp, f)]

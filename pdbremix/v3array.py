@@ -1,17 +1,41 @@
+
+__doc__ = """
+A 3D vector geometry library that works in pure Python.
+
+The vector object is a subclass of array.array. For optimal 
+flexibility, the interface is all done through functions, and
+not methods. This way we can easily swap out other internal
+representations of vectors and matrices, such as in v3numpy.
+"""
+
 import math
 import random
 from array import array
 
 
 def radians(degrees):
+  """
+  Converts degrees to radians, which is used in math functions.
+  """
   return math.pi / 180.0 * degrees
 
 
 def degrees(radians):
+  """
+  Converts radians to degrees, which is better for reporting.
+  """
   return 180.0 / math.pi*degrees * radians
 
 
 class Vec3(array):
+  """
+  This is a subclass of array to emulate a 3D vector.
+
+  Arithmetic operators overloading are defined to 
+  carry out basic artihmetic vector operations. Scaling
+  and other non-arithmetic operators are carried out
+  with functions.
+  """
   def __new__(cls, x=0, y=0, z=0):
     return array.__new__(cls, 'd', (x,y,z))
 
@@ -44,10 +68,16 @@ class Vec3(array):
 
 
 def scale(v, s):
+  """
+  Returns a vector that has been scaled by s.
+  """
   return Vec3(s*v[0], s*v[1], s*v[2])
 
 
 def vector(*args):
+  """
+  Returns a new vector, whether zero, or copied from args.
+  """
   if len(args) == 0:
     return Vec3(0, 0, 0)
   elif len(args) == 1:
@@ -94,6 +124,12 @@ def cross(v1, v2):
 
 
 class Matrix3d:
+  """
+  Class to represent affine transforms in 3D space.
+
+  This requires a 3x3 matrix and a translation vector.
+  Here we choose matrix(3,i) as the translation vector
+  """
 
   def __init__(self):
     self.elem00 = 1.0
@@ -174,6 +210,10 @@ def matrix_elem(matrix, i, j, val=None):
     if i==3: return matrix.elem33
 
 
+def identity():
+  return Matrix3d()
+
+
 def transform(matrix, v):
   v_x, v_y, v_z = v
   x = matrix_elem(matrix, 0, 0) * v_x + \
@@ -191,7 +231,6 @@ def transform(matrix, v):
   return vector(x, y, z)
 
 
-
 def combine(a, b):
   c = identity()
   for i in range(0, 3):
@@ -200,16 +239,11 @@ def combine(a, b):
       for k in range(0, 3):
          val += matrix_elem(a,k,i) * matrix_elem(b,j,k)
       matrix_elem(c, j, i, val)
-    # c(3,i) is the translation vector
     val = matrix_elem(a,3,i)
     for k in range(0,3):
       val += matrix_elem(a,k,i) * matrix_elem(b,3,k)
     matrix_elem(c, 3, i, val)
   return c
-
-
-def identity():
-  return Matrix3d()
 
 
 def left_inverse(m):

@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 __doc__ = """ 
-
 Calculate the accessible surface area of a bunch of atoms
 
 It uses the simple Shrake-Rupley algorithm, that generates a relatively
