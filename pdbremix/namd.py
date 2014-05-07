@@ -1,3 +1,19 @@
+# encoding: utf-8
+
+__doc__ = """
+
+PDBREMIX interface to the NAMD molecular-dynamics package.
+
+The library is split into three sections:
+
+1. Read and write restart files
+2. Generate restart files from PDB
+3. Run simulations from restart files
+4. Read trajectories with some post-processing
+
+Copyright (C) 2009, 2014, Bosco K. Ho
+"""
+
 import os
 import sys
 import copy
@@ -10,47 +26,54 @@ import pdbatoms
 import v3
 import pdbtext
 
-"""
-Angstroms/ps in velocity files
-"""
+# ##########################################################
 
-# Routines to read and write restart files
+# 1. Reading and writing restart files
 
-def expand_restart_files(name):
-  psf = os.path.abspath(name + '.psf')
-  coor = os.path.abspath(name + '.coor')
-  vel = os.path.abspath(name + '.vel')
-  return psf, coor, vel
+# In PDBREMIX, restart files for GROMACS are assumed to
+# have the naming scheme:
 
+# 1. topology file: sim.top
+# 2. coordinate/velocity file: sim.gro
 
-def get_restart_files(name):
-  psf, coor, vel = expand_restart_files(name)
-  util.check_files(psf, coor)
-  if not os.path.isfile(vel):
-    vel = ''
-  return psf, coor, vel
+# Parsers have been written to read .top and .gro files into
+# Python structures, and to write these back into .top and .gro
+# files, and to convert them into .pdb files
+
+# The units used in GROMACS are:
+# - positions: angstroms
+# - velocities: angstroms/picosecond
 
 
-def convert_to_namd_atom_names(soup):
-  for res in soup.residues():
-    if res.type == "ILE" and res.has_atom('CD1'):
-      res.change_atom_type('CD1', 'CD')
-    if res.has_atom('OXT'):
-      res.change_atom_type('OXT', 'OT2')
-      if res.has_atom('O'):
-        res.change_atom_type('O', 'OT1')
-    for atom in res.atoms():
-      if atom.type[0].isdigit() and atom.type[1] == "H":
-        new_atom_type = atom.type[1:] + atom.type[0]
-        res.change_atom_type(atom.type, new_atom_type)
-    if res.type == "HOH":
-      res.set_type("TIP3")
-      res.set_chain_id("W")
-    if res.type == "HIS":
-      res.set_type("HSE")
+def read_psf(psf):
+  """
+  Returns a list of (mass, charge, chain_id) for the atoms 
+  in the topology file.
+  """
+  result = []
+  is_header = True
+  for line in open(psf):
+    if is_header:
+      if "NATOM" in line:
+        n_atom = int(line.split()[0])
+        is_header = False
+      continue
+    words = line.split()
+    chain_id = words[1]
+    q = words[6]
+    mass = words[7]
+    result.append((chain_id, q, mass))
+    if len(result) == n_atom:
+      break
+  return result
 
 
 def convert_to_pdb_atom_names(soup):
+  """
+  For the soup structure, converts residue 
+  atom names peculiar to .coord into standard PDB names
+  for interacting with other systems.
+  """
   for res in soup.residues():
     if res.type == "ILE":
       if res.has_atom('CD'):
@@ -70,27 +93,52 @@ def convert_to_pdb_atom_names(soup):
         res.change_atom_type(atom.type, new_atom_type)
 
 
-def read_psf(psf):
-  result = []
-  reading = False
-  for line in open(psf):
-    if not reading:
-      if "NATOM" in line:
-        n_atom = int(line.split()[0])
-        reading = True
-      continue
-    else: # reading
-      words = line.split()
-      chain_id = words[1]
-      q = words[6]
-      mass = words[7]
-      result.append((chain_id, q, mass))
-      if len(result) == n_atom:
-        break
-  return result
+def convert_to_namd_atom_names(soup):
+  """
+  For writing into .coor files, converts PDB atom names
+  into NAMD specific atom names.
+  """
+  for res in soup.residues():
+    if res.type == "ILE" and res.has_atom('CD1'):
+      res.change_atom_type('CD1', 'CD')
+    if res.has_atom('OXT'):
+      res.change_atom_type('OXT', 'OT2')
+      if res.has_atom('O'):
+        res.change_atom_type('O', 'OT1')
+    for atom in res.atoms():
+      if atom.type[0].isdigit() and atom.type[1] == "H":
+        new_atom_type = atom.type[1:] + atom.type[0]
+        res.change_atom_type(atom.type, new_atom_type)
+    if res.type == "HOH":
+      res.set_type("TIP3")
+      res.set_chain_id("W")
+    if res.type == "HIS":
+      res.set_type("HSE")
+
+
+# The following functions wrap the above functions into a
+# standard API that does not explicitly reference GROMACS
+
+
+def expand_restart_files(basename):
+  """Returns expanded restart files based on basename"""
+  psf = os.path.abspath(basename + '.psf')
+  coor = os.path.abspath(basename + '.coor')
+  vel = os.path.abspath(basename + '.vel')
+  return psf, coor, vel
+
+
+def get_restart_files(basename):
+  """Returns restart files only if they exist"""
+  psf, coor, vel = expand_restart_files(basename)
+  util.check_files(psf, coor)
+  if not os.path.isfile(vel):
+    vel = ''
+  return psf, coor, vel
 
 
 def soup_from_restart_files(psf, in_coor, in_vel):
+  """Reads pdbatoms.Polymer object from restart files."""
   soup = pdbatoms.Polymer(in_coor)
   convert_to_pdb_atom_names(soup)
   for atom, (chain_id, q, mass) in zip(soup.atoms(), read_psf(psf)):
@@ -107,29 +155,138 @@ def soup_from_restart_files(psf, in_coor, in_vel):
   return soup
 
 
-def write_soup_to_crds_and_vels(in_soup, name):
+def write_soup_to_crds_and_vels(in_soup, basename):
+  """From soup, writes out the coordinate/velocities, used for pulsing"""
   soup = in_soup.copy()
   convert_to_namd_atom_names(soup)
-  coor = name + '.coor'
+  coor = basename + '.coor'
   soup.write_pdb(coor)
   for atom in soup.atoms():
     v3.set_vector(atom.pos, atom.vel[0], atom.vel[1], atom.vel[2])
-  vel = name + '.vel'
+  vel = basename + '.vel'
   soup.write_pdb(vel)
   return coor, vel
 
 
-def convert_restart_to_pdb(md_name, pdb):
-  psf, coor, vel = get_restart_files(md_name)
+def convert_restart_to_pdb(basename, pdb):
+  """Converts restart files with basename into PDB file"""
+  psf, coor, vel = get_restart_files(basename)
   soup = soup_from_restart_files(psf, coor, vel)
   soup.write_pdb(pdb)
     
 
 
-# Routines to generate psf and coor files
-  
-solvate_script = """
-# Solvate
+# # 2. Generate restart files from PDB
+
+# The restart files used for PDBREMIX assumes a consistent file naming. 
+# For a given basename `sim`, the files are:
+# 1. topology file: sim.psf
+# 2. coordinate file: sim.coor
+# 3. optional velocity: sim.vel
+# 4. optional box: sim.xsc
+
+# To generate a topology file from the PDB file:
+# - handles multiple protein chains
+# - hydrogens are removed and then regenerated by GROMACS
+# - disulfide bonds are identified and written into scripts
+# - charged residue protonation states are auto-detected
+# - explicit water in cubic box with 10.0 angstrom buffer
+# - counterions to neutralize the system
+# - use the CHARM22 topology/parameters included in this library
+
+# Binaries used to generate restart files:
+# 1. psfgen - create topologies for atoms in PDB
+# 2. vmd - to add waters and counterions
+ 
+
+module_load_script = """
+package require psfgen 
+topology %(topology)s
+alias residue HIS HSE 
+alias atom ILE CD1 CD 
+"""
+
+fixed_waters_script = """
+pdbalias residue HOH TIP3
+pdbalias residue WAT TIP3
+segment wat { 
+ auto none
+ pdb %(water_pdb)s
+} 
+pdbalias atom HOH O OH2 
+pdbalias atom WAT O OH2 
+coordpdb %(water_pdb)s wat
+"""
+
+protein_chain_script = """
+segment %(chain_id)s { 
+ pdb %(chain_pdb)s 
+} 
+coordpdb %(chain_pdb)s %(chain_id)s
+"""
+
+write_script = """
+guesscoord 
+writepdb %(out_pdb)s
+writepsf %(out_psf)s
+"""
+
+
+def make_chain_loading_script(pdb, basename):
+  script = ""
+  soup = pdbatoms.Polymer(pdb)
+  for chain_id in soup.chain_ids():
+    if chain_id == ' ':
+      chain_id = 'A'
+    chain_pdb = '%s.chain.%s.pdb' % (basename, chain_id) 
+    chain = soup.extract_chain(chain_id).write_pdb(chain_pdb)
+    script += protein_chain_script % { 
+      'chain_id': chain_id, 'chain_pdb': chain_pdb }
+  return script
+
+
+def make_disulfide_script(pdb):
+  """
+  Returns the psfgen script for disulfide bonds.
+
+  This function opens in_pdb in a soup object, and searches for
+  CYS residues where the SG-SG distance < 3 angs. These residues
+  are then renamed to CYX and written to out_pdb. The disulfide bonds
+  are then returned in a .tleap script fragment.
+  """
+  soup = pdbatoms.Polymer(pdb)
+  n = len(soup.residues())
+
+  # First generate the residue names recognized by psfgen
+  res_names = []
+  chain_id = None
+  i_res = None
+  for i in range(n):
+    res = soup.residue(i)
+    if res.chain_id != chain_id:
+      chain_id = res.chain_id
+      i_res = 1
+    res_names.append("%s:%s" % (chain_id, i_res))
+    i_res += 1
+
+  # Then search through for all CYS-CYS pairs and identify disulfide bonds
+  script = ""
+  for i in range(n):
+    for j in range(i+1, n):
+      if soup.residue(i).type in 'CYS' and soup.residue(j).type in 'CYS':
+        sg1 = soup.residue(i).atom('SG')
+        sg2 = soup.residue(j).atom('SG')
+        if v3.distance(sg1.pos, sg2.pos) < 3.0:
+          script += "patch DISU %s %s\n" % (res_names[i], res_names[j])
+  if script:
+     script = "# disulfide bonds\n" + script + "\n"
+
+  return script
+
+
+solvate_vmd_script = """
+# Solvate system
+
 # Set minimum padding
 set pad %(solvent_buffer)s
 
@@ -238,125 +395,63 @@ puts ":Old charge: $q, New charge: [measure sumweights $all weight charge]"
 mol delete all
 """
 
-def solvate_psf(in_psf, in_pdb, out_name, solvent_buffer=10.0):
+def solvate_psf(in_psf, in_pdb, basename, solvent_buffer=10.0):
+  """
+  Uses VMD to add explicit waters to a .psf topology file
+  """
   parms = {
     'in_psf': in_psf,
     'in_pdb': in_pdb,
-    'name': out_name,
+    'name': basename,
     'solvent_buffer': solvent_buffer,
   }
-  tcl = out_name + '.vmd.tcl'
-  open(tcl, 'w').write(solvate_script % parms)
-  data.binary('vmd', '-dispdev text -eofexit', out_name+'.vmd', tcl)
-  util.check_output(out_name + '.vmd.pdb')
-  util.check_output(out_name + '.pdb')
+  tcl = basename + '.vmd.tcl'
+  open(tcl, 'w').write(solvate_vmd_script % parms)
+  data.binary('vmd', '-dispdev text -eofexit', basename+'.vmd', tcl)
+  util.check_output(basename+'.vmd.pdb')
+  util.check_output(basename+'.pdb')
  
 
-module_load_script = """
-package require psfgen 
-topology %(topology)s
-alias residue HIS HSE 
-alias atom ILE CD1 CD 
-"""
-
-fixed_waters_script = """
-pdbalias residue HOH TIP3
-pdbalias residue WAT TIP3
-segment wat { 
- auto none
- pdb %(water_pdb)s
-} 
-pdbalias atom HOH O OH2 
-pdbalias atom WAT O OH2 
-coordpdb %(water_pdb)s wat
-"""
-
-protein_chain_script = """
-segment %(chain_id)s { 
- pdb %(chain_pdb)s 
-} 
-coordpdb %(chain_pdb)s %(chain_id)s
-"""
-
-write_script = """
-guesscoord 
-writepdb %(out_pdb)s
-writepsf %(out_psf)s
-"""
-
-
-def make_disulfide_script(soup):
-  n = len(soup.residues())
-
-  chain_id = None
-  i_res = None
-  patch_names = []
-  for i in range(n):
-    res = soup.residue(i)
-    if res.chain_id != chain_id:
-      chain_id = res.chain_id
-      i_res = 1
-    patch_names.append("%s:%s" % (chain_id, i_res))
-    i_res += 1
-
-  script = ""
-  for i in range(n):
-    for j in range(i+1, n):
-      if soup.residue(i).type in 'CYS' and soup.residue(j).type in 'CYS':
-        sg1 = soup.residue(i).atom('SG')
-        sg2 = soup.residue(j).atom('SG')
-        if v3.distance(sg1.pos, sg2.pos) < 3.0:
-          script += "patch DISU %s %s\n" % (patch_names[i], patch_names[j])
-  if script:
-     script = "# disulfide bonds\n" + script + "\n"
-  return script
-
-
-def pdb_to_top_and_crds(
-    force_field, pdb, name,
-    solvent_buffer=10.0): 
+def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10.0): 
   """
-  Creates charmm .pdb and .psf file. Can only make NAMD
-  generate CHARMM topology files, not OPLS ones - that
-  requires XPLOR but I don't care. Still, if OPLS
-  topology files are provided - can still run.
+  Creates CHARMM .coor and .psf file for NAMD simulation.
   """
-  solv_dir = name + '.solvate'
+  solv_dir = basename + '.solvate'
   save_dir = os.getcwd()
   util.goto_dir(solv_dir)
 
-  psfgen_psf = name + '.psfgen.psf'
-  psfgen_pdb = name + '.psfgen.pdb'
-  topology = os.path.join(data.data_dir, 'charmm22.topology')
-  stripped_pdb = name + '.clean.pdb' 
+  # Remove all but protein heavy atoms in a single clean conformation
+  stripped_pdb = basename + '.clean.pdb' 
   pdbtext.clean_pdb(pdb, stripped_pdb)
 
-  script = module_load_script % { 'topology':topology }
-  soup = pdbatoms.Polymer(stripped_pdb)
-  for chain_id in soup.chain_ids():
-    if chain_id == ' ':
-      chain_id = 'A'
-    chain_pdb = '%s.chain.%s.pdb' % (name, chain_id) 
-    chain = soup.extract_chain(chain_id).write_pdb(chain_pdb)
-    script += protein_chain_script % { 
-      'chain_id': chain_id, 'chain_pdb': chain_pdb }
-  script += make_disulfide_script(soup)
-  script += write_script % { 
-    'out_pdb': psfgen_pdb, 'out_psf': psfgen_psf }
+  # Make input script for psfgen
+  psfgen_psf = basename+'.psfgen.psf'
+  psfgen_pdb = basename+'.psfgen.pdb'
+  script = module_load_script 
+  script += make_chain_loading_script(stripped_pdb, basename)
+  script += make_disulfide_script(stripped_pdb)
+  script += write_script 
+  script = script % {
+    # load the included CHARMM2 atom topologies
+    'topology': os.path.join(data.data_dir, 'charmm22.topology'),
+    'out_pdb': psfgen_pdb,
+    'out_psf': psfgen_psf
+  }
 
-  psfgen_in = name + ".psfgen.in"
+  psfgen_in = basename+".psfgen.in"
   open(psfgen_in, "w").write(script)
-  data.binary('psfgen', psfgen_in, name+'.psfgen')
+
+  data.binary('psfgen', psfgen_in, basename+'.psfgen')
   util.check_output(psfgen_psf)
   util.check_output(psfgen_pdb)
 
-  solvate_psf(psfgen_psf, psfgen_pdb, name, solvent_buffer)
+  solvate_psf(psfgen_psf, psfgen_pdb, basename, solvent_buffer)
 
-  psf = name+'.psf'
-  coor = name+'.coor'
-  pdb = name+'.pdb'
+  psf = basename+'.psf'
+  coor = basename+'.coor'
+  pdb = basename+'.pdb'
   os.rename(pdb, coor)
-  convert_restart_to_pdb(name, pdb)
+  convert_restart_to_pdb(basename, pdb)
   shutil.copy(psf, save_dir)
   shutil.copy(coor, save_dir)
   shutil.copy(pdb, save_dir)
@@ -366,7 +461,33 @@ def pdb_to_top_and_crds(
   return psf, coor
 
 
-# Routines to prepare namd minimization/molecular-dynamics runs
+# ##########################################################
+
+# # 3. Run simulations from restart files
+
+# Simulation approach for implicit solvent:
+# - optional positional constraints: 100 kcal/mol/angs**2 
+# - Langevin thermostat for constant temperature
+# - Nose-Hoover barometer with flexible periodic box size
+
+# Simulation approach for explict water: 
+# - cubic periodic box 
+# - optional positional restraints: 100 kcal/mol/angs**2
+# - PME electrostatics on the periodic box
+# - Langevin thermostat for constant temperature
+# - Nose-Hoover barometer with flexible periodic box size
+
+# - force constant: kcal/mol/angs^2
+
+# Binaries used:
+# 1. mdrun
+
+# Files for trajectories:
+# 1. coordinate trajectory: md.dcd
+# 2. velocitiy trajectory: md.vel.dcd
+# 3. restart coordinate: md.coor
+# 4. restart velocity: md.vel
+# 5. restart box: md.xsc
 
 minimization_parms = { 
   'topology' : 'in.psf', 
@@ -394,7 +515,6 @@ constant_energy_parms = {
 langevin_thermometer_parms = { 
   'topology' : 'in.top', 
   'input_crds': 'in.coor',
-  # use either vel or temp_background to set initial velocities
   'input_vels': '',
   'temp_thermometer' : 300.0, 
   'force_field': 'NAMD', 
@@ -483,16 +603,22 @@ cellOrigin          %(x_origin)s  %(y_origin)s  %(z_origin)s
 """
 
 def calculate_periodic_box_script(parms):
+  """
+  Returns namd2 input fragment to parameterize the periodic
+  box for the protein. The requires loading the protein
+  and directly calculating a good bounding box.
+  """
   script = new_periodic_box_script
   p = pdbatoms.Polymer(parms['input_crds'])
   atoms = p.atoms()
   parms = {}
-  for i_v, v in enumerate(['x', 'y', 'z']):
-    vals = [a.pos[i_v] for a in atoms]
-    v_min, v_max = min(vals), max(vals)
-    parms["len_"+v] = v_max - v_min + 0.5
-    parms[v+"_origin"] = sum(vals)/float(len(vals))
+  for i_axis, axis in enumerate(['x', 'y', 'z']):
+    vals = [a.pos[i_axis] for a in atoms]
+    axis_min, axis_max = min(vals), max(vals)
+    parms["len_"+axis] = axis_max - axis_min + 0.5
+    parms[axis+"_origin"] = sum(vals)/float(len(vals))
   return script % parms
+
 
 import_velocities_script = """
 # Import velocities
@@ -534,7 +660,9 @@ numsteps %(n_step_minimization)s
 """
 
 def make_namd_input_file(parms):
-  name = parms['output_name']
+  """
+  Make namd2 input script to run simulations.
+  """
   script = io_script % parms
   script += simulation_parameters_script % parms
   if parms['restraint_pdb']:
@@ -561,16 +689,16 @@ def make_namd_input_file(parms):
 
 def run(in_parms):
   """
-  Read parms and creates the appropriate NAMD input files
-  for simulation
+  Runs a NAMD simulation using the PDBREMIX in_parms dictionary.
   """
   parms = copy.deepcopy(in_parms)
   name = parms['output_name']
-  namd_in = name + ".namd2.in"
 
+  # load the included CHARMM2 energy parameters
   parms['parameter'] = os.path.join(data.data_dir, 'charmm22.parameter')
   parms['psf_type'] =  'paraTypeCharmm on'
 
+  # copy over input xsc and topology files (same basename)
   xsc = parms['topology'].replace('.psf', '.xsc')
   if os.path.isfile(xsc):
     shutil.copy(xsc, name + '.in.xsc')
@@ -580,21 +708,25 @@ def run(in_parms):
   shutil.copy(parms['topology'], name + '.psf')
   parms['topology'] = name + '.psf'
 
+  # copy over coordinates
   shutil.copy(parms['input_crds'], name + '.in.coor')
   parms['input_crds'] = name + '.in.coor'
 
+  # copy over velocities
   if 'input_vels' in parms and parms['input_vels']:
     shutil.copy(parms['input_vels'], name + '.in.vel')
     parms['input_vels'] = name + '.in.vel'
   else:
     parms['input_vels'] = ''
 
+  # copy over restraint coordinates
   if 'restraint_pdb' in parms and parms['restraint_pdb']:
     shutil.copy(parms['restraint_pdb'], name + '.restraint.coor')
     parms['restraint_pdb'] = name + '.restraint.coor'
   else:
     parms['restraint_pdb'] = ''
     
+  namd_in = name + ".namd2.in"
   open(namd_in, "w").write(make_namd_input_file(parms))
   
   data.binary('namd2', namd_in, name + '.namd2')
@@ -604,136 +736,101 @@ def run(in_parms):
   util.check_output(crds)
 
 
-def merge_simulations(name, pulses):
-  for ext in ['.psf', '.coor', '.vel']:
-    fname = '%s%s' % (name, ext)
-    shutil.copy('%s/%s' % (pulses[-1], fname), fname)
-  trajs = [os.path.join(pulse, name + '.dcd') for pulse in pulses]
-  merge_trajectories(name + '.psf', trajs, name + '.dcd')
-  vels = [os.path.join(pulse, name + '.vel.dcd') for pulse in pulses]
-  merge_trajectories(name + '.psf', vels, name + '.vel.dcd')
-  
+
+# ##########################################################
+
+# # 4. Read trajectories with some post-processing
+
+# The units used in these files are:
+# - positions: angstroms
+# - velocities: angs/ps
+
 
 def check_dcd_byte_order(dcd):
+  """
+  Uses flipdcd to DCD trajectories have matching OS endianess.
+  """
   if sys.byteorder in 'big':
     option = '-B'
   elif sys.byteorder in 'little':
     option = '-L'
   else:
-    raise "Couldn't find o.s. byte order %s" % sys.byteorder
+    raise Exception("Couldn't figure out system byte order %s" % sys.byteorder)
   data.binary('flipdcd', '%s %s' % (option, dcd), dcd+'.flipdcd')
 
-
-# Routines to handle the CHARMM dcd trajectories
 
 class DcdReader:
   """
   Read frames from a DCD file in terms of a list (3xn) of floats.
 
   Data: 
-    fname, n_fixed_atom, remarks, 
-    free_atom_indices, pos_first_frame, 
-    size_frame, n_frame, n_atom
+    fname
+    n_frame
+    remarks
+    pos_after_header
+    size_frame
+    n_atom
+    i_frame
+    frame
 
   Methods:
     d = DCD(fname) - open fname and read header
-    len(d) - return number of frames
+    load_frame(i) - return number of frames
     d[10] - return a frame as a list (3xn) of floats.
   """
 
   def __init__(self, fname):
     self.fname = fname
+    """Fname of the DCD file"""
 
     check_dcd_byte_order(self.fname)    
     
-    self._file = open(fname, 'rb')
+    self.file = open(fname, 'rb')
 
-    # Read header, should be 84 bytes
+    # Read heading block
     if self._read_fmt_val('i') != 84:
-      raise Exception("DCD: 1st integer is not 84, the size of header")
-
+      raise Exception("DCD: first int of heading is not 84")
     if self._read_fmt_vals('4c') != ('C', 'O', 'R', 'D') :
-     raise Exception("DCD: Missing CORD tag string")
-
+     raise Exception("DCD: Missing 'CORD' tag")
     self.n_frame = self._read_fmt_val('i') 
     self.i_start = self._read_fmt_val('i')
     self.n_step_save = self._read_fmt_val('i')
-    # skip some 
     self._read_fmt_val('5i')
     self.n_fixed_atom = self._read_fmt_val('i')
+    if self.n_fixed_atom > 0:
+      raise Exception("DCD: this reader doesn't handle fixed atoms")
     self.timeStep = self._read_fmt_val('d')
-
     self._read_fmt_vals('9i')
-
     if self._read_fmt_val('i') != 84 :
-      raise Exeption("DCD: couldn't find ending 84 of the header")
+      raise Exception("DCD: couldn't find ending 84 of the heading")
 
-    # read title block
+    # Read title block
     size = self._read_fmt_val('i')
     if (size - 4) % 80 != 0 :
-      raise "DCD format error 3"
+      raise Exception("DCD: title block size is wrong")
     self.remarks = []
     n_line = self._read_fmt_val('i')
     for i in range(0, n_line):
       s = "".join(self._read_fmt_vals('80c'))
       self.remarks.append(s.strip())
-    if self._read_fmt_val('i') != size :
-      raise Exception("DCD: not matching title size block end")
+    if self._read_fmt_val('i') != size:
+      raise Exception("DCD: title block end != block start")
 
-    # block to record number of atoms
+    # Read n_atom block
     if self._read_fmt_val('i') != 4 :
-      raise "DCD format error 5"
+      raise Exception("DCD: n_atom field start != 4")
     self.n_atom = self._read_fmt_val('i')
     if self._read_fmt_val('i') != 4 :
-      raise "DCD format error 6"
+      raise Exception("DCD: n_atom field end != 4")
 
-    if self.n_fixed_atom > 0:
-      fmt = "%di" % (self.n_atom - self.n_fixed_atom)
-      size = struct.calcsize(fmt)
-      if self._read_fmt_val('i') != size:
-        raise "DCD format error 7"
-      self.free_atom_indices = self._read_fmt_val(fmt)
-      for i in range(len(self.free_atom_indices)):
-        self.free_atom_indices[i] -= 1
-      if self._read_fmt_val('i') != size :
-        raise "DCD format error 8"
-    else:
-      self.free_atom_indices = ()
+    # Store end of header position
+    self.pos_after_header = self.file.tell()
 
-    self.pos_after_header = self._file.tell()
-    size_first_frame = struct.calcsize('%df6i' % (3 * self.n_atom))
-    self.pos_first_frame = self._file.tell() + size_first_frame
-
+    # Calculate size_frame from the size of the rest of file
     n_free_atom = self.n_atom - self.n_fixed_atom
     self.size_frame = struct.calcsize('%df6i' % (3 * n_free_atom))
-
-    if self.n_fixed_atom > 0:
-      self._first_frame_x_vals = [0.0 for i in range(self.n_atom)]
-      self._first_frame_y_vals = [0.0 for i in range(self.n_atom)]
-      self._first_frame_z_vals = [0.0 for i in range(self.n_atom)]
-      crds_fmt = '%df' % self.n_atom
-      size = struct.calcsize(crds_fmt)
-
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 9"
-      self._first_frame_x_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 10"
-
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 11"
-      self._first_frame_y_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 12"
-
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 13"
-      self._first_frame_z_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 14"
-
-    self._file.seek(0, 2)
-    last_pos = self._file.tell()
+    self.file.seek(0, 2)
+    last_pos = self.file.tell()
     size_rest_of_file = last_pos - self.pos_after_header
     implied_size_frame = size_rest_of_file / self.n_frame
     self.extra_block_size = implied_size_frame - self.size_frame 
@@ -741,90 +838,46 @@ class DcdReader:
       self.size_frame += self.extra_block_size
 
   def _read_fmt_vals(self, fmt):
-    return struct.unpack(fmt, self._file.read(struct.calcsize(fmt)))
+    return struct.unpack(fmt, self.file.read(struct.calcsize(fmt)))
 
   def _read_fmt_val(self, fmt):
     return self._read_fmt_vals(fmt)[0]
     
-  def __getitem__(self, i):
-    if i < - 1*self.n_frame or i >= self.n_frame :
+  def load_frame(self, i):
+    if i < - 1*self.n_frame or i >= self.n_frame:
       raise IndexError
-    if i < 0 :
-      return self.__getitem__(self.n_frame + i)
+    if i < 0:
+      i = self.n_frame + i
+    if i == self.i_frame:
+      return
 
-    if self.n_fixed_atom == 0 :
-      pos = self.pos_after_header + i*self.size_frame
-      pos += self.extra_block_size
-      self._file.seek(pos)
+    frame_coords_pos = self.pos_after_header + i*self.size_frame
+    frame_coords_pos += self.extra_block_size
+    self.file.seek(frame_coords_pos)
 
-      crds_fmt = "%df" % self.n_atom
-      size = struct.calcsize(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 9")
-      x_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 10")
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 11")
-      y_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 12")
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 13")
-      z_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise Exception("DCD format error 14")
+    coords_size_fmt = "%df" % self.n_atom
+    size = struct.calcsize(coords_size_fmt)
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: x_vals block start != size")
+    x_vals = self._read_fmt_vals(coords_size_fmt)
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: x_vals block end != size")
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: y_vals block start != size")
+    y_vals = self._read_fmt_vals(coords_size_fmt)
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: y_vals block end != size")
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: z_vals block start != size")
+    z_vals = self._read_fmt_vals(coords_size_fmt)
+    if size != self._read_fmt_val('i'):
+      raise Exception("DCD: z_vals block end != size")
+    self.frame = (x_vals, y_vals, z_vals)
+    self.i_frame = i
 
-      frame = []
-      for x, y, z in zip(x_vals, y_vals, z_vals):
-        frame.extend((x, y, z))
-
-    else:
-      # first frame cached
-      if i == 0:
-        return copy.copy(self._firstFrame)
-
-      self._file.seek(self.pos_after_header + (i-1)*self.size_frame)
-
-      crds_fmt = '%df' % len(self.free_atom_indices)
-      size = struct.calcsize(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 9"
-      free_x_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 10"
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 11"
-      free_y_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 12"
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 13"
-      free_z_vals = self._read_fmt_vals(crds_fmt)
-      if size != self._read_fmt_val('i'):
-        raise "DCD format error 14"
-
-      x_vals = copy.copy(self._first_frame_x_vals)
-      y_vals = copy.copy(self._first_frame_y_vals)
-      z_vals = copy.copy(self._first_frame_z_vals)
-      k = 0
-      for index in self.free_atom_indices:
-        x_vals[index] = free_x_vals[k]
-        y_vals[index] = free_y_vals[k]
-        z_vals[index] = free_z_vals[k]
-        k += 1
-
-      frame = []
-      for x, y, z in zip(x_vals, y_vals, z_vals):
-        frame.extend((x, y, z))
-
-    return frame
-
-  def __len__(self):
-    return self.n_frame
-
-  def __del__(self):
-    self._file.close()
+  def __getitem__(self, i):
+    self.load_frame(i)
+    return self.frame
 
   def __repr__(self):
     return "< DCD %s with %d frames of %d atoms (%d fixed) >" % \
@@ -832,41 +885,63 @@ class DcdReader:
 
 
 class Trajectory:
-  def __init__(self, name):
-    self.name = name
-    self.topology = name + '.psf'
-    coor = name + '.coor'
-    vel = name + '.vel'
-    dcd = name + '.dcd'    
-    self.coor_traj = DcdReader(dcd)
-    vel_dcd = name + '.vel.dcd'
-    if os.path.isfile(vel_dcd):
-      self.vel_traj = DcdReader(vel_dcd)
+  """
+  Class to interact with an CHARMM/NAMD DCD trajctory using soup.
+  
+  It is initialized by:
+    traj = Trajectory('md')
+    traj.basename
+    traj.psf
+    traj.coor
+    traj.vel
+    traj.coor_dcd_reader
+    traj.vel_dcd_reader
+    traj.n_frame
+    traj.trr_reader
+
+  Main method is:
+    traj.load_frame(35)
+
+  Which modifies:
+    traj.i_frame
+    traj.soup - a PDBREMIX pdbatoms.Polymer object
+  """  
+
+  def __init__(self, basename):
+    self.basename = basename
+    self.psf = basename + '.psf'
+    self.coor = basename + '.coor'
+    self.vel = basename + '.vel'
+    self.dcd = basename + '.dcd'    
+    self.coor_dcd_reader = DcdReader(dcd)
+    self.vel_dcd = basename + '.vel.dcd'
+    if os.path.isfile(self.vel_dcd):
+      self.vel_dcd_reader = DcdReader(self.vel_dcd)
     else:
-      self.vel_traj = None
-    self.soup = soup_from_restart_files(self.topology, coor, vel)
-    self.n_frame = len(self.coor_traj)
+      self.vel_dcd_reader = None
+    self.soup = soup_from_restart_files(self.psf, self.coor, self.vel)
+    self.n_frame = self.coor_dcd_reader.n_frame
     self.i_frame = 0
     self.load_frame(self.i_frame)
     
   def load_frame(self, i):
-    if i < -self.n_frame or i >= self.n_frame :
-      raise IndexError
-    if i < 0 :
-      return self.load_frame(self.n_frame + i)
-    crds = self.coor_traj[i]
-    for j, a in enumerate(self.soup.atoms()):
-      k = 3*j
-      v3.set_vector(a.pos, crds[k], crds[k+1], crds[k+2])
-    if self.vel_traj is not None:
-      vels = self.vel_traj[i]
-      for j, a in enumerate(self.soup.atoms()):
-        k = 3*j
-        v3.set_vector(a.vel, vels[k], vels[k+1], vels[k+2])
-    self.i_frame = i
+    x, y, z = self.coor_dcd_reader[i]
+    atoms = self.soup.atoms()
+    for i in range(len(atoms)):
+      v3.set_vector(atoms[i].pos, x[i], y[i], z[i])
+    if self.vel_dcd_reader is not None:
+      x, y, z = self.vel_dcd_reader[i]
+      for i in range(len(atoms)):
+          v3.set_vector(atoms[i].vel, x[i], y[i], z[i])
+    self.i_frame = self.coor_dcd_reader.i_frame
 
 
 def merge_trajectories(psf, dcds, out_dcd):
+  """
+  Given a list of traj filenames (trajs), merges them into one complete
+  trajectory (out_traj) using top to work out the number of atoms, and
+  hence the size of the frame of the trajectory.
+  """
   dcd_reader = DcdReader(dcds[0])
   pos_after_header = dcd_reader.pos_after_header  
   size_frame = dcd_reader.size_frame
@@ -888,29 +963,20 @@ def merge_trajectories(psf, dcds, out_dcd):
   merge_dcd_file.close()
 
 
-def preequilibrate(in_name, out_name, temperature):
-  top, coor, vel = get_restart_files(in_name)
-  restraint_name = 'restraint'
-  parms = langevin_thermometer_parms.copy()
-  parms['restraint'] = True
-  parms['topology'] = top
-  parms['input_crds'] = coor
-  parms['input_vels'] = vel
-  parms['output_name'] = restraint_name
-  parms['temp_thermometer'] = temperature
-  parms['temp_initial'] = temperature
-  parms['n_step_per_snapshot'] = 50
-  parms['n_step_dynamics'] = 1000
-  run(parms)  
+def merge_simulations(basename, pulses):
+  """
+  Given a list of directories with partial trajectories in each directory
+  with the same basename for the md, will splice them together into one uber
+  simulation.
+  """
+  for ext in ['.psf', '.coor', '.vel']:
+    fname = '%s%s' % (basename, ext)
+    shutil.copy('%s/%s' % (pulses[-1], fname), fname)
+  trajs = [os.path.join(pulse, basename + '.dcd') for pulse in pulses]
+  merge_trajectories(basename + '.psf', trajs, basename + '.dcd')
+  vels = [os.path.join(pulse, basename + '.vel.dcd') for pulse in pulses]
+  merge_trajectories(basename + '.psf', vels, basename + '.vel.dcd')
+  
 
-  top, coor, vel = get_restart_files(restraint_name)
-  parms = langevin_thermometer_parms.copy()
-  parms['topology'] = top
-  parms['input_crds'] = coor
-  parms['input_vels'] = vel
-  parms['output_name'] = out_name
-  parms['temp_thermometer'] = temperature
-  parms['n_step_per_snapshot'] = 50
-  parms['n_step_dynamics'] = 1000
-  run(parms)  
+
 

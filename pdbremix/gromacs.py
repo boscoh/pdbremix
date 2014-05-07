@@ -833,6 +833,8 @@ class TrrReader:
       return [self.u.unpack_double() for i in range(3)]
 
   def load_frame(self, i_frame):
+    if i_frame < - 1*self.n_frame or i_frame >= self.n_frame:
+      raise IndexError
     if i_frame < 0:
       i_frame = self.n_frame + i_frame
     if i_frame == self.i_frame:
@@ -852,12 +854,10 @@ class TrrReader:
       velocities = [self.next_3_reals() for i in range(self.n_atom)]
     if self.size_f:
       forces = [self.next_3_reals() for i in range(self.n_atom)]
-    self.i_frame = i_frame
     self.frame = box, positions, velocities, forces
+    self.i_frame = i_frame
 
   def __getitem__(self, i_frame):
-    if i_frame < - 1*self.n_frame or i_frame >= self.n_frame:
-      raise IndexError
     self.load_frame(i_frame)
     return self.frame
 

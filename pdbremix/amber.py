@@ -651,7 +651,7 @@ def make_restraint_script(pdb, force=100.0):
 
 def run(in_parms):
   """
-  Run a AMBER simulations using the PDBREMIX parms dictionary.
+  Run a AMBER simulations using the PDBREMIX in_parms dictionary.
   """
   parms = copy.deepcopy(in_parms)
   basename = parms['output_name']
@@ -907,8 +907,6 @@ class Trajectory:
   """
   Class to interact with an AMBER trajctory using soup.
   
-  Class to interaction with a GROMACS trajctory.
-
   It is initialized by:
     traj = Trajectory('md')
     traj.basename
