@@ -6,22 +6,23 @@ structures, MD restart files and trajectories.
 
 The Soup object contains a list of Atom objects, which are also
 grouped into a list of Residues. The Residues provide a
-convenient to search and access Atoms.
+convenient way to search and access Atoms.
 
 Specifically, chain_ids are not used to organize the data
 structures. In the author's experience, for the amount of work to
 maintain chain structure, not much utility is gained. As well,
-chain_id has only loose  semantics that are not strictly
-hierchical to residues, and often clash with residue structure.
-By sticking to a Soup as a group of residues, the resultant data
-structure is cleaner, and easier to search. """
+chain_id has only loose semantics that are not strictly
+hierchical to residues. By sticking to a Soup as a group of 
+residues, the resultant data structure is much cleaner. Chain
+analysis can easily be done on a case-by-case basis.
+"""
+
 
 import v3
 import copy
 import string
 
 import data
-
 
 
 class Atom:
@@ -111,7 +112,6 @@ class Atom:
     v3.set_vector(self.pos, new_pos)
 
 
-
 def AtomFromPdbLine(line):
   """
   Returns an Atom object from an atom line in a pdb file.
@@ -197,8 +197,6 @@ def get_width(atoms, center):
   return 2*max_diff
 
 
-
-
 class AtomList:
   """
   Basic class to hold a list of atoms, with useful methods.
@@ -266,9 +264,9 @@ class AtomList:
 
 class Residue:
   """
-  Class to collect atoms in a residue together, and allow group
-  searching and processing of atoms. In particular, each atom in
-  a residue should have a unique atom_type.
+  Class to collect atoms in a residue together. Allows group
+  searching where each atom in a residue must have a unique
+  atom_type.
   """
 
   def __init__(self, in_type, in_chain_id, in_num, in_insert=''):
@@ -372,9 +370,10 @@ class Soup(AtomList):
   to a list of residues.
 
   The methods residues() and atoms() provide access to the
-  data structures. Inserting of residues should be done here,
-  as the insertion and deleting methods will handle both the
-  atom and residue lists.
+  data structures. 
+
+  Inserting of residues should be done here, as the insertion and
+  deleting methods will handle both the atom and residue lists.
   """
 
   def __init__(self, fname=""):
@@ -478,6 +477,10 @@ class Soup(AtomList):
       extract.append_residue(res.copy())
     return extract
  
+  def insert_soup(self, i, insert):
+    for res in reversed(insert.residues()):
+      self.insert_residue(i, res.copy())
+    
   def chain_ids(self):
     chain_id = [r.chain_id for r in self.residues()]
     return list(set(chain_id))
@@ -489,10 +492,6 @@ class Soup(AtomList):
         extract.append_residue(res.copy())
     return extract
  
-  def insert_soup(self, i, insert):
-    for res in reversed(insert.residues()):
-      self.insert_residue(i, res.copy())
-    
   def load_residue_bfactors(self, res_bfactors):
     for i, r in enumerate(self.residues()):
       for atom in r.atoms():

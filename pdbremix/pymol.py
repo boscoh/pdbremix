@@ -1,3 +1,28 @@
+# encoding: utf-8
+
+__doc__ = """ 
+Module to interface with PYMOL, preparing PDB files so that
+they will display cleanly in PYMOL. 
+
+As well various functions use PYMOL as an image generator of
+protein structures. 
+
+A key concept in this module is that a viewing frame can be
+defined by two residues:
+
+1. The center residue defines the viewing frame where the center 
+   residue is in the middle of the screen directly over the
+   center of the system.
+2. The top residue defines the z-rotation of the above frame such
+   that the top residue is directly above the center residue
+   in the viewing frame.
+
+This can be used to define reasonably close viewing frames to
+any conceivable viewing frame.Several of the functions thus take
+center_res and top_res  parameters to define the viewing frame of
+reference in PYMOL. 
+"""
+
 import os
 import pdbatoms
 import v3
@@ -106,13 +131,15 @@ def rescale_positive_negative_bfactors_pdb(
   return new_pdb, max(bfactors)
 
 
-def rescale_positive_negative_bfactor_pdbs(pdbs, lower_bfactor, upper_bfactor):
+def rescale_positive_negative_bfactor_pdbs(
+    pdbs, lower_bfactor, upper_bfactor):
   "Returns list of new_pdbs, and max_bfactor"
   max_bfactor = 0
   new_pdbs = []
   for pdb in pdbs:
-    new_pdb, this_max_bfactor = rescale_positive_negative_bfactors_pdb(
-        pdb, lower_bfactor, upper_bfactor)
+    new_pdb, this_max_bfactor = \
+        rescale_positive_negative_bfactors_pdb(
+            pdb, lower_bfactor, upper_bfactor)
     if this_max_bfactor > max_bfactor:
       max_bfactor = this_max_bfactor
     new_pdbs.append(new_pdb)
