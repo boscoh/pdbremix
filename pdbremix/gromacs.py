@@ -743,23 +743,22 @@ n_dim = 3
 
 class TrrReader:
   """
-  A class to read the coordinates of a GROMACS .trr file.
+  Class to read the coordinates of a GROMACS .trr file.
 
-  It is initialized by:
-    trr = TrrReader('sample.trr')
-    trr.trr
-    trr.file
-    trr.n_frame
+  Attributes:
+    trr (str) - name of trajectory file
+    file (file) - file object to trajectory
+    n_atom (int) - number of atoms simulated
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    frame (array) - container of coordinates of current frame
 
-  The main function is:
-    trr.load_frame(i)
-
-  Which affects
-    trr.i_frame
-    trr.frame = (box, positions, velocities, forces)
-
-  This can be directly accessed by:
-    frame = trr[i]
+  Methods:
+    __init__ - initializes trajectory and loads 1st frame
+    load_frame(i) - loads the i'th frame
+    __getitem__ - returns the frame
+    save_to_crd - save current frame to a .crd file
+    __repr__ - string representation
   """
 
   def __init__(self, trr):
@@ -864,23 +863,21 @@ class TrrReader:
 
 class Trajectory(object):
   """
-  Class to interaction with a GROMACS trajctory.
+  Class to interact with an GROMACS trajctory using soup.
+  
+  Attributes:
+    basename (str) - basename used to guess all required files
+    top (str) - topology file of trajectory
+    gro (str) - coordinate/velocity restart file
+    trr (str) - coordinate/velocity trajectory file
+    trr_reader (TrrReader) - the reader of the frames
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    soup (Soup) - Soup object holding current coordinates/velocities
 
-  It is initialized by:
-    traj = Trajectory('md')
-    traj.basename
-    traj.top
-    traj.gro
-    traj.trr
-    traj.n_frame
-    traj.trr_reader
-
-  Main method is:
-    traj.load_frame(35)
-
-  Which modifies:
-    traj.i_frame
-    traj.soup - a PDBREMIX pdbatoms.Soup object
+  Methods:
+    __init__ - load coordinate and velocity trajectories and build soup
+    load_frame - loads new frame into soup
   """
 
   def __init__(self, basename):

@@ -762,31 +762,31 @@ def check_dcd_byte_order(dcd):
 
 class DcdReader:
   """
-  Read frames from a DCD file in terms of a list (3xn) of floats.
+  Class to read CHARMM .dcd files.
 
-  Data: 
-    fname
-    n_frame
-    remarks
-    pos_after_header
-    size_frame
-    n_atom
-    i_frame
-    frame
+  Attributes: 
+    dcd (str) - name of .dcd file
+    n_frame (int) - number of frames in trajectory
+    remarks (list) - title of file 
+    pos_after_header (int) - position of frames in file
+    size_frame (int) - the size of the frame in bytes
+    n_atom (int) - number of atoms simulated
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    frame (int) - container of coordinates of current frame
 
   Methods:
-    d = DCD(fname) - open fname and read header
-    load_frame(i) - return number of frames
-    d[10] - return a frame as a list (3xn) of floats.
+    __init__ - open dcd, read header and load first frame
+    load_frame(i) - loads the coordinates of the i'th frame
+    __getitme__ - return a frame as a list (3xn) of floats.
   """
 
-  def __init__(self, fname):
-    self.fname = fname
-    """Fname of the DCD file"""
+  def __init__(self, dcd):
+    self.dcd = dcd
 
-    check_dcd_byte_order(self.fname)    
+    check_dcd_byte_order(self.dcd)    
     
-    self.file = open(fname, 'rb')
+    self.file = open(dcd, 'rb')
 
     # Read heading block
     if self._read_fmt_val('i') != 84:
@@ -845,6 +845,10 @@ class DcdReader:
     return self._read_fmt_vals(fmt)[0]
     
   def load_frame(self, i):
+    """
+    Reads self.frame from loaded trajectory file. The frame
+    is (x_vals, y_vals, z_vals) for each atom.
+    """
     if i < - 1*self.n_frame or i >= self.n_frame:
       raise IndexError
     if i < 0:
@@ -881,31 +885,30 @@ class DcdReader:
     return self.frame
 
   def __repr__(self):
-    return "< DCD %s with %d frames of %d atoms (%d fixed) >" % \
-             (self.fname, self.n_frame, self.n_atom, self.n_fixed_atom)
+    return "< DCD %s with %d frames of %d atoms >" % \
+             (self.dcd, self.n_frame, self.n_atom)
 
 
 class Trajectory:
   """
   Class to interact with an CHARMM/NAMD DCD trajctory using soup.
   
-  It is initialized by:
-    traj = Trajectory('md')
-    traj.basename
-    traj.psf
-    traj.coor
-    traj.vel
-    traj.coor_dcd_reader
-    traj.vel_dcd_reader
-    traj.n_frame
-    traj.trr_reader
+  Attributes:
+    basename (str) - basename used to guess all required files
+    psf (str) - topology file of trajectory
+    coor (str) - restart coordinate file
+    vel (str) - restart velocity file
+    dcd (str) - coordinate trajectory file
+    vel_dcd (str) - velocity trajectory file
+    coor_dcd_reader (DcdReader) - the reader of the coordinates
+    vel_dcd_reader (DcdReader) - the reader of the velocitiies
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    soup (Soup) - Soup object holding current coordinates/velocities
 
-  Main method is:
-    traj.load_frame(35)
-
-  Which modifies:
-    traj.i_frame
-    traj.soup - a PDBREMIX Soup object
+  Methods:
+    __init__ - load coordinate and velocity trajectories and build soup
+    load_frame - loads new frame into soup
   """  
 
   def __init__(self, basename):
@@ -930,10 +933,12 @@ class Trajectory:
     atoms = self.soup.atoms()
     for i in range(len(atoms)):
       v3.set_vector(atoms[i].pos, x[i], y[i], z[i])
+
     if self.vel_dcd_reader is not None:
       x, y, z = self.vel_dcd_reader[i]
       for i in range(len(atoms)):
           v3.set_vector(atoms[i].vel, x[i], y[i], z[i])
+
     self.i_frame = self.coor_dcd_reader.i_frame
 
 

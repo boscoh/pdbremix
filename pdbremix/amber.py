@@ -14,7 +14,6 @@ The library is split into three sections:
 Copyright (C) 2009, 2014, Bosco K. Ho
 """
 
-
 import os
 import copy
 import shutil
@@ -26,7 +25,6 @@ import pdbtext
 import pdbatoms
 import data
 import protein
-
 
 # ##########################################################
 
@@ -45,7 +43,6 @@ import protein
 # The units used in AMBER are:
 # - positions: angs
 # - velocities: angs/ps/20.455 
-# - force constant: kcal/mol/ang^2
 
 
 def read_top(top):
@@ -715,56 +712,6 @@ def run(in_parms):
   util.check_output(crds)
 
 
-def low_temperature_equilibrate(in_name, out_name, temperature):
-  """
-  Carries out low temperature heating with a relaxation step in
-  between with no thermostat. 
-
-  The relaxation step allows the system to avoid the energy spike
-  in low-temperature constant energy implicit-solvent simulations.
-  """
-  top, crd, vels = get_restart_files(in_name)
-  md_dirs = ['heat1', 'const2', 'heat3']
-
-  util.goto_dir(md_dirs[0])
-  parms = langevin_thermometer_parms.copy()
-  parms.extend({
-    'topology': top,
-    'input_crds': crd,
-    'output_name': 'md',
-    'temp_thermometer': temperature,
-    'temp_initial': temperature,
-    'n_step_per_snapshot': 50,
-    'n_step_dynamics': 1000})
-  run(parms)
-
-  in_top, in_crds, in_vels = get_restart_files('md')
-
-  util.goto_dir(os.path.join('..', md_dirs[1]))
-  parms = constant_energy_parms.copy()
-  parms['topology'] = top
-  parms['input_crds'] = crd
-  parms['output_name'] = 'md'
-  parms['n_step_per_snapshot'] = 50
-  parms['n_step_dynamics'] = 10000
-  run(parms)
-  in_top, in_crds, in_vels = get_restart_files('md')
-
-  util.goto_dir(os.path.join('..', md_dirs[2]))
-  parms = langevin_thermometer_parms.copy()
-  parms['topology'] = top
-  parms['input_crds'] = crd
-  parms['output_name'] = 'md'
-  parms['temp_thermometer'] = temperature
-  parms['temp_initial'] = temperature
-  parms['n_step_per_snapshot'] = 50
-  parms['n_step_dynamics'] = 1000
-  run(parms)
-  
-  util.goto_dir('..')
-  merge_simulations(out_name, md_dirs)
-
-
 # ##########################################################
 
 # # 4. Read trajectories with some post-processing
@@ -776,33 +723,31 @@ def low_temperature_equilibrate(in_name, out_name, temperature):
 
 class TrjReader:
   """
-  A class to read AMBER .trj files.
+  Class to read AMBER .trj and .trj.gz files.
 
   Since the .trj files do not tell us how many atoms are in each frame, this
   must be read from the corresponding .top file. Hence initialization always
   requires a .top file as well. 
 
-  Can also handle .trj.gz files.
+  Attributes:
+    top (str) - name of .top file
+    trj (str) - name of .trj file
+    topology (dict) - topology properties
+    file (file) - file object to trajectory
+    pos_start_frame (int) - position of the beginning of frames
+    size_frame (int) - the size of the frame in bytes
+    n_atom (int) - number of atoms simulated
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    frame (array) - container of coordinates of current frame
+    is_box_dims (bool) - frame contains extra line for periodic box
 
-  As well, the periodic box coordinates can also be read from the .trj files.
-
-  It is initialized by:
-    trj = TrjReader('md.top', 'md.trj')
-    trj.top
-    trj.trj
-    trr.topology
-    trr.n_frame
-
-  The main function is:
-    trr.load_frame(i)
-
-  Which affects
-    trr.i_frame
-    trr.frame = [] list of 3*n_atom floats
-
-  This can be directly accessed by:
-    frame = trr[i]
-
+  Methods:
+    __init__ - initializes trajectory and loads 1st frame
+    load_frame(i) - loads the i frame
+    __getitem__ - returns the frame
+    save_to_crd - save current frame to a .crd file
+    __repr__ - string representation
   """
   
   def __init__(self, top, trj):
@@ -849,7 +794,9 @@ class TrjReader:
     self.load_frame(0)
 
   def load_frame(self, i):
-    """Loads the frame into self.frame, a list of 3*n_atom floats"""
+    """
+    Loads the frame into self.frame, a list of 3*n_atom floats
+    """
     # Check bounds
     if i < - 1*self.n_frame or i >= self.n_frame:
       raise IndexError
@@ -871,7 +818,9 @@ class TrjReader:
     self.i_frame = i
 
   def __getitem__(self, i):
-    """Gets the list of 3xn_atom floats for frame i"""
+    """
+    Returns the container for coordinates of the i'th frame.
+    """
     self.load_frame(i)
     return self.frame
 
@@ -907,22 +856,22 @@ class Trajectory:
   """
   Class to interact with an AMBER trajctory using soup.
   
-  It is initialized by:
-    traj = Trajectory('md')
-    traj.basename
-    traj.top
-    traj.trj
-    traj.vel_trj
-    traj.n_frame
-    traj.trr_reader
+  Attributes:
+    basename (str) - basename used to guess all required files
+    top (str) - topology file of trajectory
+    trj (str) - coordinate trajectory file
+    vel_trj (str) - velocity trajectory file
+    trj_reader (TrjReader) - the reader of the coordinates
+    vel_trj_reader (TrjReader) - the reader of the velocities
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    soup (Soup) - Soup object holding current coordinates/velocities
 
-  Main method is:
-    traj.load_frame(35)
-
-  Which modifies:
-    traj.i_frame
-    traj.soup - a PDBREMIX pdbatoms.Soup object
+  Methods:
+    __init__ - load coordinate and velocity trajectories and build soup
+    load_frame - loads new frame into soup
   """
+
   def __init__(self, basename):
     self.basename = basename
     self.top = basename + '.top'
@@ -974,7 +923,7 @@ def merge_trajectories(top, trajs, out_traj):
   size_frame = trj_reader.size_frame
   del trj_reader
 
-  # Start the merged file by copying the first piece
+  # Start the merged file by copying the first trajectory
   shutil.copy(trajs[0], out_traj)
 
   # Now open the merged file in appended form and add it to the

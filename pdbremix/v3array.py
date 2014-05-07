@@ -173,24 +173,6 @@ class Matrix3d:
       if i==3: return self.elem33
 
 
-def transform(matrix, v):
-  v_x, v_y, v_z = v
-  x = matrix.elem(0, 0) * v_x + \
-      matrix.elem(1, 0) * v_y + \
-      matrix.elem(2, 0) * v_z + \
-      matrix.elem(3, 0)
-  y = matrix.elem(0, 1) * v_x + \
-      matrix.elem(1, 1) * v_y + \
-      matrix.elem(2, 1) * v_z + \
-      matrix.elem(3, 1)
-  z = matrix.elem(0, 2) * v_x + \
-      matrix.elem(1, 2) * v_y + \
-      matrix.elem(2, 2) * v_z + \
-      matrix.elem(3, 2)
-  return vector(x, y, z)
-
-
-
 def matrix_elem(matrix, i, j, val=None):
   if val is not None:
     if j==0:
@@ -234,6 +216,23 @@ def matrix_elem(matrix, i, j, val=None):
     if i==1: return matrix.elem13
     if i==2: return matrix.elem23
     if i==3: return matrix.elem33
+
+
+def transform(matrix, v):
+  v_x, v_y, v_z = v
+  x = matrix_elem(matrix, 0, 0) * v_x + \
+      matrix_elem(matrix, 1, 0) * v_y + \
+      matrix_elem(matrix, 2, 0) * v_z + \
+      matrix_elem(matrix, 3, 0)
+  y = matrix_elem(matrix, 0, 1) * v_x + \
+      matrix_elem(matrix, 1, 1) * v_y + \
+      matrix_elem(matrix, 2, 1) * v_z + \
+      matrix_elem(matrix, 3, 1)
+  z = matrix_elem(matrix, 0, 2) * v_x + \
+      matrix_elem(matrix, 1, 2) * v_y + \
+      matrix_elem(matrix, 2, 2) * v_z + \
+      matrix_elem(matrix, 3, 2)
+  return vector(x, y, z)
 
 
 
