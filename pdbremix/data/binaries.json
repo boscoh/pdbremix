@@ -16,7 +16,7 @@
   "genion": "genion",
   "genbox": "genbox",
 
-  "vmd": "/Applications/VMD 1.8.7.app/Contents/Resources/VMD.app/Contents/MacOS/VMD",
+  "vmd": "/Applications/VMD\ 1.8.7.app/Contents/Resources/VMD.app/Contents/MacOS/VMD",
   "psfgen": "psfgen",
   "namd": "namd2",
   "flipdcd": "flipdcd",

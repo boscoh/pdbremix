@@ -367,61 +367,16 @@ def add_rotational_velocity(atoms, rot_vel, axis, anchor):
 
 # Sidechain rotation functions
 
-chi_topology = {
-  'ARG': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'NE'],
-           ['CG', 'CD', 'NE', 'CZ']],
-  'ASN': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'OD1']],
-  'ASP': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'OD1']],
-  'CYS': [['N', 'CA', 'CB', 'SG']],
-  'GLN': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'OE1']],
-  'GLU': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'OE1']],
-  'HIS': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'ND1']],
-  'ILE': [['N', 'CA', 'CB', 'CG1'], ['CA', 'CB', 'CG1', 'CD1']],
-  'LEU': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD1']],
-  'LYN': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'CE'],
-           ['CG', 'CD', 'CE', 'NZ']],
-  'LYP': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'CE'],
-           ['CG', 'CD', 'CE', 'NZ']],
-  'LYS': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'CE'],
-           ['CG', 'CD', 'CE', 'NZ']],
-  'MET': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'SD'],
-           ['CB', 'CG', 'SD', 'CE']],
-  'PHD': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'OD1']],
-  'PHE': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD1']],
-  'PRO': [ ['N', 'CA', 'CB', 'CG'],
-           ['CA', 'CB', 'CG', 'CD'],
-           ['CB', 'CG', 'CD', 'N'],
-           ['CG', 'CD', 'N', 'CA']],
-  'SER': [['N', 'CA', 'CB', 'OG']],
-  'THR': [['N', 'CA', 'CB', 'OG1']],
-  'TRP': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD1']],
-  'TYR': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD1']],
-  'VAL': [['N', 'CA', 'CB', 'CG1']]}
-
-
 def get_res_chi_topology(res):
   """
   Gets the atom types for each chi angle in a residue type
   """
   res_type = res.type
-  if res_type not in chi_topology:
+  if res_type not in data.chi_topology:
     return []
   if res_type in ["HSE"]:
     res_type = "HIS"
-  result = copy.deepcopy(chi_topology[res_type])
+  result = copy.deepcopy(data.chi_topology[res_type])
   if res_type == "ILE" and res.has_atom("CD1"):
     for i in range(0, len(result)):
       for j in range(0, len(result[i])):
@@ -432,8 +387,8 @@ def get_res_chi_topology(res):
 
 
 def get_n_chi(res):
-  if chi_topology.has_key(res.type):
-    return len(chi_topology[res.type])
+  if data.chi_topology.has_key(res.type):
+    return len(data.chi_topology[res.type])
   return 0
 
 

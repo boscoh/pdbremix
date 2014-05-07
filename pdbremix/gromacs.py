@@ -113,7 +113,7 @@ def AtomFromGroLine(line):
   atom.res_num = int(line[0:5])
   atom.res_type = line[5:8].strip()
   atom.type = line[10:15].strip(" ")
-  atom.element = pdbatoms.guess_element(
+  atom.element = data.guess_element(
       atom.res_type, line[12:15])
   atom.num = int(line[15:20])
   # 10 x multiplier converts from nm to angstroms

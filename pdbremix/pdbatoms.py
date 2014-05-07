@@ -1,17 +1,48 @@
+# encoding: utf-8
+
+__doc__ = """
+This module provides the Soup that interacts with PDB
+structures, MD restart files and trajectories.
+
+The Soup object contains a list of Atom objects, which are also
+grouped into a list of Residues. The Residues provide a
+convenient to search and access Atoms.
+
+Specifically, chain_ids are not used to organize the data
+structures. In the author's experience, for the amount of work to
+maintain chain structure, not much utility is gained. As well,
+chain_id has only loose  semantics that are not strictly
+hierchical to residues, and often clash with residue structure.
+By sticking to a Soup as a group of residues, the resultant data
+structure is cleaner, and easier to search. """
+
 import v3
 import copy
 import string
 
 import data
 
+
+
 class Atom:
-  def __init__(
-      self, pos=None,
-      atom_type="", res_num=None):
+  """
+  This is the basic object to hold Atom information.
+
+  The attributes are basically those of a PDB atom field.
+  However, pos and vel are proper vectorsthat can be manipulated
+  with the v3 vector geometry library.  
+  """
+
+  def __init__(self, pos=None, atom_type="", res_num=None):
+    """
+    Normally initialized as an empty container, and filled
+    up progressively as fields are read by parsers.
+    """
     self.is_hetatm = False
     self.pos = v3.vector() if pos is None else pos
     self.vel = v3.vector()
     self.mass = 0.0
+    self.charge = 0.0
     self.type = ""
     self.element = ""
     self.chain_id = " "
@@ -27,6 +58,9 @@ class Atom:
     return copy.deepcopy(self)
 
   def type_str(self):
+    """
+    Format atom_type to write to a PDB file's atom line.
+    """
     atom_type = self.type.strip()
     if len(atom_type) == 1:
       atom_type = " %s  " % atom_type
@@ -43,37 +77,45 @@ class Atom:
     return atom_type    
 
   def pdb_str(self):
+    """
+    Returns a string for output to an PDB file.
+    """
     if self.is_hetatm:
       field = "HETATM"
     else:
       field = "ATOM  "
     x, y, z = self.pos
-    s = "%6s%5s %4s %-4s%1s%4s%1s   %8.3f%8.3f%8.3f%6.2f%6.2f" \
-            % (field, 
-               str(self.num)[-5:], 
-               self.type_str(),
-               self.res_type, 
-               self.chain_id,
-               str(self.res_num)[-4:], 
-               self.res_insert,
-               x, y, z,
-               self.occupancy, 
-               self.bfactor)
+    s = "%6s%5s %4s %-4s%1s%4s%1s   %8.3f%8.3f%8.3f%6.2f%6.2f" % \
+        (field, 
+         str(self.num)[-5:], 
+         self.type_str(),
+         self.res_type, 
+         self.chain_id,
+         str(self.res_num)[-4:], 
+         self.res_insert,
+         x, y, z,
+         self.occupancy, 
+         self.bfactor)
     return s
                
   def __str__(self):
     x, y, z = self.pos
-    return "%s%s-%s (% .1f % .1f % .1f)" \
-            %  (self.res_type, self.res_num, 
-                self.type, x, y, z)
+    return "%s%s-%s (% .1f % .1f % .1f)" %  \
+        (self.res_type, self.res_num, self.type, x, y, z)
 
   def transform(self, matrix):
+    """
+    Transforms the pos vector by a v3.transform matrix.
+    """
     new_pos = v3.transform(matrix, self.pos)
     v3.set_vector(self.pos, new_pos)
 
 
+
 def AtomFromPdbLine(line):
-  """Returns an Atom object from an atom line in a pdb file."""
+  """
+  Returns an Atom object from an atom line in a pdb file.
+  """
   atom = Atom()
   if line.startswith('HETATM'):
     atom.is_hetatm = True
@@ -85,7 +127,7 @@ def AtomFromPdbLine(line):
   for c in line[12:15]:
     if not c.isdigit() and c != " ":
       element += c
-  if element[:2] in two_char_elements:
+  if element[:2] in data.two_char_elements:
     atom.element = element[:2]
   else:
     atom.element = element[0]
@@ -112,62 +154,30 @@ def AtomFromPdbLine(line):
   
   
 def cmp_atom(a1, a2):
+  """
+  Sorting operator for atoms
+  """
   if a1.num < a2.num:
     return -1
   else:
     return 0
 
 
-radii = { 
- 'H':  1.20,
- 'N':  1.55,
- 'NA': 2.27,
- 'CU': 1.40,
- 'CL': 1.75,
- 'C':  1.70,
- 'O':  1.52,
- 'I':  1.98,
- 'P':  1.80,
- 'B':  1.85,
- 'BR': 1.85,
- 'S':  1.80,
- 'SE': 1.90,
- 'F':  1.47,
- 'FE': 1.80,
- 'K':  2.75,
- 'MN': 1.73,
- 'MG': 1.73,
- 'ZN': 1.39,
- 'HG': 1.80,
- 'XE': 1.80,
- 'AU': 1.80,
- 'LI': 1.80,
- '.':  1.80
-}
-two_char_elements = [e for e in radii.keys() if len(e) == 2]
-
-
-def guess_element(res_type, atom_type):
-  if res_type in data.res_name_to_char:
-    return atom_type[0]
-  element = ""
-  for c in atom_type:
-    if not c.isdigit() and c != " ":
-      element += c
-  if len(element) == 2 and element in two_char_elements:
-    return element
-  return element[0]  
-
-
 def add_radii(atoms):
+  """
+  Lookup and assign atom.radius for atoms.
+  """
   for atom in atoms:
-    if atom.element in radii:
-      atom.radius = radii[atom.element]
+    if atom.element in data.radii:
+      atom.radius = data.radii[atom.element]
     else:
-      atom.radius = radii['.']
+      atom.radius = data.radii['.']
 
 
 def get_center(atoms):
+  """
+  Returns the geometric center position vector of atoms.
+  """
   center = v3.vector()
   for atom in atoms:
     center += atom.pos
@@ -176,6 +186,9 @@ def get_center(atoms):
 
 
 def get_width(atoms, center):
+  """
+  Returns twice the longest distance from the center.
+  """
   max_diff = 0
   for atom in atoms:
     diff = v3.distance(atom.pos, center)
@@ -184,8 +197,13 @@ def get_width(atoms, center):
   return 2*max_diff
 
 
-class AtomList:
 
+
+class AtomList:
+  """
+  Basic class to hold a list of atoms, with useful methods.
+  Useful for molecule files as well.
+  """
   def __init__(self, pdb=""):
     self.id = ''
     self._atoms = []
@@ -247,6 +265,11 @@ class AtomList:
 
 
 class Residue:
+  """
+  Class to collect atoms in a residue together, and allow group
+  searching and processing of atoms. In particular, each atom in
+  a residue should have a unique atom_type.
+  """
 
   def __init__(self, in_type, in_chain_id, in_num, in_insert=''):
     self.type = in_type
@@ -255,7 +278,12 @@ class Residue:
     self.insert = in_insert
     self._atom_dict = {}
  
-  def name(self):
+  def tag(self):
+    """
+    Returns a name e.g. "A:12" that combines the chain_id and
+    residue number. This is a unique tag that can be used to
+    identify a residue in a Soup through get_i_residue().
+    """
     tag = ""
     if self.chain_id != " " and self.chain_id != "":
       tag += self.chain_id + ":"
@@ -339,6 +367,15 @@ class Residue:
 
 
 class Soup(AtomList):
+  """
+  The major class that holds a list of atoms and references them
+  to a list of residues.
+
+  The methods residues() and atoms() provide access to the
+  data structures. Inserting of residues should be done here,
+  as the insertion and deleting methods will handle both the
+  atom and residue lists.
+  """
 
   def __init__(self, fname=""):
     AtomList.__init__(self)
@@ -435,7 +472,7 @@ class Soup(AtomList):
         return i
     raise Exception("Can't find residue " + tag)
   
-  def extract_polymer(self, i, j):
+  def extract_soup(self, i, j):
     extract = Soup()
     for res in self.residues()[i:j]:
       extract.append_residue(res.copy())
@@ -452,7 +489,7 @@ class Soup(AtomList):
         extract.append_residue(res.copy())
     return extract
  
-  def insert_polymer(self, i, insert):
+  def insert_soup(self, i, insert):
     for res in reversed(insert.residues()):
       self.insert_residue(i, res.copy())
     
@@ -475,7 +512,8 @@ class Soup(AtomList):
     for line in open(fname, 'r').readlines():
       if line.startswith("ATOM") or line.startswith("HETATM"):
         atom = AtomFromPdbLine(line);
-        if (res_num != atom.res_num) or (res_insert != atom.res_insert):
+        if (res_num != atom.res_num) or \
+           (res_insert != atom.res_insert):
           residue = Residue(atom.res_type, atom.chain_id,
                             atom.res_num, atom.res_insert)
           self.append_residue(residue)

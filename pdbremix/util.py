@@ -3,8 +3,11 @@
 __doc__ = """
 Utility functions.
 
-Directory handling, pathname mangling, running shell commands,
-timerl, file checking.
+- directory handling
+- pathname mangling
+- running shell commands
+- timer
+- file checking
 """
 
 import os

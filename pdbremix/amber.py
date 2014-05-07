@@ -136,7 +136,7 @@ def soup_from_topology(topology):
       atom.type = topology['ATOM_NAME'][i_atom].strip()
       atom.mass = topology['MASS'][i_atom]
       atom.charge = topology['CHARGE'][i_atom]/sqrt_of_k
-      atom.element = pdbatoms.guess_element(
+      atom.element = data.guess_element(
           atom.res_type, atom.type)
       soup.insert_atom(-1, atom)
   protein.find_chains(soup)
@@ -765,9 +765,9 @@ class TrjReader:
     # Since .trj is a text format, it can be readily gzip'd,
     # so opening .trj.gz is a useful option to have.
     if self.trj.split(".")[-1].strip().lower() == "gz":
-      self._file = gzip.GzipFile(self.trj, "r")
+      self.file = gzip.GzipFile(self.trj, "r")
     else:
-      self._file = open(self.trj, "r")
+      self.file = open(self.trj, "r")
 
     # only 1-line header, frames starts after this line
     self.pos_start_frame = len(self.file.readline())
@@ -806,8 +806,9 @@ class TrjReader:
     self.file.seek(self.pos_start_frame + i*(self.size_frame))
 
     # read frame as list of 3 floats
-    s = self.file.read(self.size_frame).rstrip()
-    vals = [float(s[i:i+8]) for i in xrange(0, len(s), 8)]
+    s = self.file.read(self.size_frame).replace('\n', '')
+    pieces = [s[i:i+8] for i in xrange(0, len(s), 8)]
+    vals = map(float, pieces)
     if self.is_box_dims:
       # drop the box dimension values
       vals = vals[:-3]
@@ -961,7 +962,7 @@ def merge_simulations(basename, pulses):
       blocks = eval(open(energy_fname).read())
     else:
       sander_out = os.path.join(pulse, basename + '.sander.out')
-      blocks = read_time_blocks(sander_out)
+      blocks = read_dynamics_sander_out(sander_out)
       for block in blocks:
         block_n_step = int(block['NSTEP'])
         block_time = float(block['TIME(PS)'])
