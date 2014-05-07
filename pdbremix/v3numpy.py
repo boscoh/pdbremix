@@ -1,13 +1,28 @@
+# encoding: utf-8
+
+__doc__ = """
+A 3D vector geometry library that relies on numpy.
+
+The vector and matrix objects are subclassd from numpy.array. 
+All operations are accessed through functions, allowing easy
+switching with other libraries.
+"""
+
 import math
 import random
 
 import numpy as np
 
-def is_similar_mag(a, b, small=1E-5):
-  return abs(abs(a)-abs(b)) <= small
-
 
 def vector(*args):
+  """
+  Creates a new vector
+
+  Args:
+    none: returns zero vector
+    v (vector): returns copy of v
+    x, y, z: returns (x, y, z)
+  """
   n_arg = len(args)
   if n_arg == 0:
     return np.zeros(3, dtype=np.float)
@@ -23,7 +38,9 @@ def vector(*args):
 
 
 def set_vector(*args):
-  "Changes values of a vector in place"
+  """
+  Changes values of a vector in place
+  """
   vector = args[0]
   if len(args) == 2:
     vector[:] = args[1]
@@ -31,12 +48,127 @@ def set_vector(*args):
     vector[:] = args[1:4]
 
 
-def crd(vector):
-  "Returns values of vector as a sequence of floats"
-  return vector
+def mag(vector):
+  """
+  Returns the magnitude of a vector
+  """
+  return np.sqrt(np.dot(vector, vector))
+
+
+def scale(vector, s):
+  """
+  Returns a vector that has been scaled by s.
+  """
+  return  s*vector
+
+
+dot = np.dot
+
+
+def norm(vector):
+  """
+  Returns a version of the vector normalized to magnitude=1.0
+  """
+  return vector/mag(vector)
+
+
+cross = np.cross
+
+
+radians = np.radians
+
+degrees = np.degrees
+
+
+def identity():
+  """
+  Returns the identity transform matrix.
+  """
+  m = np.zeros((4, 3))
+  m[:3,:3] = np.eye(3)
+  return m
+
+
+def matrix_elem(matrix, i, j, val=None):
+  """
+  Reads/writes the elements of the affine transformation
+  Matrix3d. By using a function interface, this allows 
+  other functions (such as RMSD calculatiors) to easily
+  swithc between this Vec3 representation and others such
+  as numpy arrays.
+  """
+  if val is None:
+    return matrix[j,i]
+  else:
+    matrix[j,i] = val
+
+
+def transform(matrix, vector):
+  """
+  Returns the transformed vector of applying matrix to v.
+  """
+  return np.dot(matrix[:3,:3], vector) + matrix[3,:]  
+
+
+def left_inverse(matrix):
+  """
+  Returns the left inverse of m, where 
+  combine(left_inverse(m), m) == identity().
+  """
+  inverse = identity()
+  r = matrix[:3,:3].transpose()
+  inverse[:3,:3] = r
+  inverse[3,:] = -np.dot(r, matrix[3,:])
+  return inverse
+
+
+def rotation(axis, theta):
+  """
+  Returns a matrix that rotate a vector at the origin around axis.
+
+  from http://stackoverflow.com/a/6802723
+  """
+  m = identity()
+  a = np.cos(theta/2)
+  b, c, d = norm(axis) * np.sin(theta/2)
+  m[0] = [a*a+b*b-c*c-d*d, 2*(b*c-a*d),     2*(b*d+a*c)    ]
+  m[1] = [2*(b*c+a*d),     a*a+c*c-b*b-d*d, 2*(c*d-a*b)    ]
+  m[2] = [2*(b*d-a*c),     2*(c*d+a*b),     a*a+d*d-b*b-c*c]
+  return m
+
+
+def translation(displacement):
+  """
+  Returns a matrix that translates a vector.
+  """
+  m = identity()
+  m[3,:] = displacement
+  return m
+
+
+def combine(m1, m2):
+  """
+  Combines two transformations, using matrix multiplication
+  for the rotational matrices, and rotation applied to
+  the translational vector of b[3,i].
+  """
+  m3 = identity()
+  m3[:3,:3] = np.dot(m1[:3,:3], m2[:3,:3])
+  m3[3,:] = np.dot(m1[:3,:3], m2[3,:]) + m1[3,:]
+  return m3
+
+
+def is_similar_mag(a, b, small=1E-5):
+  """
+  Evaluates similar magnitudes to within small.
+  """
+  return abs(abs(a)-abs(b)) <= small
 
 
 def is_similar_matrix(m1, m2, small=1E-5):
+  """
+  Evaluates similar matrixes through matrix components.
+  """
   iter1 = np.ndenumerate(m1)
   iter2 = np.ndenumerate(m2)
   for (i1, val1), (i2, val2) in zip(iter1, iter2):
@@ -48,83 +180,13 @@ def is_similar_matrix(m1, m2, small=1E-5):
 is_similar_vector = is_similar_matrix
 
 
-def mag(vector):
-  return np.sqrt(np.dot(vector, vector))
-
-
-def scale(vector, s):
-  return  s*vector
-
-
-def norm(vector):
-  return vector/mag(vector)
-
-
-radians = np.radians
-
-degrees = np.degrees
-
-cross = np.cross
-
-dot = np.dot
-
-
-def identity():
-  m = np.zeros((4, 3))
-  m[:3,:3] = np.eye(3)
-  return m
-
-
-def matrix_elem(matrix, i, j, val=None):
-  if val is None:
-    return matrix[j,i]
-  else:
-    matrix[j,i] = val
-
-
-def transform(matrix, vector):
-  return np.dot(matrix[:3,:3], vector) + matrix[3,:]  
-
-
-def left_inverse(matrix):
-  inverse = identity()
-  r = matrix[:3,:3].transpose()
-  inverse[:3,:3] = r
-  inverse[3,:] = -np.dot(r, matrix[3,:])
-  return inverse
-
-
-# from http://stackoverflow.com/a/6802723
-# uses the right hand screw rule for theta
-def rotation(axis, theta):
-  m = identity()
-  a = np.cos(theta/2)
-  b, c, d = norm(axis) * np.sin(theta/2)
-  m[0] = [a*a+b*b-c*c-d*d, 2*(b*c-a*d),     2*(b*d+a*c)    ]
-  m[1] = [2*(b*c+a*d),     a*a+c*c-b*b-d*d, 2*(c*d-a*b)    ]
-  m[2] = [2*(b*d-a*c),     2*(c*d+a*b),     a*a+d*d-b*b-c*c]
-  return m
-
-
-def translation(displacement):
-  m = identity()
-  m[3,:] = displacement
-  return m
-
-
-def combine(m1, m2):
-  m3 = identity()
-  m3[:3,:3] = np.dot(m1[:3,:3], m2[:3,:3])
-  m3[3,:] = np.dot(m1[:3,:3], m2[3,:]) + m1[3,:]
-  return m3
-
-
-
-
-# common to v3array and v3numpy
+# common to v3list and v3numpy
 
 
 def parallel(v, axis):
+  """
+  Returns component of v parallel to axis.
+  """
   l = mag(axis)
   if is_similar_mag(l, 0):
     return v
@@ -133,10 +195,16 @@ def parallel(v, axis):
 
 
 def perpendicular(v, axis):
+  """
+  Returns component of v that is perpendicular to axis.
+  """
   return v - parallel(v, axis)
 
 
 def normalize_angle(angle):
+  """
+  Returns angle in radians that is [-pi, pi]
+  """
   while abs(angle) > math.pi:
     if angle > math.pi:
       angle -= math.pi*2
@@ -148,6 +216,9 @@ def normalize_angle(angle):
 
 
 def vec_angle(a, b):
+  """
+  Returns angle in radians between a and b. 
+  """ 
   a_len = mag(a)
   b_len = mag(b)
   if is_similar_mag(a_len, 0) or is_similar_mag(b_len, 0):
@@ -162,6 +233,9 @@ def vec_angle(a, b):
 
 
 def vec_dihedral(a, axis, c):
+  """
+  Returns dihedral angle between a and c, along the axis.
+  """ 
   ap = perpendicular(a, axis)
   cp = perpendicular(c, axis)
   angle = vec_angle(ap, cp)
@@ -171,14 +245,23 @@ def vec_dihedral(a, axis, c):
 
 
 def dihedral(p1, p2, p3, p4):
+  """
+  Returns dihedral angle defined by the four positions.
+  """ 
   return vec_dihedral(p1-p2, p2-p3, p4-p3)
 
 
 def distance(p1, p2):
+  """
+  Returns distance between the two points
+  """ 
   return mag(p1 - p2)
 
 
 def rotation_at_center(axis, theta, center):
+  """
+  Returns a rotation around the center.
+  """ 
   t = translation(-center)
   r = rotation(axis, theta)
   t_inv = translation(center)
@@ -186,6 +269,9 @@ def rotation_at_center(axis, theta, center):
 
 
 def get_center(crds):
+  """
+  Returns the geometric center of a bunch of positions.
+  """
   center = vector()
   for crd in crds:
     center += crd
@@ -193,6 +279,9 @@ def get_center(crds):
 
 
 def get_width(crds):
+  """
+  Returns the maximum width between any two crds in the group.
+  """
   center = get_center(crds)
   max_diff = 0
   for crd in crds:
@@ -203,23 +292,39 @@ def get_width(crds):
 
 
 def random_mag(): 
+  """
+  Returns a random positive number from [0, 90] for testing.
+  """
   return random.uniform(0, 90)
 
 
 def random_real(): 
+  """
+  Returns a random real +/- from [-90, 90] for testing.
+  """
   return random.uniform(-90, 90)
 
 
 def random_vector():
+  """
+  Returns a random vector for testing.
+  """
   return vector(random_real(), random_real(), random_real())
 
 
 def random_rotation():
+  """
+  Returns a random rotational matrix for testing.
+  """
   return rotation(random_vector(), radians(random_real()))
 
 
 def random_matrix():
+  """
+  Returns a random transformation matrix for testing.
+  """
   return combine(random_rotation(), translation(random_vector()))
+
 
 
 

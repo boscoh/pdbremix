@@ -1,3 +1,17 @@
+# encoding: utf-8
+
+__doc__ = """ 
+Calculate the RMSD and optimal rotation of a set of position vectors.
+
+Two algorithms are provided: 
+
+1. The standard SVD decomposition using the numpy library.
+2. The qcp quaternion-based method that doesn't need numpy.
+
+The qcp method is particularly useful because it allows the
+library to function without numpy such as when run with pypy.
+"""
+
 import v3
 import pdbatoms
 import math
@@ -14,7 +28,7 @@ def numpy_svd_rmsd_rot(in_crds1, in_crds2):
   Returns rmsd and optional rotation between 2 sets of [nx3] arrays.
   
   This requires numpy for svd decomposition.
-  The transform direction i: transform(m, ref_crd) => target_crd.
+  The transform direction: transform(m, ref_crd) => target_crd.
   """
 
   crds1 = numpy.array(in_crds1)
@@ -49,8 +63,8 @@ def pyqcprot_rmsd_rot(crds1, crds2):
   Returns rmsd and optional rotation between 2 sets of [nx3] arrays.
   
   This requires Joshua Adelman's pyqcrot library for quaternion-based
-  calculation of Theobauld. 
-  The transform direction i: transform(m, ref_crd) => target_crd.
+  calculation of Theobauld. The transform direction: 
+      transform(m, ref_crd) => target_crd.
   """
   rms, rot9 = lib.pyqcprot.calc_rms_rot(crds1, crds2)
   matrix = v3.identity()
@@ -61,6 +75,10 @@ def pyqcprot_rmsd_rot(crds1, crds2):
 
 
 def calc_rmsd_rot(crds1, crds2):
+  """
+  Returns the rmsd and optimal rotation and chooses the method
+  depending on whether numpy is installed.
+  """
   if is_numpy:
     return numpy_svd_rmsd_rot(crds1, crds2)
   else:
@@ -68,20 +86,36 @@ def calc_rmsd_rot(crds1, crds2):
 
 
 def sum_rmsd(crds1, crds2):
+  """
+  Returns the direct rmsd between two sets of vectors *without*
+  doing any optimal rotation. If calculated between optimal sets,
+  should give the proper RMSD.
+  """
   sum_squared = 0.0
   for crd1, crd2 in zip(crds1, crds2):
     sum_squared += v3.distance(crd1, crd2)**2
   return math.sqrt(sum_squared/float(len(crds1)))
   
 
-def get_superposable_atoms(polymer, segments, atom_types):
+def get_superposable_atoms(soup, segments, atom_types):
+  """
+  Returns a list of atom indices to a soup, built from segments.
+
+  Args:
+    segments (list): list of pairs of residue names in the soup,
+                     such as ['A:1','A:3'], interpreted as the 
+                     two ends of a fragment in soup that we want
+                     the atom index of
+    atom_types (list): list of atom_types in the residues that
+                     we want to generate the indices from.  
+  """
   result = []
   allowed_i = []
-  residues = polymer.residues()
+  residues = soup.residues()
   if segments:
     for res_tag_i, res_tag_j in segments:
-      i = polymer.get_i_residue(str(res_tag_i))
-      j = polymer.get_i_residue(str(res_tag_j))
+      i = soup.get_i_residue(str(res_tag_i))
+      j = soup.get_i_residue(str(res_tag_j))
       if i > j:
         i, j = j, i
       allowed_i.extend(range(i,j+1))
@@ -97,11 +131,24 @@ def get_superposable_atoms(polymer, segments, atom_types):
 def rmsd_of_pdbs(
     pdb1, pdb2, segments1=[], segments2=[], 
     atom_types=['CA'], transform_pdb1=None):
-  polymer1 = pdbatoms.Soup(pdb1)
-  polymer2 = pdbatoms.Soup(pdb2)
+  """
+  Returns the RMSD between two PDB structures and optionally
+  writes the best transformed structure of pdb1 in transform_pdb.
 
-  atoms1 = get_superposable_atoms(polymer1, segments1, atom_types)
-  atoms2 = get_superposable_atoms(polymer2, segments2, atom_types)
+  Args:
+    segments1 (list): list of pairs of residue names in pdb1,
+                     such as ['A:1','A:3'], interpreted as the 
+                     two ends of a fragment in soup that we want
+                     the atom index of
+    segments2 (list): same as above but for pdb2
+    atom_types (list): list of atom_types in the residues that
+                       we want to generate the indices from.  
+  """
+  soup1 = pdbatoms.Soup(pdb1)
+  soup2 = pdbatoms.Soup(pdb2)
+
+  atoms1 = get_superposable_atoms(soup1, segments1, atom_types)
+  atoms2 = get_superposable_atoms(soup2, segments2, atom_types)
 
   crds1 = [a.pos for a in atoms1]
   crds2 = [a.pos for a in atoms2]
@@ -109,20 +156,20 @@ def rmsd_of_pdbs(
   center1 = v3.get_center(crds1)
   center2 = v3.get_center(crds2)
 
-  polymer1.transform(v3.translation(-center1))
-  polymer2.transform(v3.translation(-center2))
+  soup1.transform(v3.translation(-center1))
+  soup2.transform(v3.translation(-center2))
 
   rmsd, transform_1_to_2 = calc_rmsd_rot(crds1, crds2)
 
   if not transform_pdb1:
     return rmsd
 
-  polymer1.transform(transform_1_to_2)
+  soup1.transform(transform_1_to_2)
 
-  polymer1.transform(v3.translation(center2))
-  polymer2.transform(v3.translation(center2))
+  soup1.transform(v3.translation(center2))
+  soup2.transform(v3.translation(center2))
 
-  polymer1.write_pdb(transform_pdb1)
+  soup1.write_pdb(transform_pdb1)
   return sum_rmsd(crds1, crds2)
 
 

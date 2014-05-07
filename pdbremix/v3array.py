@@ -1,11 +1,11 @@
+# encoding: utf-8
 
 __doc__ = """
 A 3D vector geometry library that works in pure Python.
 
-The vector object is a subclass of array.array. For optimal 
-flexibility, the interface is all done through functions, and
-not methods. This way we can easily swap out other internal
-representations of vectors and matrices, such as in v3numpy.
+The vector and matrix objects are subclassd from array.array. 
+All operations are accessed through functions, allowing easy
+switching with other libraries, such as numpy arrays.
 """
 
 import math
@@ -13,29 +13,16 @@ import random
 from array import array
 
 
-def radians(degrees):
-  """
-  Converts degrees to radians, which is used in math functions.
-  """
-  return math.pi / 180.0 * degrees
-
-
-def degrees(radians):
-  """
-  Converts radians to degrees, which is better for reporting.
-  """
-  return 180.0 / math.pi*degrees * radians
-
-
 class Vec3(array):
   """
-  This is a subclass of array to emulate a 3D vector.
+  This is a subclass of array to model a 3D vector.
 
   Arithmetic operators overloading are defined to 
   carry out basic artihmetic vector operations. Scaling
   and other non-arithmetic operators are carried out
   with functions.
   """
+  
   def __new__(cls, x=0, y=0, z=0):
     return array.__new__(cls, 'd', (x,y,z))
 
@@ -67,16 +54,14 @@ class Vec3(array):
     return self
 
 
-def scale(v, s):
-  """
-  Returns a vector that has been scaled by s.
-  """
-  return Vec3(s*v[0], s*v[1], s*v[2])
-
-
 def vector(*args):
   """
-  Returns a new vector, whether zero, or copied from args.
+  Creates a new vector
+
+  Args:
+    none: returns zero vector
+    v (vector): returns copy
+    x, y, z: returns (x, y, z)
   """
   if len(args) == 0:
     return Vec3(0, 0, 0)
@@ -90,7 +75,9 @@ def vector(*args):
 
 
 def set_vector(*args):
-  "Changes values of a vector in place"
+  """
+  Changes values of a vector in place
+  """
   v = args[0]
   if len(args) == 2:
     w = args[1]
@@ -100,21 +87,40 @@ def set_vector(*args):
 
 
 def mag(v):
+  """
+  Returns the magnitude of a vector
+  """
   x, y, z = v
   return math.sqrt(x*x + y*y + z*z)
 
 
+def scale(v, s):
+  """
+  Returns a vector that has been scaled by s.
+  """
+  return vector(s*v[0], s*v[1], s*v[2])
+
+
 def dot(v1, v2):
+  """
+  Returns the dot product of two vectors
+  """
   x1, y1, z1 = v1
   x2, y2, z2 = v2
   return x1*x2 + y1*y2 + z1*z2
 
 
 def norm(v):
+  """
+  Returns a version of the vector normalized to magnitude=1.0
+  """
   return scale(v, 1.0/mag(v))
 
 
 def cross(v1, v2):
+  """
+  Returns the cross product between the two vectors
+  """
   x1, y1, z1 = v1
   x2, y2, z2 = v2
   return vector(
@@ -123,34 +129,61 @@ def cross(v1, v2):
       x1*y2 - y1*x2)
 
 
+def radians(degrees):
+  """
+  Converts degrees to radians, which is used in math functions.
+  """
+  return math.pi / 180.0 * degrees
+
+
+def degrees(radians):
+  """
+  Converts radians to degrees, which is better for reporting.
+  """
+  return 180.0 / math.pi*degrees * radians
+
+
 class Matrix3d(array):
   """
   Class to represent affine transforms in 3D space.
 
-  This requires a 3x3 matrix and a translation vector.
-  Here we choose matrix(3,i) as the translation vector.
-  We represent Matrix3d as an array of 12 floats, to be
-  accessed by matrix_elem().
+  Matrix3d is stored as an array of 12 floats, to be
+  accessed by the auxilary function matrix_elem().
+  The 12 floats represents a 3x3 rotational matrix and
+  a translation vector - matrix(3,i).
   """
+
   def __new__(cls, matrix_array=(1,0,0,0,1,0,0,0,1,0,0,0)):
-    """
-    Initializes to the identity matrix.
-    """
     return array.__new__(cls, 'd', matrix_array)
 
-  def __str__(self):
+  def __repr__(self):
     def str3(x, y, z): 
-      return "  [% .2f, % .2f, % .2f ]\n" % (x, y, z)
-    s = ""
+      return "  % .2f, % .2f, % .2f, \n" % (x, y, z)
+    s = "Matrix3d((\n"
     s += str3(*self[:3])
     s += str3(*self[3:6])
     s += str3(*self[6:9])
-    s += "  [ ------------------ ]\n"
+    s += "#---------------------- \n"
     s += str3(*self[9:12])
+    s += "))"
     return s
 
 
+def identity():
+  """
+  Returns the identity transform matrix.
+  """
+  return Matrix3d()
+
+
 def matrix_elem(matrix, i, j, val=None):
+  """
+  Reads/writes the elements of the affine transformation
+  Matrix3d. By using a function interface, this allows 
+  other functions (such as RMSD calculatiors) to easily
+  swithc between this Vec3 representation and others such
+  as numpy arrays.
+  """
   k = i*3 + j
   if val is None:
     return matrix[k]
@@ -159,11 +192,10 @@ def matrix_elem(matrix, i, j, val=None):
     return val
 
 
-def identity():
-  return Matrix3d()
-
-
 def transform(matrix, v):
+  """
+  Returns the transformed vector of applying matrix to v.
+  """
   v_x, v_y, v_z = v
   x = matrix_elem(matrix, 0, 0) * v_x + \
       matrix_elem(matrix, 1, 0) * v_y + \
@@ -180,22 +212,11 @@ def transform(matrix, v):
   return vector(x, y, z)
 
 
-def combine(a, b):
-  c = identity()
-  for i in range(0, 3):
-    for j in range(0, 3):
-      val = 0.0
-      for k in range(0, 3):
-         val += matrix_elem(a,k,i) * matrix_elem(b,j,k)
-      matrix_elem(c, j, i, val)
-    val = matrix_elem(a,3,i)
-    for k in range(0,3):
-      val += matrix_elem(a,k,i) * matrix_elem(b,3,k)
-    matrix_elem(c, 3, i, val)
-  return c
-
-
 def left_inverse(m):
+  """
+  Returns the left inverse of m, where 
+  combine(left_inverse(m), m) == identity().
+  """
   rot_t = identity()
   for i in range(0, 3):
     for j in range(0, 3):
@@ -209,7 +230,9 @@ def left_inverse(m):
 
 
 def rotation(axis, theta):
-  """ matrix to rotate a vector at origin"""
+  """
+  Returns a matrix that rotate a vector at the origin around axis.
+  """
   m = identity()
   c = math.cos(theta)
   s = math.sin(theta)
@@ -228,18 +251,47 @@ def rotation(axis, theta):
 
 
 def translation(t):
-  """ matrix to translate a vector"""
+  """
+  Returns a matrix that translates a vector.
+  """
   m = identity()
   for i in range(3):
     matrix_elem(m, 3, i, t[i])
   return m
 
 
+def combine(a, b):
+  """
+  Combines two transformations, using matrix multiplication
+  for the rotational matrices, and rotation applied to
+  the translational vector of b[3,i].
+  """
+  c = identity()
+  for i in range(0, 3):
+    for j in range(0, 3):
+      val = 0.0
+      for k in range(0, 3):
+         val += matrix_elem(a,k,i) * matrix_elem(b,j,k)
+      matrix_elem(c, j, i, val)
+    val = matrix_elem(a,3,i)
+    for k in range(0,3):
+      val += matrix_elem(a,k,i) * matrix_elem(b,3,k)
+    matrix_elem(c, 3, i, val)
+  return c
+
+
+
 def is_similar_mag(a, b, small=1E-4):
+  """
+  Evaluates similar magnitudes to within small.
+  """
   return abs(a-b) <= small
 
 
 def is_similar_vector(a, b, small=1E-4):
+  """
+  Evaluates similar matrixes through matrix components.
+  """
   for a_x, b_x in zip(a, b):
     if not is_similar_mag(a_x, b_x, small):
       return False
@@ -247,6 +299,9 @@ def is_similar_vector(a, b, small=1E-4):
 
 
 def is_similar_matrix(a, b, small=1E-4):
+  """
+  Evaluates similar matrixes through matrix components.
+  """
   for i in range(0, 3):
     for j in range(0, 3):
       if not is_similar_mag(matrix_elem(a,i,j), matrix_elem(b,i,j), small):
@@ -258,6 +313,9 @@ def is_similar_matrix(a, b, small=1E-4):
 
 
 def parallel(v, axis):
+  """
+  Returns component of v parallel to axis.
+  """
   l = mag(axis)
   if is_similar_mag(l, 0):
     return v
@@ -266,10 +324,16 @@ def parallel(v, axis):
 
 
 def perpendicular(v, axis):
+  """
+  Returns component of v that is perpendicular to axis.
+  """
   return v - parallel(v, axis)
 
 
 def normalize_angle(angle):
+  """
+  Returns angle in radians that is [-pi, pi]
+  """
   while abs(angle) > math.pi:
     if angle > math.pi:
       angle -= math.pi*2
@@ -281,6 +345,9 @@ def normalize_angle(angle):
 
 
 def vec_angle(a, b):
+  """
+  Returns angle in radians between a and b. 
+  """ 
   a_len = mag(a)
   b_len = mag(b)
   if is_similar_mag(a_len, 0) or is_similar_mag(b_len, 0):
@@ -295,6 +362,9 @@ def vec_angle(a, b):
 
 
 def vec_dihedral(a, axis, c):
+  """
+  Returns dihedral angle between a and c, along the axis.
+  """ 
   ap = perpendicular(a, axis)
   cp = perpendicular(c, axis)
   angle = vec_angle(ap, cp)
@@ -304,14 +374,23 @@ def vec_dihedral(a, axis, c):
 
 
 def dihedral(p1, p2, p3, p4):
+  """
+  Returns dihedral angle defined by the four positions.
+  """ 
   return vec_dihedral(p1-p2, p2-p3, p4-p3)
 
 
 def distance(p1, p2):
+  """
+  Returns distance between the two points
+  """ 
   return mag(p1 - p2)
 
 
 def rotation_at_center(axis, theta, center):
+  """
+  Returns a rotation around the center.
+  """ 
   t = translation(-center)
   r = rotation(axis, theta)
   t_inv = translation(center)
@@ -319,6 +398,9 @@ def rotation_at_center(axis, theta, center):
 
 
 def get_center(crds):
+  """
+  Returns the geometric center of a bunch of positions.
+  """
   center = vector()
   for crd in crds:
     center += crd
@@ -326,6 +408,9 @@ def get_center(crds):
 
 
 def get_width(crds):
+  """
+  Returns the maximum width between any two crds in the group.
+  """
   center = get_center(crds)
   max_diff = 0
   for crd in crds:
@@ -336,22 +421,37 @@ def get_width(crds):
 
 
 def random_mag(): 
+  """
+  Returns a random positive number from [0, 90] for testing.
+  """
   return random.uniform(0, 90)
 
 
 def random_real(): 
+  """
+  Returns a random real +/- from [-90, 90] for testing.
+  """
   return random.uniform(-90, 90)
 
 
 def random_vector():
+  """
+  Returns a random vector for testing.
+  """
   return vector(random_real(), random_real(), random_real())
 
 
 def random_rotation():
+  """
+  Returns a random rotational matrix for testing.
+  """
   return rotation(random_vector(), radians(random_real()))
 
 
 def random_matrix():
+  """
+  Returns a random transformation matrix for testing.
+  """
   return combine(random_rotation(), translation(random_vector()))
 
 

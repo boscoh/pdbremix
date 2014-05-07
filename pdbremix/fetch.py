@@ -1,3 +1,12 @@
+# encoding: utf-8
+
+__doc__ = """ 
+Fetches PDB files from RCSB web sites.
+
+Simple utility functions to fetch PDB files given a list
+of PDB codes. Several options are available.
+"""
+
 import os
 import urllib
 import gzip
@@ -6,6 +15,10 @@ import util
 
 
 def expand_pdbs(pdbs):
+  """
+  Returns a cleaned-up list of PDB codes given a mixed list
+  of pdb codes, pdb filenames, and text files containing such.
+  """
   results = []
   for pdb in pdbs:
     if os.path.isfile(pdb):
@@ -23,6 +36,9 @@ def expand_pdbs(pdbs):
 
 
 def get_pdbs_with_http(pdbs):
+  """
+  Fetches PDB files using HTTP from a list of pdb-codes/text-files.
+  """
   for pdb in expand_pdbs(pdbs):
     fname = pdb if pdb.endswith('pdb') else '%s.pdb' % pdb 
     if os.path.isfile(fname):
@@ -57,6 +73,9 @@ exit 0
 
 
 def get_pdbs_with_ftp(pdbs):
+  """
+  Fetches PDB files using FTP from a list of pdb-codes/text-files.
+  """
   pdbs = expand_pdbs(pdbs)
   entries = ['pdb%s.ent.gz' % pdb for pdb in pdbs]
   mget_scripts = ["get %s" % entry for entry in entries]

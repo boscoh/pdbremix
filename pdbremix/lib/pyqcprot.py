@@ -1,5 +1,6 @@
-__doc__ = """
 
+
+__doc__ = """
 QCP rotation calculation
 
 This is an RMSD and optimal rotation calculator, written in pure Python. The
@@ -72,7 +73,6 @@ def make_correlation_matrix(coords1, coords2):
   - coords1, coords2: a list of 3 floats, a list of N coordinates
   """
 
-
   N = len(coords1)
   assert N == len(coords2)
 
@@ -116,9 +116,9 @@ def calc_rms_rot(coords1, coords2):
   Returns rms and a list of 9 values that represents a rotation
   matrix. 
 
-  Parameters:
-  - coords1, coords2: a list of 3 floats, representing an Nx3
-    matrix, or a list of N set of coordinate vectors.
+  Args:
+    coords1, coords2: a list of 3 floats, representing an Nx3 matrix, 
+                      or a list of N set of coordinate vectors.
   """
   E0, A = make_correlation_matrix(coords1, coords2)
   N = len(coords1)
