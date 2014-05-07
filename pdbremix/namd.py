@@ -2,7 +2,7 @@
 
 __doc__ = """
 
-PDBREMIX interface to the NAMD molecular-dynamics package.
+Interface to the NAMD molecular-dynamics package.
 
 The library is split into three sections:
 
@@ -143,6 +143,7 @@ def soup_from_restart_files(psf, in_coor, in_vel):
   convert_to_pdb_atom_names(soup)
   for atom, (chain_id, q, mass) in zip(soup.atoms(), read_psf(psf)):
     atom.mass = float(mass)
+    atom.charge = float(q)
     if chain_id.startswith('WT') or chain_id.startswith('ION'):
       atom.is_hetatm = True
       atom.chain_id = " "

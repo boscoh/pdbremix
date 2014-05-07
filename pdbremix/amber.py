@@ -2,7 +2,7 @@
 
 __doc__ = """
 
-PDBREMIX interface to the AMBER molecular-dynamics package.
+Interface to the AMBER molecular-dynamics package.
 
 The library is split into three sections:
 

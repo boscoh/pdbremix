@@ -2,7 +2,7 @@
 
 __doc__ = """
 
-PDBREMIX interface to the GROMACS molecular-dynamics package.
+Interface to the GROMACS molecular-dynamics package.
 
 The library is split into three sections:
 
