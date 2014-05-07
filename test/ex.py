@@ -86,7 +86,7 @@ def test_restraint():
   top, crds, vels = simulate.get_restart_files('../min/min')
   restraint_pdb = '../sim.restraint.pdb'
   simulate.convert_restart_to_pdb('../min/min', restraint_pdb)
-  soup = pdbatoms.Polymer(restraint_pdb)
+  soup = pdbatoms.Soup(restraint_pdb)
   for atom in soup.residue(2).atoms():
     atom.bfactor = 1.0
   soup.write_pdb(restraint_pdb)

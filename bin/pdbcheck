@@ -18,7 +18,7 @@ from pdbremix.lib.docopt import docopt
 cached = {}
 def get_structure(pdb):
   if pdb not in cached:
-    cached[pdb] = pdbatoms.Polymer(pdb)
+    cached[pdb] = pdbatoms.Soup(pdb)
   return cached[pdb]
   
   
@@ -61,7 +61,7 @@ def not_hydrogen(atom_name):
   
 module_dir = os.path.dirname(data.__file__)
 template_res = {}
-aminoacids = pdbatoms.Polymer(os.path.join(module_dir, 'data', 'aminoacid.pdb'))
+aminoacids = pdbatoms.Soup(os.path.join(module_dir, 'data', 'aminoacid.pdb'))
 for r in aminoacids.residues():
   template_res[r.type] = r
 

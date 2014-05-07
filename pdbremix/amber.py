@@ -112,9 +112,9 @@ def convert_to_pdb_atom_names(soup):
 
 def soup_from_topology(topology):
   """
-  Returns a PDBREMIX soup object from a topology dictionary.
+  Returns a Soup from a topology dictionary.
   """
-  soup = pdbatoms.Polymer()
+  soup = pdbatoms.Soup()
   chain_id = ''
   n_res = topology['NRES']
   n_atom = topology['NATOM']
@@ -192,7 +192,7 @@ def load_crd_or_rst_into_soup(soup, crd_or_rst):
 
 def soup_from_top_and_crd_or_rst(top, crd_or_rst):
   """
-  Returns a soup object from AMBER .top and .crd/.rst files.
+  Returns a Soup from AMBER .top and .crd/.rst files.
   """
   topology = read_top(top)
   soup = soup_from_topology(topology)
@@ -273,7 +273,7 @@ def get_restart_files(basename):
 
 
 def soup_from_restart_files(top, crds, vels):
-  """Reads pdbatoms.Polymer object from restart files."""
+  """Reads a Soup from restart files."""
   return soup_from_top_and_crd_or_rst(top, crds)
 
 
@@ -342,12 +342,12 @@ def disulfide_script_and_rename_cysteines(in_pdb, out_pdb):
   """
   Returns the tleap script for disulfide bonds in the in_pdb file.
 
-  This function opens in_pdb in a soup object, and searches for
+  This function opens in_pdb in a Soup, and searches for
   CYS residues where the SG-SG distance < 3 angs. These residues
   are then renamed to CYX and written to out_pdb. The disulfide bonds
   are then returned in a .tleap script fragment.
   """
-  soup = pdbatoms.Polymer(in_pdb)
+  soup = pdbatoms.Soup(in_pdb)
   script = " # disulfide bonds\n"
   n = len(soup.residues())
   for i in range(n):
@@ -405,7 +405,7 @@ def run_tleap(
   # make the tleap input script
   script = force_field_script
   # check for a few non-standard residue that have been included 
-  residues = [r.type for r in pdbatoms.Polymer(tleap_pdb).residues()]
+  residues = [r.type for r in pdbatoms.Soup(tleap_pdb).residues()]
   if 'PHD' in residues:
     leaprc = open("%s/phd.leaprc" % data.data_dir).read()
     script += leaprc
@@ -694,7 +694,7 @@ def run(in_parms):
   if parms['restraint_pdb']:
     # Generate the AMBER .crd file that stores the constrained coordinates
     pdb = parms['restraint_pdb']
-    soup = pdbatoms.Polymer(pdb)
+    soup = pdbatoms.Soup(pdb)
     ref_crd = basename + '.restraint.crd'
     write_soup_to_rst(soup, ref_crd)
     util.check_output(ref_crd)
@@ -921,7 +921,7 @@ class Trajectory:
 
   Which modifies:
     traj.i_frame
-    traj.soup - a PDBREMIX pdbatoms.Polymer object
+    traj.soup - a PDBREMIX pdbatoms.Soup object
   """
   def __init__(self, basename):
     self.basename = basename

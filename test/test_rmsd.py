@@ -23,14 +23,14 @@ def test_rmsd():
 
 
 def test_rmsd_pdbatoms():
-  p = pdbatoms.Polymer('pdb/1ubq.pdb')
+  p = pdbatoms.Soup('pdb/1ubq.pdb')
   p.transform(v3.random_matrix())
   p.write_pdb('pdb/1ubq-r.pdb')
   rms = rmsd.rmsd_of_pdbs(
     'pdb/1ubq.pdb', 'pdb/1ubq-r.pdb', transform_pdb1='pdb/1ubq-q.pdb')
   assert v3.is_similar_mag(0, rms, 1E-2)
-  q = pdbatoms.Polymer('pdb/1ubq-q.pdb')
-  r = pdbatoms.Polymer('pdb/1ubq-r.pdb')
+  q = pdbatoms.Soup('pdb/1ubq-q.pdb')
+  r = pdbatoms.Soup('pdb/1ubq-r.pdb')
   for atom_q, atom_r in zip(q.atoms(), r.atoms()):
     assert v3.is_similar_vector(atom_q.pos, atom_r.pos, 1E-2)
 

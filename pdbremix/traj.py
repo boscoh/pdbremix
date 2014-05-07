@@ -169,7 +169,7 @@ class ProcessRmsd(ProcessVariable):
   def set(self, trj, n_frame_per_ps, ref_pdb):
     ProcessVariable.set(self, trj, n_frame_per_ps, "rmsd", ref_pdb)
     if ref_pdb:
-      self.ref_soup = pdbatoms.Polymer(ref_pdb)
+      self.ref_soup = pdbatoms.Soup(ref_pdb)
     else:
       self.ref_soup = self.trj.soup.copy()
     self.ref_soup.write_pdb("ref.pdb")
@@ -198,7 +198,7 @@ class ProcessCaRmsd(ProcessVariable):
     ProcessVariable.set(self, trj, n_frame_per_ps,
                         "ca_rmsd", ref_pdb)
     if ref_pdb:
-      self.ref_soup = pdbatoms.Polymer(ref_pdb)
+      self.ref_soup = pdbatoms.Soup(ref_pdb)
     else:
       self.ref_soup = self.trj.soup.copy()
     self.ref_residues = get_non_solvent_residues(self.ref_soup)

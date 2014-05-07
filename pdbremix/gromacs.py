@@ -187,13 +187,13 @@ def convert_to_gromacs_atom_names(soup):
 
 def soup_from_top_gro(top, gro, skip_solvent=False):
   """
-  Returns a Polymer object built from GROMACS restart files.
+  Returns a Soup built from GROMACS restart files.
   If skip_solvent=True, will skip all solvent molecules.
   """
   util.check_output(top)
   util.check_output(gro)
 
-  soup = pdbatoms.Polymer()
+  soup = pdbatoms.Soup()
   soup.remaining_text = ""
   soup.n_remaining_text = 0
 
@@ -271,7 +271,7 @@ def get_restart_files(basename):
 
 
 def soup_from_restart_files(top, crds, vels, skip_solvent=False):
-  """Reads pdbatoms.Polymer object from restart files."""
+  """Reads pdbatoms.Soup object from restart files."""
   return soup_from_top_gro(top, crds, skip_solvent)
 
 
@@ -656,7 +656,7 @@ restraint_header = """
 
 def make_restraint_itp(restraint_pdb, force):
   txt = restraint_header
-  atoms = pdbatoms.Polymer(restraint_pdb).atoms()
+  atoms = pdbatoms.Soup(restraint_pdb).atoms()
   for i, atom in enumerate(atoms):
     if atom.bfactor > 0.0:
       txt += "%6s     1 %5.f %5.f %5.f\n" % (i+1, force, force, force)
@@ -880,7 +880,7 @@ class Trajectory(object):
 
   Which modifies:
     traj.i_frame
-    traj.soup - a PDBREMIX pdbatoms.Polymer object
+    traj.soup - a PDBREMIX pdbatoms.Soup object
   """
 
   def __init__(self, basename):

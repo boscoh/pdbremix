@@ -20,7 +20,7 @@ from pdbremix import pymol
 
 
 def highlight_domains_in_bfactor_of_pdb(pdb, domains, new_pdb):
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   for i, domain in enumerate(domains):
     for j in domain:
       for a in soup.residue(j).atoms():

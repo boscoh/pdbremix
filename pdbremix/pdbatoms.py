@@ -338,7 +338,7 @@ class Residue:
       a.res_type = res_type
 
 
-class Polymer(AtomList):
+class Soup(AtomList):
 
   def __init__(self, fname=""):
     AtomList.__init__(self)
@@ -436,7 +436,7 @@ class Polymer(AtomList):
     raise Exception("Can't find residue " + tag)
   
   def extract_polymer(self, i, j):
-    extract = Polymer()
+    extract = Soup()
     for res in self.residues()[i:j]:
       extract.append_residue(res.copy())
     return extract
@@ -446,7 +446,7 @@ class Polymer(AtomList):
     return list(set(chain_id))
 
   def extract_chain(self, chain_id):
-    extract = Polymer()
+    extract = Soup()
     for res in self.residues():
       if res.chain_id == chain_id:
         extract.append_residue(res.copy())

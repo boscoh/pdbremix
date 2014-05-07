@@ -26,7 +26,7 @@ def format_long_line(s, max_len, indent):
   
 def print_sequence(pdb):
   print('%s:' % pdb)
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   residues = soup.residues()
   chain_ids = [r.chain_id for r in residues]
   chain_ids = list(sorted(set(chain_ids)))

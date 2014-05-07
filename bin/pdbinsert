@@ -34,7 +34,7 @@ def make_align(
   f.write('C; alignment in the PIR format\n')
 
   f.write('\n>P1;' + initial_name + '\n')
-  protein = pdbatoms.Polymer(pdb)
+  protein = pdbatoms.Soup(pdb)
   chain1 = protein.residue(0).chain_id
   res_num1 = protein.residue(0).num
   n = protein.n_residue()
@@ -121,7 +121,7 @@ def match_pair(in_res_id, pairs):
   
 def make_templates(
     raw_pdb, pdb, insertions):
-  p = pdbatoms.Polymer(raw_pdb)
+  p = pdbatoms.Soup(raw_pdb)
   template_seq = ""
   target_seq = ""
   # must do reversed because deleting residues needs
@@ -196,7 +196,7 @@ def make_summary_text(name):
 
   init_pdb = fname
   out_pdb = '%s.pdb' % (name)
-  p = pdbatoms.Polymer(init_pdb)
+  p = pdbatoms.Soup(init_pdb)
   resids = [l.split()[0] for l in open(name + '.init.resid')]
   for resid, r in zip(resids, p.residues()):
     chain_id, num = resid.split(":")

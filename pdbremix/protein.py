@@ -46,7 +46,7 @@ def get_pdb_transform(pdb, center_res, top_res):
   center_res on the z-axis and moves top_res above center_res
   on the y-axis
   """
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   atoms = soup.atoms()
   soup_center = pdbatoms.get_center(atoms)
   translation = v3.translation(-soup_center)
@@ -79,7 +79,7 @@ def transform_pdbs_to_residues_of_first_pdb(pdbs, center_res, top_res):
   new_pdbs = []
   for pdb in pdbs:
     new_pdb = util.fname_variant(pdb)
-    soup = pdbatoms.Polymer(pdb)
+    soup = pdbatoms.Soup(pdb)
     soup.transform(transform)
     soup.write_pdb(new_pdb)
     new_pdbs.append(new_pdb)
@@ -89,7 +89,7 @@ def transform_pdbs_to_residues_of_first_pdb(pdbs, center_res, top_res):
 def transformed_soup_from_pdb(
     pdb, center_res=None, top_res=None, 
     width=None, height=None, frame_residues=None):
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   if center_res and top_res:
     transform = get_pdb_transform(pdb, center_res, top_res)
     soup.transform(transform)

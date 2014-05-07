@@ -43,7 +43,7 @@ def rescale_positive_bfactors_pdb(pdb, lower_bfactor, upper_bfactor):
   Returns max_bfactor after rescale (needed for worm
   calculation)
   """
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   bfactors = [a.bfactor for a in soup.atoms()]
   # cut-off max_values
   if upper_bfactor:
@@ -80,7 +80,7 @@ def rescale_positive_negative_bfactors_pdb(
   """
   Returns max_bfactor after rescale 
   """
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   bfactors = [a.bfactor for a in soup.atoms()]
   if upper_bfactor is None:
     upper_bfactor = max(bfactors)
@@ -198,7 +198,7 @@ def ligands_as_sticks_script(pdbs, color=""):
   script = ""
   for pdb in pdbs:
     name = os.path.basename(pdb).replace('.pdb', '')
-    soup = pdbatoms.Polymer(pdb)
+    soup = pdbatoms.Soup(pdb)
     for res in soup.residues():
       if res.type not in data.res_name_to_char:
         if res.type not in "HOH":
@@ -320,7 +320,7 @@ def make_pdb_png(
   if center_res and top_res:
     transform = get_pdb_transform(pdbs[0], center_res, top_res)
     for i in range(len(pdbs)):
-      soup = pdbatoms.Polymer(pdbs[i])
+      soup = pdbatoms.Soup(pdbs[i])
       soup.transform(transform)
       new_pdb = util.fname_variant(pdbs[i])
       soup.write_pdb(new_pdb)

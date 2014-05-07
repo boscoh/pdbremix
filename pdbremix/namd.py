@@ -138,8 +138,8 @@ def get_restart_files(basename):
 
 
 def soup_from_restart_files(psf, in_coor, in_vel):
-  """Reads pdbatoms.Polymer object from restart files."""
-  soup = pdbatoms.Polymer(in_coor)
+  """Reads a Soup from restart files."""
+  soup = pdbatoms.Soup(in_coor)
   convert_to_pdb_atom_names(soup)
   for atom, (chain_id, q, mass) in zip(soup.atoms(), read_psf(psf)):
     atom.mass = float(mass)
@@ -149,7 +149,7 @@ def soup_from_restart_files(psf, in_coor, in_vel):
     else:
       atom.chain_id = chain_id[0]
   if in_vel:
-    for atom, vel_atom in zip(soup.atoms(), pdbatoms.Polymer(in_vel).atoms()):
+    for atom, vel_atom in zip(soup.atoms(), pdbatoms.Soup(in_vel).atoms()):
       v = vel_atom.pos
       v3.set_vector(atom.vel, v[0], v[1], v[2])
   return soup
@@ -234,7 +234,7 @@ writepsf %(out_psf)s
 
 def make_chain_loading_script(pdb, basename):
   script = ""
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   for chain_id in soup.chain_ids():
     if chain_id == ' ':
       chain_id = 'A'
@@ -254,7 +254,7 @@ def make_disulfide_script(pdb):
   are then renamed to CYX and written to out_pdb. The disulfide bonds
   are then returned in a .tleap script fragment.
   """
-  soup = pdbatoms.Polymer(pdb)
+  soup = pdbatoms.Soup(pdb)
   n = len(soup.residues())
 
   # First generate the residue names recognized by psfgen
@@ -609,7 +609,7 @@ def calculate_periodic_box_script(parms):
   and directly calculating a good bounding box.
   """
   script = new_periodic_box_script
-  p = pdbatoms.Polymer(parms['input_crds'])
+  p = pdbatoms.Soup(parms['input_crds'])
   atoms = p.atoms()
   parms = {}
   for i_axis, axis in enumerate(['x', 'y', 'z']):
@@ -904,7 +904,7 @@ class Trajectory:
 
   Which modifies:
     traj.i_frame
-    traj.soup - a PDBREMIX pdbatoms.Polymer object
+    traj.soup - a PDBREMIX Soup object
   """  
 
   def __init__(self, basename):

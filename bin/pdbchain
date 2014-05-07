@@ -15,7 +15,7 @@ from pdbremix.lib.docopt import docopt
 arg = docopt(__doc__)
 
 full_pdb = arg['<pdb>']
-full_protein = pdbatoms.Polymer(full_pdb)
+full_protein = pdbatoms.Soup(full_pdb)
 residues = full_protein.residues()
 chain_ids = [r.chain_id for r in residues]
 chain_ids = list(sorted(set(chain_ids)))
@@ -24,7 +24,7 @@ print "Chains in %s: %s" % (full_pdb, str(chain_ids))
 selected_chain_ids = arg['<chain_id>']
 if selected_chain_ids:
   for select_chain_id in selected_chain_ids:
-    protein = pdbatoms.Polymer()
+    protein = pdbatoms.Soup()
     for r in residues:
       if r.chain_id == select_chain_id:
         protein.append_residue(r)

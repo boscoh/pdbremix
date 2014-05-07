@@ -97,8 +97,8 @@ def get_superposable_atoms(polymer, segments, atom_types):
 def rmsd_of_pdbs(
     pdb1, pdb2, segments1=[], segments2=[], 
     atom_types=['CA'], transform_pdb1=None):
-  polymer1 = pdbatoms.Polymer(pdb1)
-  polymer2 = pdbatoms.Polymer(pdb2)
+  polymer1 = pdbatoms.Soup(pdb1)
+  polymer2 = pdbatoms.Soup(pdb2)
 
   atoms1 = get_superposable_atoms(polymer1, segments1, atom_types)
   atoms2 = get_superposable_atoms(polymer2, segments2, atom_types)

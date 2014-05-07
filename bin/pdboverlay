@@ -133,7 +133,7 @@ def make_rmsd_bfactor_pdbs(clustalw_aln, pdbs):
   alignments = read_clustalw2_aln(clustalw_aln)
   soups = {}
   for seqid in alignments:
-    soups[seqid] = pdbatoms.Polymer('theseus_' + seqid)
+    soups[seqid] = pdbatoms.Soup('theseus_' + seqid)
   residue_map = {}
   for seqid in alignments:
     residue_map[seqid] = convert_alignment_to_residue_map(
