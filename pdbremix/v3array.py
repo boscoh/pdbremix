@@ -151,6 +151,9 @@ class Matrix3d(array):
   accessed by the auxilary function matrix_elem().
   The 12 floats represents a 3x3 rotational matrix and
   a translation vector - matrix(3,i).
+
+  This is subclassed mainly to provide a more informative
+  __repr__ function.
   """
 
   def __new__(cls, matrix_array=(1,0,0,0,1,0,0,0,1,0,0,0)):
@@ -158,14 +161,12 @@ class Matrix3d(array):
 
   def __repr__(self):
     def str3(x, y, z): 
-      return "  % .2f, % .2f, % .2f, \n" % (x, y, z)
-    s = "Matrix3d((\n"
-    s += str3(*self[:3])
-    s += str3(*self[3:6])
-    s += str3(*self[6:9])
-    s += "#---------------------- \n"
-    s += str3(*self[9:12])
-    s += "))"
+      return "% 10.5f, % 10.5f, % 10.5f" % (x, y, z)
+    s = "Matrix3d((" + str3(*self[:3]) + ",\n"
+    s += "          " + str3(*self[3:6]) + ",\n"
+    s += "          " + str3(*self[6:9]) + ",\n"
+    s += "          #-----------------------------------\n"
+    s += "          " + str3(*self[9:12]) + "))"
     return s
 
 

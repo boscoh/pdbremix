@@ -1,3 +1,14 @@
+# encoding: utf-8
+
+__doc__ = """
+Text manipulation routines to edit PDB files.
+
+This is a utility function providing common operations
+applied to PDB files that can easily be done with text
+processing.
+"""
+
+
 import data
 
 
@@ -8,22 +19,6 @@ def strip_lines(pdb_txt, tag_func):
       continue
     new_lines.append(line)
   return '\n'.join(new_lines)
-
-
-def sort_file_by_line(fname, key_func):
-  lines = open(fname, 'r').read().splitlines()
-  pairs = [(key_func(l), l) for l in lines]
-  new_lines = [l for (v, l) in sorted(pairs)]
-  open(fname, 'w').write('\n'.join(new_lines))
-
-
-def replace_txt_in_file(fname, tag, replacement):
-  f = open(fname, 'r')
-  txt = f.read().replace(tag, replacement)
-  f.close()
-  f = open(fname, 'w')
-  f.write(txt)
-  f.close()
 
 
 def strip_hydrogens(pdb_txt):
@@ -123,3 +118,5 @@ def clean_pdb(in_pdb, out_pdb):
   txt = strip_hydrogens(txt)
   # txt = renumber_residues(txt)
   open(out_pdb, 'w').write(txt)
+
+

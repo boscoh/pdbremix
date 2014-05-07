@@ -1,3 +1,14 @@
+# encoding: utf-8
+
+__doc__ = """ 
+Calculate the volume of a group of atoms
+
+This uses the grid approach. A large grid of equidistant points
+are constructed around the protein. Grid points are elimnated if 
+they are found within the radii of an atom. The number
+of points eliminated represents the volume.
+"""
+
 import math
 import array
 
@@ -6,6 +17,21 @@ import v3
 
 
 class Grid:
+  """
+  Class to build a build and handle grid-point elimination.
+
+  Attributes:
+    width (float)
+    center (vector)
+    spacing (float)
+
+  Methods:
+    __init__
+    reset
+    exclude_sphere
+    write_pdb
+  """
+
   def __init__(self, grid_spacing, width, center):
     self.width = float(width)
     half_width = self.width / 2.0
@@ -101,6 +127,13 @@ class Grid:
 
         
 def volume(atoms, grid_spacing, pdb=""):
+  """
+  Returns the volume of a given list of atoms, and writes a
+  PDB file of fictious atoms that represents the volume.
+
+  Sets up a grid that is set to surround the given list
+  of atoms. Then for each atom, interrogates the grid.
+  """
   center = pdbatoms.get_center(atoms)
   width = pdbatoms.get_width(atoms, center) + 4.0
   grid = Grid(grid_spacing, width, center)

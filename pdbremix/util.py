@@ -1,3 +1,12 @@
+# encoding: utf-8
+
+__doc__ = """
+Utility functions.
+
+Directory handling, pathname mangling, running shell commands,
+timerl, file checking.
+"""
+
 import os
 import stat
 import tempfile
@@ -30,13 +39,6 @@ def goto_dir(new_dir):
   if not os.path.isdir(new_dir):
     os.makedirs(new_dir)
   os.chdir(new_dir)
-
-
-def insert_path(path, insert):
-  if path.startswith('/'):
-    return path
-  else:
-    return os.path.join(insert, path)
 
 
 def relpath(path):
