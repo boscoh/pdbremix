@@ -123,91 +123,40 @@ def cross(v1, v2):
       x1*y2 - y1*x2)
 
 
-class Matrix3d:
+class Matrix3d(array):
   """
   Class to represent affine transforms in 3D space.
 
   This requires a 3x3 matrix and a translation vector.
-  Here we choose matrix(3,i) as the translation vector
+  Here we choose matrix(3,i) as the translation vector.
+  We represent Matrix3d as an array of 12 floats, to be
+  accessed by matrix_elem().
   """
-
-  def __init__(self):
-    self.elem00 = 1.0
-    self.elem01 = 0.0
-    self.elem02 = 0.0
-    self.elem03 = 0.0
-
-    self.elem10 = 0.0
-    self.elem11 = 1.0
-    self.elem12 = 0.0
-    self.elem13 = 0.0
-
-    self.elem20 = 0.0
-    self.elem21 = 0.0
-    self.elem22 = 1.0
-    self.elem23 = 0.0
-
-    self.elem30 = 0.0
-    self.elem31 = 0.0
-    self.elem32 = 0.0
-    self.elem33 = 1.0
+  def __new__(cls, matrix_array=(1,0,0,0,1,0,0,0,1,0,0,0)):
+    """
+    Initializes to the identity matrix.
+    """
+    return array.__new__(cls, 'd', matrix_array)
 
   def __str__(self):
-    row1 = "  [% .2f, % .2f, % .2f ]\n" % \
-              (self.elem00, self.elem01, self.elem02)
-    row2 = "  [% .2f, % .2f, % .2f ]\n" % \
-              (self.elem10, self.elem11, self.elem12)
-    row3 = "  [% .2f, % .2f, % .2f ]\n" % \
-              (self.elem20, self.elem21, self.elem22)
-    row4 = "  [ ------------------ ]\n"
-    row5 = "  [% .2f, % .2f, % .2f ]" % \
-              (self.elem30, self.elem31, self.elem32)
-    return row1 + row2 + row3 + row4 + row5
+    def str3(x, y, z): 
+      return "  [% .2f, % .2f, % .2f ]\n" % (x, y, z)
+    s = ""
+    s += str3(*self[:3])
+    s += str3(*self[3:6])
+    s += str3(*self[6:9])
+    s += "  [ ------------------ ]\n"
+    s += str3(*self[9:12])
+    return s
 
 
 def matrix_elem(matrix, i, j, val=None):
-  if val is not None:
-    if j==0:
-      if i==0: matrix.elem00 = val
-      if i==1: matrix.elem10 = val
-      if i==2: matrix.elem20 = val
-      if i==3: matrix.elem30 = val
-    if j==1:
-      if i==0: matrix.elem01 = val
-      if i==1: matrix.elem11 = val
-      if i==2: matrix.elem21 = val
-      if i==3: matrix.elem31 = val
-    if j==2:
-      if i==0: matrix.elem02 = val
-      if i==1: matrix.elem12 = val
-      if i==2: matrix.elem22 = val
-      if i==3: matrix.elem32 = val
-    if j==3:
-      if i==0: matrix.elem03 = val
-      if i==1: matrix.elem13 = val
-      if i==2: matrix.elem23 = val
-      if i==3: matrix.elem33 = val
-
-  if j==0:
-    if i==0: return matrix.elem00
-    if i==1: return matrix.elem10
-    if i==2: return matrix.elem20
-    if i==3: return matrix.elem30
-  if j==1:
-    if i==0: return matrix.elem01
-    if i==1: return matrix.elem11
-    if i==2: return matrix.elem21
-    if i==3: return matrix.elem31
-  if j==2:
-    if i==0: return matrix.elem02
-    if i==1: return matrix.elem12
-    if i==2: return matrix.elem22
-    if i==3: return matrix.elem32
-  if j==3:
-    if i==0: return matrix.elem03
-    if i==1: return matrix.elem13
-    if i==2: return matrix.elem23
-    if i==3: return matrix.elem33
+  k = i*3 + j
+  if val is None:
+    return matrix[k]
+  else:
+    matrix[k] = val
+    return val
 
 
 def identity():
