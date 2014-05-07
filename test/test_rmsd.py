@@ -8,7 +8,7 @@ def test_superposition():
   crds1 = [v3.random_vector() for i in range(n)]
   random_m = v3.random_rotation()
   crds2 = [v3.transform(random_m, c) for c in crds1]
-  rms, m = rmsd.svd_rmsd_rot(crds1, crds2)
+  rms, m = rmsd.calc_rmsd_rot(crds1, crds2)
   for crd1, crd2 in zip(crds1, crds2):
     assert v3.is_similar_vector(v3.transform(m, crd1), crd2)
 
@@ -18,7 +18,7 @@ def test_rmsd():
   crds1 = [v3.random_vector() for i in range(n)]
   random_m = v3.random_rotation()
   crds2 = [v3.transform(random_m, c) for c in crds1]
-  rms, m = rmsd.svd_rmsd_rot(crds1, crds2)
+  rms, m = rmsd.calc_rmsd_rot(crds1, crds2)
   assert v3.is_similar_mag(0, rms)
 
 

@@ -128,50 +128,6 @@ class Matrix3d:
               (self.elem30, self.elem31, self.elem32)
     return row1 + row2 + row3 + row4 + row5
 
-  def elem(self, i, j, val=None):
-    if val is not None:
-      if j==0:
-        if i==0: self.elem00 = val
-        if i==1: self.elem10 = val
-        if i==2: self.elem20 = val
-        if i==3: self.elem30 = val
-      if j==1:
-        if i==0: self.elem01 = val
-        if i==1: self.elem11 = val
-        if i==2: self.elem21 = val
-        if i==3: self.elem31 = val
-      if j==2:
-        if i==0: self.elem02 = val
-        if i==1: self.elem12 = val
-        if i==2: self.elem22 = val
-        if i==3: self.elem32 = val
-      if j==3:
-        if i==0: self.elem03 = val
-        if i==1: self.elem13 = val
-        if i==2: self.elem23 = val
-        if i==3: self.elem33 = val
-
-    if j==0:
-      if i==0: return self.elem00
-      if i==1: return self.elem10
-      if i==2: return self.elem20
-      if i==3: return self.elem30
-    if j==1:
-      if i==0: return self.elem01
-      if i==1: return self.elem11
-      if i==2: return self.elem21
-      if i==3: return self.elem31
-    if j==2:
-      if i==0: return self.elem02
-      if i==1: return self.elem12
-      if i==2: return self.elem22
-      if i==3: return self.elem32
-    if j==3:
-      if i==0: return self.elem03
-      if i==1: return self.elem13
-      if i==2: return self.elem23
-      if i==3: return self.elem33
-
 
 def matrix_elem(matrix, i, j, val=None):
   if val is not None:
@@ -242,13 +198,13 @@ def combine(a, b):
     for j in range(0, 3):
       val = 0.0
       for k in range(0, 3):
-         val += a.elem(k,i) * b.elem(j,k)
-      c.elem(j, i, val)
+         val += matrix_elem(a,k,i) * matrix_elem(b,j,k)
+      matrix_elem(c, j, i, val)
     # c(3,i) is the translation vector
-    val = a.elem(3,i)
+    val = matrix_elem(a,3,i)
     for k in range(0,3):
-      val += a.elem(k,i) * b.elem(3,k)
-    c.elem(3, i, val)
+      val += matrix_elem(a,k,i) * matrix_elem(b,3,k)
+    matrix_elem(c, 3, i, val)
   return c
 
 
@@ -260,12 +216,12 @@ def left_inverse(m):
   rot_t = identity()
   for i in range(0, 3):
     for j in range(0, 3):
-      val = m.elem(j,i)
-      rot_t.elem(i,j,val)
-  t = vector(m.elem(3,0), m.elem(3,1), m.elem(3,2))
+      val = matrix_elem(m,j,i)
+      matrix_elem(rot_t,i,j,val)
+  t = vector(matrix_elem(m,3,0), matrix_elem(m,3,1), matrix_elem(m,3,2))
   t_inv = transform(rot_t, t)
   for i in range(0, 3):
-    rot_t.elem(3, i, -t_inv[i])
+    matrix_elem(rot_t, 3, i, -t_inv[i])
   return rot_t
 
 
@@ -276,15 +232,15 @@ def rotation(axis, theta):
   s = math.sin(theta)
   t = 1.0 - c
   x, y, z = norm(axis)
-  m.elem(0, 0, t*x*x       + c)
-  m.elem(0, 1, t*x*y + z*s    )
-  m.elem(0, 2, t*x*z - y*s    )
-  m.elem(1, 0, t*y*x - z*s    )
-  m.elem(1, 1, t*y*y       + c)
-  m.elem(1, 2, t*y*z + x*s    )
-  m.elem(2, 0, t*z*x + y*s    )
-  m.elem(2, 1, t*z*y - x*s    )
-  m.elem(2, 2, t*z*z       + c)
+  matrix_elem(m, 0, 0, t*x*x       + c)
+  matrix_elem(m, 0, 1, t*x*y + z*s    )
+  matrix_elem(m, 0, 2, t*x*z - y*s    )
+  matrix_elem(m, 1, 0, t*y*x - z*s    )
+  matrix_elem(m, 1, 1, t*y*y       + c)
+  matrix_elem(m, 1, 2, t*y*z + x*s    )
+  matrix_elem(m, 2, 0, t*z*x + y*s    )
+  matrix_elem(m, 2, 1, t*z*y - x*s    )
+  matrix_elem(m, 2, 2, t*z*z       + c)
   return m
 
 
@@ -292,7 +248,7 @@ def translation(t):
   """ matrix to translate a vector"""
   m = identity()
   for i in range(3):
-    m.elem(3, i, t[i])
+    matrix_elem(m, 3, i, t[i])
   return m
 
 
@@ -310,7 +266,7 @@ def is_similar_vector(a, b, small=1E-4):
 def is_similar_matrix(a, b, small=1E-4):
   for i in range(0, 3):
     for j in range(0, 3):
-      if not is_similar_mag(a.elem(i,j), b.elem(i,j), small):
+      if not is_similar_mag(matrix_elem(a,i,j), matrix_elem(b,i,j), small):
         return False
   return True
 
