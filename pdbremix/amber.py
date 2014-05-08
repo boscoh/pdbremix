@@ -892,7 +892,7 @@ class Trajectory:
     load_crd_or_rst_into_soup(self.soup, self.basename+'temp.crd')
     util.clean_fname(self.basename+'temp.crd')
 
-    self.n_frame = len(self.trj_reader)
+    self.n_frame = self.trj_reader.n_frame
     self.load_frame(0)
 
   def load_frame(self, i):

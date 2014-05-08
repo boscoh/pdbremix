@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Calculates basic properties CARMSD & KIN of MD trajectories
+Calculates RMSD, CA-RMSD, KIN & TOTAL-KIN of trajectory
 
 Usage: trajvar [options] <md> ...
 
@@ -12,12 +12,12 @@ Options:
 
 import os
 from pdbremix.lib.docopt import docopt
-from pdbremix import traj
+from pdbremix import trajectory
 
 if __name__ == "__main__":
   arg = docopt(__doc__)
   ref_pdb = arg['-r']
   for md in arg['<md>']:
-    traj.process_md(md, ref_pdb)
+    trajectory.analyze_trajectory(md, ref_pdb)
         
 

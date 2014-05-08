@@ -548,7 +548,6 @@ constant_energy_parms = {
   'restraint_force': 100.0,
   'n_step_per_snapshot' : 50, 
   'n_step_dynamics' : 1000, 
-  'temp_initial': 0.0, # ignored if it is 0.0
 } 
 
 langevin_thermometer_parms = { 
@@ -897,7 +896,6 @@ class Trajectory(object):
 
   def load_frame(self, i_frame):
     box, positions, velocities, forces = self.trr_reader[i_frame]
-    self.i_frame = self.trr_reader.i_frame
     for i, atom in enumerate(self.atoms):
       v3.set_vector(
           atom.pos,
@@ -909,6 +907,7 @@ class Trajectory(object):
           velocities[i][0]*10,
           velocities[i][1]*10,
           velocities[i][2]*10)
+    self.i_frame = self.trr_reader.i_frame
 
 
 def merge_simulations(basename, pulses):

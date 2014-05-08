@@ -58,7 +58,8 @@ def get_md_module(force_field):
 # In PDBREMIX, all simulations require restart files to run.
 
 # 1. topology file (top)
-# 2. coordinatess file (crds)
+# 2. coordinates file (crds)
+# 3. velocities file (vels)
 
 # When read into a Soup object, it is assumed that the units
 # in the atom.pos and atom.vel vectors are:
@@ -69,8 +70,8 @@ def get_md_module(force_field):
 
 def expand_restart_files(force_field, basename):
   """
-  Returns expanded restart files with basename for the 
-  package implied by force_field
+  Returns expanded restart files (top, crds, vels) with basename
+  for the package implied by force_field. No file checking.
   """
   md_module = get_md_module(force_field)
   return md_module.expand_restart_files(basename)
@@ -78,10 +79,9 @@ def expand_restart_files(force_field, basename):
 
 def get_restart_files(basename):
   """
-  Returns restart files only if they exist, otherwise raises
-  Exception. Will deduce package by the examing the extension of
-  files with the given basename.
-
+  Returns restart files (top, crds, vels) only if they exist,
+  otherwise raises Exception. Will deduce package by 
+  file extensions attached to the basename.
   """
   for module in [amber, gromacs, namd]:
     try:
@@ -93,7 +93,7 @@ def get_restart_files(basename):
 
 def soup_from_restart_files(top, crds, vels, skip_solvent=True):
   """
-  Reads a Soup from restart files.
+  Reads a Soup from the restart files.
   """
   if crds.endswith('.gro'):
     return gromacs.soup_from_restart_files(
@@ -243,7 +243,7 @@ def minimize(
   run_simulation_with_parameters(parms)
 
 
-def langevin(
+def langevin_thermometer(
     force_field, top, crds, vels, n_step, temp, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
   """
@@ -263,12 +263,11 @@ def langevin(
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
   parms['temp_thermometer'] = "%.1f" % temp
-  parms['temp_initial'] = str(temp)
-  parms['gamma_ln'] = 5.0
+  parms['temp_initial'] = "%.1f" % temp
   run_simulation_with_parameters(parms)
 
 
-def constant(
+def constant_energy(
     force_field, top, crds, vels, n_step, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
   """
@@ -283,11 +282,10 @@ def constant(
       force_field, top, crds, restraint_pdb, 
       'constant_energy', basename)
   parms['input_vels'] = vels
-  parms['temp_thermometer'] = 10.0
-  parms['temp_initial'] = 10.0
   parms['n_step_dynamics'] = n_step
-  parms['cutoff'] = 12.0
   parms['n_step_per_snapshot'] = n_step_per_snapshot
+  assert 'temp_thermometer' not in parms
+  assert 'temp_init' not in parms
   run_simulation_with_parameters(parms)
 
 
@@ -298,19 +296,6 @@ def merge_simulations(force_field, basename, sim_dirs):
   """
   if not sim_dirs:
     return
-  # Calculate time spent in simulations if available
-  time = 0.0
-  for sim_dir in sim_dirs:
-    f = '%s/%s.time' % (sim_dir, basename) 
-    if os.path.isfile(f):
-      try:     
-        time += float(open(f).read().split()[0])
-      except:
-        pass
-  if time:
-    time_str = util.elapsed_time_str(time)
-    open(basename+'.merged.time', 'w').write(time_str)
-  # Now merge simulations
   md_module = get_md_module(force_field)
   md_module.merge_simulations(basename, sim_dirs)
 
@@ -346,9 +331,6 @@ def pulse(
   overall_config_parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
       'constant_energy', basename)
-  # Doubly ensure only constant energy here
-  if 'thermometer_type' in overall_config_parms:
-    del overall_config_parms['thermometer_type']
   overall_config_parms.update({
     'input_md_name': in_basename,
     'input_vels': vels,

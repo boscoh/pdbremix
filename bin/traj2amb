@@ -7,7 +7,7 @@ Usage: traj2amb <md>
 import glob
 from pdbremix import util
 from pdbremix import amber
-from pdbremix import traj
+from pdbremix import trajectory
 from pdbremix.lib.docopt import docopt
 
 
@@ -19,7 +19,7 @@ amber_crd = amber_md + '.crd'
 amber_trj = amber_md + '.trj'
 frame_pdb = md + '.frame.pdb'
 
-input_traj = traj.open_trajectory(md)
+input_traj = trajectory.open_trajectory(md)
 
 # create the amber trajectory 
 amber_traj = open(amber_trj, 'w')

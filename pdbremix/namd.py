@@ -847,6 +847,9 @@ class DcdReader:
     if self.extra_block_size > 0:
       self.size_frame += self.extra_block_size
 
+    self.i_frame = None
+    self.load_frame(0)
+
   def _read_fmt_vals(self, fmt):
     return struct.unpack(fmt, self.file.read(struct.calcsize(fmt)))
 
@@ -926,7 +929,7 @@ class Trajectory:
     self.coor = basename + '.coor'
     self.vel = basename + '.vel'
     self.dcd = basename + '.dcd'    
-    self.coor_dcd_reader = DcdReader(dcd)
+    self.coor_dcd_reader = DcdReader(self.dcd)
     self.vel_dcd = basename + '.vel.dcd'
     if os.path.isfile(self.vel_dcd):
       self.vel_dcd_reader = DcdReader(self.vel_dcd)
@@ -935,16 +938,16 @@ class Trajectory:
     self.soup = soup_from_restart_files(self.psf, self.coor, self.vel)
     self.n_frame = self.coor_dcd_reader.n_frame
     self.i_frame = 0
-    self.load_frame(self.i_frame)
+    self.load_frame(0)
     
-  def load_frame(self, i):
-    x, y, z = self.coor_dcd_reader[i]
+  def load_frame(self, i_frame):
+    x, y, z = self.coor_dcd_reader[i_frame]
     atoms = self.soup.atoms()
     for i in range(len(atoms)):
       v3.set_vector(atoms[i].pos, x[i], y[i], z[i])
 
     if self.vel_dcd_reader is not None:
-      x, y, z = self.vel_dcd_reader[i]
+      x, y, z = self.vel_dcd_reader[i_frame]
       for i in range(len(atoms)):
           v3.set_vector(atoms[i].vel, x[i], y[i], z[i])
 
