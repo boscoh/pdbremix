@@ -20,6 +20,23 @@ import util
 module_dir = os.path.dirname(__file__)
 data_dir = os.path.join(module_dir, 'data')
 
+binaries_fname = os.path.join(data_dir, 'binaries.json')
+binaries = util.read_dict(binaries_fname)
+
+def binary(bin, arg_str='', out_name=None, in_fname=None):
+  """
+  Runs an external binary, handles arguments, writes out
+  equivalent .sh file, log file, and can pipe in in_fname.
+  """
+  if bin in binaries and binaries[bin]:
+    bin = binaries[bin]
+  else:
+    util.check_program(bin)
+  if arg_str:
+    util.run_with_output_file(
+        '%s %s' % (bin, arg_str), out_name, in_fname)
+  return '"%s"' % bin
+
 
 def invert_dict(d):
   """
@@ -38,25 +55,11 @@ res_name_to_char = {
     "TRP":"W", "TYR":"Y", "ACE":">",
     "NME":"<",
 }
+
 res_char_to_name = invert_dict(res_name_to_char)
 
-binaries_fname = os.path.join(data_dir, 'binaries.json')
-binaries = util.read_dict(binaries_fname)
 
-def binary(bin, arg_str='', out_name=None, in_fname=None):
-  """
-  Runs an external binary, handles arguments, writes out
-  equivalent .sh file, log file, and can pipe in in_fname.
-  """
-  if bin in binaries:
-    bin = binaries[bin]
-  else:
-    util.check_program(bin)
-  if arg_str:
-    util.run_with_output_file('%s %s' % (bin, arg_str), out_name, in_fname)
-  return '"%s"' % bin
-
-# recognized atom types for protein backbone in AMBER
+# recognized atom types for protein backbone 
 backbone_atoms = [
     "OXT", # C-terminal carboxyl group
     "H1", "H2", "H3",  # N-terminal charged group
@@ -98,9 +101,7 @@ radii = {
  '.':  1.80
 }
 
-
 two_char_elements = [e for e in radii.keys() if len(e) == 2]
-
 
 def guess_element(res_type, atom_type):
   """

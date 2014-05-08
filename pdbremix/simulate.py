@@ -16,7 +16,6 @@ The routines are divided into roughly three sections:
 1. Read and write restart files
 2. Generate restart files from PDB
 3. Run simulations from restart files
-4. Read trajectories with some post-processing
 
 """
 
@@ -344,10 +343,13 @@ def pulse(
   # energy changes come only from our velocity modification.
   top, crds, vels = get_restart_files(in_basename)
   # use dummy top and crds, which will be overriden 
-  ref_parms = fetch_simulation_parameters(
+  overall_config_parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
       'constant_energy', basename)
-  ref_parms.update({
+  # Doubly ensure only constant energy here
+  if 'thermometer_type' in overall_config_parms:
+    del overall_config_parms['thermometer_type']
+  overall_config_parms.update({
     'input_md_name': in_basename,
     'input_vels': vels,
     'n_step_dynamics': n_step,
@@ -359,31 +361,30 @@ def pulse(
   # file is not written until the very end of the pulsing
   # simulation
   config = basename + ".config"
-  if util.is_same_dict_in_file(ref_parms, config):
+  if util.is_same_dict_in_file(overall_config_parms, config):
     print "Skipping: pulsing simulation already run."
     return
 
+  # The overall_config_parms is saved to write out at the end,
+  # here, we make a copy for internal use
+  pulse_parms = copy.deepcopy(overall_config_parms)
+
   # Calculate steps for each pulse, esp for last step
-  n_pulse = ref_parms['n_step_dynamics'] / n_step_per_pulse
+  n_pulse = pulse_parms['n_step_dynamics'] / n_step_per_pulse
   n_step_list = [n_step_per_pulse for i in range(n_pulse)]
-  n_excess_step = ref_parms['n_step_dynamics'] % n_step_per_pulse
+  n_excess_step = pulse_parms['n_step_dynamics'] % n_step_per_pulse
   if n_excess_step > 0:
     n_pulse += 1
     n_step_list.append(n_excess_step)
   
-  # Get the restart files for the simulation
-  pulse_parms = copy.deepcopy(ref_parms)
-  pulse_parms['topology'] = os.path.abspath(ref_parms['topology'])
-  # Doubly ensure only constant energy here
-  if 'thermometer_type' in pulse_parms:
-    del pulse_parms['thermometer_type']
-
   # Prepare restart files for first step
-  in_basename = ref_parms['input_md_name']
+  pulse_parms['topology'] = os.path.abspath(pulse_parms['topology'])
+  in_basename = pulse_parms['input_md_name']
   pulse_parms['input_md_name'] = os.path.abspath(in_basename)
   pulse_in_top, pulse_in_crds, pulse_in_vels = \
     get_restart_files(pulse_parms['input_md_name'])
 
+  # Now loop through pulses
   timer = util.Timer()
   save_dir = os.getcwd()
   pulses = ["pulse%d" % i for i in range(n_pulse)]
@@ -420,7 +421,7 @@ def pulse(
 
   open(basename+'.time', 'w').write(timer.str()+'\n')
 
-  util.write_dict(config, parms)
+  util.write_dict(config, overall_config_parms)
 
 
 # def low_temperature_equilibrate(in_name, out_name, temperature):

@@ -2,24 +2,24 @@
   "pymol": "/Applications/MacPyMOL.app/Contents/MacOS/MacPyMOL",
   "pymol_batch": "/opt/local/bin/pymol",
   "chimera": "/Applications/Chimera.app/Contents/MacOS/chimera",
-  "theseus": "theseus",
-  "mafft": "mafft",
+  "theseus": "",
+  "mafft": "",
 
-  "sander": "sander",
-  "tleap": "tleap",
+  "sander": "",
+  "tleap": "",
 
-  "mdrun": "mdrun",
-  "pdb2gmx": "pdb2gmx",
-  "trjconv": "trjconv",
-  "grompp": "grompp",
-  "editconf": "editconf",
-  "genion": "genion",
-  "genbox": "genbox",
+  "mdrun": "",
+  "pdb2gmx": "",
+  "trjconv": "",
+  "grompp": "",
+  "editconf": "",
+  "genion": "",
+  "genbox": "",
 
-  "vmd": "/Applications/VMD\ 1.8.7.app/Contents/Resources/VMD.app/Contents/MacOS/VMD",
-  "psfgen": "psfgen",
-  "namd": "namd2",
-  "flipdcd": "flipdcd",
+  "vmd": "/Applications/VMD 1.8.7.app/Contents/Resources/VMD.app/Contents/MacOS/VMD",
+  "psfgen": "",
+  "namd": "",
+  "flipdcd": "",
 
-  "mod9v8": "mod9v8"
+  "mod9v8": ""
 }
