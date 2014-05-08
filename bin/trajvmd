@@ -88,7 +88,7 @@ vmd = data.binary("vmd")
 params = get_params(arg['<md>'])
 cmd_fname = arg['<md>'] + '.vmd'
 open(cmd_fname, 'w').write(vmd_script % params)
-os.system(vmd + ' -e ' + cmd_fname)
+data.binary('vmd', ' -e ' + cmd_fname)
 os.remove(cmd_fname)
 
 

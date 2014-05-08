@@ -10,8 +10,8 @@ ff = 'NAMD2.8'
 ff = 'GROMACS4.5'
 ff = 'AMBER11'
 pdb = 'pdb/1cph.pdb'
-ff = 'NAMD2.8'
 ff = 'AMBER11-GBSA'
+ff = 'NAMD2.8'
 pdb = 'pdb/hairpin.pdb'
 
 
@@ -19,7 +19,7 @@ pdb = os.path.abspath(pdb)
 name = os.path.splitext(os.path.basename(pdb))[0]
 sim_dir = 'md/%s/%s' % (ff, name)
 
-# util.clean_fname(sim_dir)
+util.clean_fname(sim_dir)
 
 save_dir = os.getcwd()
 

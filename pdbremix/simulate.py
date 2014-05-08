@@ -358,15 +358,14 @@ def pulse(
   }) 
 
   # Check if the simulation has already run as the config
-  # file is not written until the very end of the pulsing
-  # simulation
+  # file is not written until the very end
   config = basename + ".config"
   if util.is_same_dict_in_file(overall_config_parms, config):
     print "Skipping: pulsing simulation already run."
     return
 
-  # The overall_config_parms is saved to write out at the end,
-  # here, we make a copy for internal use
+  # The overall_config_parms will be written out at the end.
+  # We make a copy for internal use
   pulse_parms = copy.deepcopy(overall_config_parms)
 
   # Calculate steps for each pulse, esp for last step
@@ -417,10 +416,12 @@ def pulse(
   os.chdir(save_dir)
 
   merge_simulations(force_field, basename, pulses)
+
+  # cleanup pulses after merging
   util.clean_fname(*pulses)
 
+  # everything worked, no exceptions thrown
   open(basename+'.time', 'w').write(timer.str()+'\n')
-
   util.write_dict(config, overall_config_parms)
 
 

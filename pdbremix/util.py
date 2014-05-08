@@ -88,48 +88,6 @@ def clean_fname(*fnames):
         pass
 
 
-def run_with_output(cmd):
-  p = subprocess.Popen(
-      cmd, 
-      shell=True, 
-      stdout=subprocess.PIPE, 
-      stderr=subprocess.PIPE)
-  return p.stdout.read()
-
-
-def run_with_output_file(cmd, out_fname=None, in_fname=None):
-  in_f = None
-  out_f = None
-
-  if in_fname and os.path.isfile(in_fname):
-    in_f = open(in_fname)
-
-  if out_fname:
-    log_file = out_fname + '.log'
-    out_f = open(log_file, 'w')
-    sh_file = out_fname + '.sh'
-    sh_cmd = cmd
-    if in_f:
-      sh_cmd += ' < ' + in_fname
-    if log_file:
-      sh_cmd += ' &> ' + log_file
-    open(sh_file, 'w').write(sh_cmd)
-    os.chmod(sh_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-    stopwatch = Timer()
-
-  subprocess.call(
-    cmd, 
-    shell=True,
-    stdin=in_f,
-    stdout=out_f,
-    stderr=out_f)
-
-  if out_fname:
-    stopwatch.stop()
-    open(out_fname + '.time', 'w').write(stopwatch.str())
-    out_f.close()
-
-
 def get_floats_from_string(s):
   val_strs = re.finditer(r'[-+]?([0-9]*\.[0-9]+|[0-9]+)', s)
   return [float(v.group()) for v in val_strs]
@@ -268,5 +226,47 @@ def check_output(fname, bad_words=[]):
       if bad_word in line:
         raise Exception(
             "Output indicates %s error in line %d: %s" % (bad_word, i_line+1, fname))
+
+def run_with_output(cmd):
+  p = subprocess.Popen(
+      cmd, 
+      shell=True, 
+      stdout=subprocess.PIPE, 
+      stderr=subprocess.PIPE)
+  return p.stdout.read()
+
+
+def run_with_output_file(cmd, out_fname=None, in_fname=None):
+  in_f = None
+  out_f = None
+
+  if in_fname and os.path.isfile(in_fname):
+    in_f = open(in_fname)
+
+  if out_fname:
+    log_file = out_fname + '.log'
+    out_f = open(log_file, 'w')
+    sh_file = out_fname + '.sh'
+    sh_cmd = cmd
+    if in_f:
+      sh_cmd += ' < ' + in_fname
+    if log_file:
+      sh_cmd += ' &> ' + log_file
+    open(sh_file, 'w').write(sh_cmd)
+    os.chmod(sh_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    stopwatch = Timer()
+
+  subprocess.call(
+    cmd, 
+    shell=True,
+    stdin=in_f,
+    stdout=out_f,
+    stderr=out_f)
+
+  if out_fname:
+    stopwatch.stop()
+    open(out_fname + '.time', 'w').write(stopwatch.str())
+    out_f.close()
+
 
 
