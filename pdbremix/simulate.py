@@ -1,15 +1,46 @@
+# encoding: utf-8
+
+__doc__ = """
+This module provides a way to abstract Molecular-Dynamics (MD)
+simulations with the Soup object.
+
+It provides a common API to 3 modules that wrap standard
+relatively-free molecular-dynamics packages:
+
+- amber.py
+- gromacs.py
+- namd.py
+
+The routines are divided into roughly three sections:
+
+1. Read and write restart files
+2. Generate restart files from PDB
+3. Run simulations from restart files
+4. Read trajectories with some post-processing
+
+"""
+
 import os
 import shutil
 import copy 
 
 import util
+
 import amber
 import namd
 import gromacs
-import data
 
+
+
+# ##########################################################
+
+# 0. Housekeeping function to figure out simulation package
 
 def get_md_module(force_field):
+  """
+  Returns the specific interface module that is referenced by
+  force_field.
+  """
   if force_field.startswith('GROMACS'):
     return gromacs
   elif force_field.startswith('AMBER'):
@@ -20,65 +51,51 @@ def get_md_module(force_field):
     raise ValueError, "unrecognized force-field" + force_field
 
 
-def pdb_to_top_and_crds(
-    force_field, raw_pdb, md_name, solvent_buffer=10.0):
-  "Returns topology and coordinate fnames"
-  md_module = get_md_module(force_field)
-  top, crd = md_module.pdb_to_top_and_crds(
-      force_field, raw_pdb, md_name, solvent_buffer)
-  return os.path.abspath(top), os.path.abspath(crd)
-    
 
-def fetch_parms(
-    force_field, top, crds, restraint_pdb, 
-    simulation_type, md_name):
+# ##########################################################
+
+# 1. Reading and writing restart files
+
+# In PDBREMIX, all simulations require restart files to run.
+
+# 1. topology file (top)
+# 2. coordinatess file (crds)
+
+# When read into a Soup object, it is assumed that the units
+# in the atom.pos and atom.vel vectors are:
+
+# - positions: angstroms
+# - velocities: angstroms/picosecond
+
+
+def expand_restart_files(force_field, basename):
   """
-  Get a dictionary with the necessary fields to run a simulation.
-  Parms: simulation_type can be minimization, langevin_thermometer,
-         constant_energy
+  Returns expanded restart files with basename for the 
+  package implied by force_field
   """
   md_module = get_md_module(force_field)
-  parms_dict_name = '%s_parms' % simulation_type
-  parms = getattr(md_module, parms_dict_name).copy()
-  parms['force_field'] = force_field
-  parms['topology'] = top
-  parms['input_crds'] = crds
-  parms['output_name'] = md_name
-  parms['cutoff'] = 12.0
-  if restraint_pdb:
-    parms['restraint_pdb'] = restraint_pdb
-  return parms
+  return md_module.expand_restart_files(basename)
 
 
-def expand_restart_files(force_field, md_name):
-  md_module = get_md_module(force_field)
-  return md_module.expand_restart_files(md_name)
+def get_restart_files(basename):
+  """
+  Returns restart files only if they exist, otherwise raises
+  Exception. Will deduce package by the examing the extension of
+  files with the given basename.
 
-
-def get_restart_files(md_name):
+  """
   for module in [amber, gromacs, namd]:
     try:
-      return module.get_restart_files(md_name)
+      return module.get_restart_files(basename)
     except util.FileException:
       pass
-  raise Exception("Couldn't find restart files for " + md_name)
+  raise Exception("Couldn't find restart files for " + basename)
   
 
-def convert_restart_to_pdb(md_name, pdb):
-  for module in [amber, gromacs, namd]:
-    try:
-      return module.convert_restart_to_pdb(md_name, pdb)
-    except util.FileException:
-      pass
-  raise Exception("Couldn't find restart files for " + md_name)
-
-
-def write_soup_to_crds_and_vels(force_field, soup, md_name):
-  md_module = get_md_module(force_field)
-  return md_module.write_soup_to_crds_and_vels(soup, md_name)
-
-
 def soup_from_restart_files(top, crds, vels, skip_solvent=True):
+  """
+  Reads a Soup from restart files.
+  """
   if crds.endswith('.gro'):
     return gromacs.soup_from_restart_files(
         top, crds, vels, skip_solvent)
@@ -88,123 +105,292 @@ def soup_from_restart_files(top, crds, vels, skip_solvent=True):
     return namd.soup_from_restart_files(top, crds, vels)
 
 
-def run_parms(parms):
-  name = parms['output_name']
-  config = name + ".config"
+def write_soup_to_crds_and_vels(force_field, soup, basename):
+  """
+  From soup, writes out the coordinate/velocities for a given
+  packaged that is deduced from the force_field.
+  """
+  md_module = get_md_module(force_field)
+  return md_module.write_soup_to_crds_and_vels(soup, basename)
 
+
+def convert_restart_to_pdb(basename, pdb):
+  """
+  Converts restart files with basename into PDB file.
+  """
+  # Will now try to guess restart files by trying each module in
+  # turn. Since the functions throws a FileException if any
+  # expected files are missing, catching these will determine
+  # failure
+  for module in [amber, gromacs, namd]:
+    try:
+      return module.convert_restart_to_pdb(basename, pdb)
+    except util.FileException:
+      pass
+  raise Exception("Couldn't find restart files for " + basename)
+
+
+# # 2. Generate restart files from PDB
+
+# The restart files used for PDBREMIX assumes a consistent file
+# naming.
+
+# To generate a topology file from the PDB file:
+# - handles multiple protein chains
+# - hydrogens are removed and then regenerated
+# - disulfide bonds are identified 
+# - charged residue protonation states are auto-detected
+# - explicit water in cubic box with 10.0 angstrom buffer
+# - counterions to neutralize the system
+
+
+def pdb_to_top_and_crds(
+    force_field, raw_pdb, basename, solvent_buffer=10.0):
+  """
+  Creates and returns the absolute pathnames to topology and
+  coordinate files required to start an MD simulation using the
+  package implied in the force_field.
+  """
+  md_module = get_md_module(force_field)
+  top, crd = md_module.pdb_to_top_and_crds(
+      force_field, raw_pdb, basename, solvent_buffer)
+  return os.path.abspath(top), os.path.abspath(crd)
+    
+
+# ##########################################################
+
+# # 3. Run simulations from restart files
+
+# Simulation approach for implicit solvent:
+# - optional positional constraints: 100 kcal/mol/angs**2 
+# - Langevin thermostat for constant temperature
+
+# Simulation approach for explict water: 
+# - optional positional restraints: 100 kcal/mol/angs**2
+# - periodic box with PME electrostatics
+# - Langevin thermostat for constant temperature
+# - Nose-Hoover barometer with flexible periodic box size
+
+# Each package maintains its own files, but all required
+# will share a common basename with standard extensions
+
+
+def fetch_simulation_parameters(
+    force_field, top, crds, restraint_pdb, 
+    simulation_type, basename):
+  """
+  Returns a dictionary that contains all the high level
+  parameters needed to run an MD simulation using the package
+  implied in force_field.
+
+  Options for simulation_type:
+  1. 'minimization'
+  2. 'constant_energy'
+  3. 'langevin_thermometer'
+  """
+  # use a bit of magic to get the dictionary. Pesumably the
+  # dictionary with the correct name is present in each
+  # simulation module
+  md_module = get_md_module(force_field)
+  parms_dict_name = '%s_parms' % simulation_type
+  parms = getattr(md_module, parms_dict_name).copy()
+  # Several fields in parms is common across all packages, these
+  # are taken from the parameters of this function:
+  parms.update({
+    'force_field': force_field,
+    'topology': top,
+    'input_crds': crds,
+    'output_name': basename,
+  })
+  if restraint_pdb:
+    parms['restraint_pdb'] = restraint_pdb
+  return parms
+
+
+def run_simulation_with_parameters(parms):
+  """
+  Carries out simulations based on parms
+  """
+  # For housekeeping, the parms dictionary is written to a
+  # .config file. As an Exception is thrown if simulation failed,
+  # the existence of an equivalent .config file is an indicator
+  # that the simulation has already successfully run.
+  config = parms['output_name'] + ".config"
   if util.is_same_dict_in_file(parms, config):
     print "Skipping: simulation already run."
     return
-
   md_module = get_md_module(parms['force_field'])
-
   md_module.run(parms)
-  
+  # No exceptions were thrown - write .config file.
   util.write_dict(config, parms)
 
 
 def minimize(
-    force_field, top, crds, md_name, 
+    force_field, top, crds, basename, 
     restraint_pdb="", n_step=200):
-  parms = fetch_parms(
+  """
+  Runs an energy minimization on the restart files top & crd.
+
+  This is a crucial step as minimization is more robust than
+  dynamics calculations. An initial minimization will find a good
+  local energy minimum conformation for a  dynamics simulation to
+  start. This will avoid spurious initial energy fluctuations for
+  future dynamics.
+  """
+  parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'minimization', md_name)
+      'minimization', basename)
   parms['n_step_minimization'] = n_step
-  run_parms(parms)
+  run_simulation_with_parameters(parms)
 
 
 def langevin(
-    force_field, top, crds, vels, n_step, temp, md_name, 
+    force_field, top, crds, vels, n_step, temp, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
-  parms = fetch_parms(
+  """
+  Runs a constant temperature simulation using a Langevin
+  thermometer.
+
+  There are two basic thermometers in most packages. Anderson
+  and Langevin. Anderson simply rescales the energy to satisfy
+  the average kinetic energy equation wheras Langevin adds a
+  little random force. Langevin thus avoids getting trapped in
+  unintended energy minima for the cost of a bit of stochasity.
+  """
+  parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'langevin_thermometer', md_name)
+      'langevin_thermometer', basename)
   parms['input_vels'] = vels
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
   parms['temp_thermometer'] = "%.1f" % temp
   parms['temp_initial'] = str(temp)
   parms['gamma_ln'] = 5.0
-  run_parms(parms)
+  run_simulation_with_parameters(parms)
 
 
 def constant(
-    force_field, top, crds, vels, n_step, md_name, 
+    force_field, top, crds, vels, n_step, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
-  parms = fetch_parms(
-      force_field, top, crds, restraint_pdb, 'constant_energy', md_name)
+  """
+  Runs a constant energy simulation.
+
+  Constant energy simulation are useful if you want to capture
+  energy transfers exactly. Normally such simulations are 
+  preceeded by a period of thermal regulation using a Langevin
+  thermometer.
+  """
+  parms = fetch_simulation_parameters(
+      force_field, top, crds, restraint_pdb, 
+      'constant_energy', basename)
   parms['input_vels'] = vels
   parms['temp_thermometer'] = 10.0
   parms['temp_initial'] = 10.0
   parms['n_step_dynamics'] = n_step
   parms['cutoff'] = 12.0
   parms['n_step_per_snapshot'] = n_step_per_snapshot
-  run_parms(parms)
+  run_simulation_with_parameters(parms)
 
 
-def merge_simulations(force_field, md_name, sim_dirs):
+def merge_simulations(force_field, basename, sim_dirs):
+  """
+  Splices together a bunch of simulations, all with the same
+  basename, into one large simulation in the current directory.
+  """
   if not sim_dirs:
     return
+  # Calculate time spent in simulations if available
+  time = 0.0
+  for sim_dir in sim_dirs:
+    f = '%s/%s.time' % (sim_dir, basename) 
+    if os.path.isfile(f):
+      try:     
+        time += float(open(f).read().split()[0])
+      except:
+        pass
+  if time:
+    time_str = util.elapsed_time_str(time)
+    open(basename+'.merged.time', 'w').write(time_str)
+  # Now merge simulations
   md_module = get_md_module(force_field)
-  md_module.merge_simulations(md_name, sim_dirs)
-  # calculate time spent in simulations
-  fnames = ['%s/%s.time' % (pulse, md_name) 
-            for pulse in sim_dirs
-            if os.path.isfile(pulse)]
-  vals = [open(f).read().split()[0] for f in fnames]
-  time = sum([float(val) for val in vals])
-  open(md_name+'.pulse.time', 'w').write(util.elapsed_time_str(time))
+  md_module.merge_simulations(basename, sim_dirs)
 
     
 def pulse(
-    force_field, in_name, md_name, n_step, pulse_fn, 
+    force_field, in_basename, basename, n_step, pulse_fn, 
     n_step_per_pulse=100, restraint_pdb=""):
   """
-  Takes as argument, a first order function:
-    def pulse_fn(soup):
-  that updates the velocities at the beginnig of every pulse
+  Runs a pulse simulation that uses the restart-file modification
+  strategy to manage a steered-molecular dynamics simulation.
+
+  The pulsed approachapplies external forces in pulses, which is
+  practically carried out be running short constant-energy
+  simulations and directly modifying the restart velocities
+  between each simulation.
+
+  Pulse simulations has certain advantages: for instance, the
+  system can respond to the forces between pulses, and the
+  incredibly flexibility in applying forces. The disadvantage is
+  the costly setup which is hopefully, mitigated by this library.
+
+  Reference: Bosco K. Ho and David A. Agard (2010) "An improved
+  strategy for generating forces in steered molecular dynamics:
+  the mechanical unfolding of titin, e2lip3 and ubiquitin" PLoS
+  ONE 5(9):e13068.
   """
 
-  top, crds, vels = get_restart_files(in_name)
+  # Grab the simulation prameters for a constant energy
+  # simulation. Constant energy is preferred as we want to ensure
+  # energy changes come only from our velocity modification.
+  top, crds, vels = get_restart_files(in_basename)
+  # use dummy top and crds, which will be overriden 
+  ref_parms = fetch_simulation_parameters(
+      force_field, top, crds, restraint_pdb, 
+      'constant_energy', basename)
+  ref_parms.update({
+    'input_md_name': in_basename,
+    'input_vels': vels,
+    'n_step_dynamics': n_step,
+    'n_step_per_snapshot': n_step_per_pulse // 2,
+    'n_step_per_pulse': n_step_per_pulse
+  }) 
 
-  parms = fetch_parms(
-      force_field, top, crds, restraint_pdb, 'constant_energy', md_name)
-  parms['input_md_name'] = in_name
-  parms['input_vels'] = vels
-  parms['n_step_dynamics'] = n_step
-  parms['n_step_per_snapshot'] = n_step_per_pulse // 2
-  parms['n_step_per_pulse'] = n_step_per_pulse
-
-  config = md_name + ".config"
-  if util.is_same_dict_in_file(parms, config):
+  # Check if the simulation has already run as the config
+  # file is not written until the very end of the pulsing
+  # simulation
+  config = basename + ".config"
+  if util.is_same_dict_in_file(ref_parms, config):
     print "Skipping: pulsing simulation already run."
     return
 
-  timer = util.Timer()
-
-  save_dir = os.getcwd()
-
-  n_pulse = parms['n_step_dynamics'] / n_step_per_pulse
+  # Calculate steps for each pulse, esp for last step
+  n_pulse = ref_parms['n_step_dynamics'] / n_step_per_pulse
   n_step_list = [n_step_per_pulse for i in range(n_pulse)]
-  n_excess_step = parms['n_step_dynamics'] % n_step_per_pulse
+  n_excess_step = ref_parms['n_step_dynamics'] % n_step_per_pulse
   if n_excess_step > 0:
     n_pulse += 1
     n_step_list.append(n_excess_step)
   
-  pulse_parms = copy.deepcopy(parms)
-  pulse_parms['topology'] = os.path.abspath(parms['topology'])
+  # Get the restart files for the simulation
+  pulse_parms = copy.deepcopy(ref_parms)
+  pulse_parms['topology'] = os.path.abspath(ref_parms['topology'])
+  # Doubly ensure only constant energy here
   if 'thermometer_type' in pulse_parms:
     del pulse_parms['thermometer_type']
-  in_md_name = parms['input_md_name']
-  pulse_parms['input_md_name'] = os.path.abspath(in_md_name)
+
+  # Prepare restart files for first step
+  in_basename = ref_parms['input_md_name']
+  pulse_parms['input_md_name'] = os.path.abspath(in_basename)
   pulse_in_top, pulse_in_crds, pulse_in_vels = \
     get_restart_files(pulse_parms['input_md_name'])
 
+  timer = util.Timer()
+  save_dir = os.getcwd()
   pulses = ["pulse%d" % i for i in range(n_pulse)]
   for pulse, n_step in zip(pulses, n_step_list):
-    os.chdir(save_dir)
-
     print "Pulse: %s/%d" % (pulse, n_pulse)
+
+    os.chdir(save_dir)
     util.goto_dir(pulse)
 
     pulse_parms['n_step_dynamics'] = n_step
@@ -212,26 +398,27 @@ def pulse(
     soup = soup_from_restart_files(
         pulse_in_top, pulse_in_crds, pulse_in_vels)
 
+    # Apply forces by modifying the velocities directly 
     pulse_fn(soup)
 
     crds, vels = write_soup_to_crds_and_vels(
-        force_field, soup, md_name + '.pulse.in')
+        force_field, soup, basename + '.pulse.in')
     pulse_parms['input_crds'] = crds
     pulse_parms['input_vels'] = vels
 
-    run_parms(pulse_parms)
+    run_simulation_with_parameters(pulse_parms)
 
-    pulse_parms['input_md_name'] = os.path.abspath(md_name)
-
+    # Setup new restart files based on just-finished pulse
+    pulse_parms['input_md_name'] = os.path.abspath(basename)
     pulse_in_top, pulse_in_crds, pulse_in_vels = \
-      get_restart_files(md_name)
+      get_restart_files(basename)
 
   os.chdir(save_dir)
 
-  merge_simulations(force_field, md_name, pulses)
+  merge_simulations(force_field, basename, pulses)
   util.clean_fname(*pulses)
 
-  open(md_name+'.time', 'w').write(timer.str()+'\n')
+  open(basename+'.time', 'w').write(timer.str()+'\n')
 
   util.write_dict(config, parms)
 

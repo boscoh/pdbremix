@@ -121,7 +121,9 @@ def convert_to_namd_atom_names(soup):
 
 
 def expand_restart_files(basename):
-  """Returns expanded restart files based on basename"""
+  """
+  Returns expanded restart files based on basename
+  """
   psf = os.path.abspath(basename + '.psf')
   coor = os.path.abspath(basename + '.coor')
   vel = os.path.abspath(basename + '.vel')
@@ -129,7 +131,9 @@ def expand_restart_files(basename):
 
 
 def get_restart_files(basename):
-  """Returns restart files only if they exist"""
+  """
+  Returns restart files only if they exist
+  """
   psf, coor, vel = expand_restart_files(basename)
   util.check_files(psf, coor)
   if not os.path.isfile(vel):
@@ -138,7 +142,9 @@ def get_restart_files(basename):
 
 
 def soup_from_restart_files(psf, in_coor, in_vel):
-  """Reads a Soup from restart files."""
+  """
+  Reads a Soup from restart files.
+  """
   soup = pdbatoms.Soup(in_coor)
   convert_to_pdb_atom_names(soup)
   for atom, (chain_id, q, mass) in zip(soup.atoms(), read_psf(psf)):
@@ -150,14 +156,17 @@ def soup_from_restart_files(psf, in_coor, in_vel):
     else:
       atom.chain_id = chain_id[0]
   if in_vel:
-    for atom, vel_atom in zip(soup.atoms(), pdbatoms.Soup(in_vel).atoms()):
+    vel_soup = pdbatoms.Soup(in_vel)
+    for atom, vel_atom in zip(soup.atoms(), vel_soup.atoms()):
       v = vel_atom.pos
       v3.set_vector(atom.vel, v[0], v[1], v[2])
   return soup
 
 
 def write_soup_to_crds_and_vels(in_soup, basename):
-  """From soup, writes out the coordinate/velocities, used for pulsing"""
+  """
+  From soup, writes out the coordinate/velocities, used for pulsing
+  """
   soup = in_soup.copy()
   convert_to_namd_atom_names(soup)
   coor = basename + '.coor'
@@ -170,12 +179,16 @@ def write_soup_to_crds_and_vels(in_soup, basename):
 
 
 def convert_restart_to_pdb(basename, pdb):
-  """Converts restart files with basename into PDB file"""
+  """
+  Converts restart files with basename into PDB file.
+  """
   psf, coor, vel = get_restart_files(basename)
   soup = soup_from_restart_files(psf, coor, vel)
   soup.write_pdb(pdb)
     
 
+
+# ##########################################################
 
 # # 2. Generate restart files from PDB
 
@@ -469,16 +482,12 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10.0):
 # Simulation approach for implicit solvent:
 # - optional positional constraints: 100 kcal/mol/angs**2 
 # - Langevin thermostat for constant temperature
-# - Nose-Hoover barometer with flexible periodic box size
 
 # Simulation approach for explict water: 
-# - cubic periodic box 
+# - periodic box with PME electrostatics
 # - optional positional restraints: 100 kcal/mol/angs**2
-# - PME electrostatics on the periodic box
 # - Langevin thermostat for constant temperature
 # - Nose-Hoover barometer with flexible periodic box size
-
-# - force constant: kcal/mol/angs^2
 
 # Binaries used:
 # 1. mdrun
@@ -971,9 +980,8 @@ def merge_trajectories(psf, dcds, out_dcd):
 
 def merge_simulations(basename, pulses):
   """
-  Given a list of directories with partial trajectories in each directory
-  with the same basename for the md, will splice them together into one uber
-  simulation.
+  Splices together a bunch of simulations, all with the same
+  basename, into one large simulation in the current directory.
   """
   for ext in ['.psf', '.coor', '.vel']:
     fname = '%s%s' % (basename, ext)

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 __doc__ = """
-This module provides the Soup that interacts with PDB
+This module provides the Soup object that interacts with PDB
 structures, MD restart files and trajectories.
 
 The Soup object contains a list of Atom objects, which are also
@@ -30,8 +30,8 @@ class Atom:
   This is the basic object to hold Atom information.
 
   The attributes are basically those of a PDB atom field.
-  However, pos and vel are proper vectorsthat can be manipulated
-  with the v3 vector geometry library.  
+  However, pos and vel are proper vectors that can be manipulated
+  with the v3 3d-vector geometry library.  
   """
 
   def __init__(self, pos=None, atom_type="", res_num=None):
@@ -308,6 +308,8 @@ class Residue:
     return atom_type in self._atom_dict.keys()
     
   def change_atom_type(self, atom_type1, atom_type2):
+    if not self.has_atom(atom_type1):
+      return
     atom = self._atom_dict[atom_type1]
     atom.type = atom_type2
     del self._atom_dict[atom_type1]
@@ -372,8 +374,8 @@ class Soup(AtomList):
   The methods residues() and atoms() provide access to the
   data structures. 
 
-  Inserting of residues should be done here, as the insertion and
-  deleting methods will handle both the atom and residue lists.
+  Inserting of residues should be done here, as Soup will 
+  administer both atom and residue lists.
   """
 
   def __init__(self, fname=""):
