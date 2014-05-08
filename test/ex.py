@@ -8,10 +8,10 @@ from pdbremix import util
 
 ff = 'NAMD2.8'
 ff = 'GROMACS4.5'
-ff = 'AMBER11'
 pdb = 'pdb/1cph.pdb'
-ff = 'AMBER11-GBSA'
 ff = 'NAMD2.8'
+ff = 'AMBER11-GBSA'
+ff = 'AMBER11'
 pdb = 'pdb/hairpin.pdb'
 
 
@@ -79,6 +79,7 @@ def test_puff():
   simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
   util.goto_dir(save_dir)
 
+
 def test_restraint():
   prepare_for_md()
   util.goto_dir(sim_dir)
@@ -90,7 +91,7 @@ def test_restraint():
   for atom in soup.residue(2).atoms():
     atom.bfactor = 1.0
   soup.write_pdb(restraint_pdb)
-  simulate.langevin(
+  simulate.langevin_thermometer(
       ff, top, crds, vels, 1000, 300, 'md',  10, restraint_pdb=restraint_pdb)
   util.goto_dir(save_dir)
 

@@ -1,4 +1,47 @@
-# -*- coding: utf-8 -*-
+# encoding: utf-8
+
+__doc__ = """
+This module provides functions to calculate velocity changes
+in Soup objects due to different types of applied forces. This
+can be saved to restart files for AMBER, NAMD and GROMACS.
+
+There are four functions that are to be used:
+
+1. make_atd_fn(i_residue, heating_temp, backbone_atoms)
+
+2. make_puff_fn(
+    domain1, domain2, target_val, dt=0.1, temp=None, 
+    is_backbone_only=False, is_first_domain_only=False, 
+    force_fname='md.puff.out')
+
+3. make_puff_acc_fn(
+    domain1, domain2, target_val, dt=0.1, temp=None, 
+    is_backbone_only=False, is_first_domain_only=False, 
+    force_fname='md.puff.out')
+
+4. make_rip_fn(i_res, heating_temp)
+
+
+These are all function factories to generate a function in the
+form:
+
+   def pulse_fn(soup): 
+     # change soup velocities
+     
+The calculations of velocities and energies used here are 
+mainly:
+
+- velocity: Ångstrom/ps
+- work/energy: Da*angs/ps^2
+- mass: Da
+
+However, various conversions are needed to connect with various
+thermostatistical identites as well as for output. For instance,
+kinetic energies calculated from mass and velocities result in
+the units: Da⋅Ångstrom^2/ps^2, which need to be converted to
+kcal/mol for output. 
+"""
+
 
 import os
 import random
@@ -10,53 +53,17 @@ import pdbatoms
 import v3
 import data
 
-# ---------------------------------------------------
-# Standard units for this moduele:
-# ---------------------------------------------------
-# Velocity units: Ångstrom/ps
-# Energy units: Da⋅Ångstrom^2/ps^2
-# Mass units: Da
-# ---------------------------------------------------
-
-# 1 Da = 1.66E-27 kg
-# boltzmann = 1.3806488E-23 J/K 
-#           = 1.3806488E-23 kg⋅m^2/s^2/K 
-#           = 1.3806488E-23/1.66E-27 Da⋅m^2/s^2/K
-boltzmann_in_DaMSqPerSSqPerK = 8314.47148  
-
-# momentum
-# Da⋅Å/ps = 1.66E−27 kg⋅E-10 m/E-12 s = 1.66E-25 kg⋅m/s 
-#         = 1.66E-25 N⋅s = 1.66E-25⋅E12⋅E12 pN⋅ps
-momentum_DaAngPerPs_to_pNps = 1.66E-1
-
-# energy/work units
-# force = Da⋅Å/ps/ps = 1.66E-13 kg⋅m/s/s = 1.66E-13 N = 1.66E-1 pN
-# work = energy = Da⋅Å⋅Å/ps/ps = Da⋅Å/ps/ps ⋅ Å = 1.66E-1 pNÅ
-work_DaAngSqPerPsSq_to_pNAng = 1.66E-1
-work_Nm_to_kcal = 0.000238846
-avogadro = 6.02214179E23
-work_pNAng_to_kcalPerMol = 1E-12*1E-10*work_Nm_to_kcal*avogadro
-
-# velcoity units
-vel_mPerS_to_AngsPerPs = 0.01 # from m/s to angstroms/ps
-velsq_mPerS_to_AngsPerPs = 1.0E-4 # (m/s)^2 to (angstroms/ps)^2
-
-# typical molecular-dynamics integration time-step
-timestep_in_ps = 0.001 
 
 
-# Atom maniuplation
+##########################################################
+# Heating functions
 
-def get_atoms_of_residues(soup, residues, selection=None):
-  atoms = []
-  for i in residues:
-    res_atoms = soup.residue(i).atoms()
-    if selection:
-      res_atoms = [a for a in res_atoms if a.type in selection]
-    atoms.extend(res_atoms)
-  return atoms
-  
+
+
 def average_vel(atoms):
+  """
+  Returns the mass-averaged velocity of atoms.
+  """
   momentum = v3.vector()
   mass = 0.0
   for a in atoms:
@@ -64,7 +71,27 @@ def average_vel(atoms):
     mass += a.mass
   return v3.scale(momentum, 1.0/mass)
 
+
+# Work/energy conversions
+# force = Da⋅Å/ps/ps 
+#       = 1.66E-13 kg⋅m/s/s 
+#       = 1.66E-13 N 
+#       = 1.66E-1 pN
+# work/energy = Da⋅Å⋅Å/ps/ps 
+#             = Da⋅Å/ps/ps ⋅ Å 
+#             = 1.66E-1 pNÅ
+work_DaAngSqPerPsSq_to_pNAng = 1.66E-1
+work_Nm_to_kcal = 0.000238846
+avogadro = 6.02214179E23
+work_pNAng_to_kcalPerMol = 1E-12*1E-10*work_Nm_to_kcal*avogadro
+
+# molecular-dynamics integration time-step
+timestep_in_ps = 0.001 
+
 def add_vel_to_atoms(atoms, vel_diff):
+  """
+  Adds vel_diff to the vel vector of atoms.
+  """
   for a in atoms:
     a.vel_last = a.vel
     a.vel += vel_diff
@@ -73,30 +100,51 @@ def add_vel_to_atoms(atoms, vel_diff):
         work_DaAngSqPerPsSq_to_pNAng
 
 
-# Heating functions
+# Velocity conversions
+vel_mPerS_to_AngsPerPs = 0.01 
+velsq_mPerS_to_AngsPerPs = 1.0E-4 
+# Boltzmann constant
+#    = 1.3806488E-23 J/K 
+#    = 1.3806488E-23 kg ⋅ m^2/s^2/K 
+#    = 1.3806488E-23 1/1.66E-27Da ⋅ m^2/s^2/K
+#    = 8314.47148 Da⋅m^2/s^2/K
+boltzmann_in_DaMSqPerSSqPerK = 8314.47148  
 
 def maxwell_velocity(temp, mass):
   """
-  input: temp in K, mass in Da
-  output: velocity in Ångstroms/ps
+  Returns a velocity (in angs/ps) sampled from a Maxwell velocity
+  distribution determined by mass and temp. 
   """
-  velsq_ave = boltzmann_in_DaMSqPerSSqPerK * temp / mass # in (m/s)^2
-  return random.gauss(0, math.sqrt(velsq_ave)) * vel_mPerS_to_AngsPerPs
+  velsq_ave = boltzmann_in_DaMSqPerSSqPerK * temp / mass 
+  return random.gauss(0, math.sqrt(velsq_ave)) * \
+         vel_mPerS_to_AngsPerPs
 
 
 def mean_energy(temp, n_degree_of_freedom):
-  "output in Da (angs/ps)^2"
-  return n_degree_of_freedom * 0.5 * boltzmann_in_DaMSqPerSSqPerK * \
-         temp * velsq_mPerS_to_AngsPerPs # Da (angstroms/ps)^2
+  """
+  Returns the average energy (Da*angs/ps^2) of n degree of 
+  freedom at temperature. if n_degree_of_freedom = 3,
+  this is the average energy of a point particle.
+  """
+  return 0.5 * n_degree_of_freedom * temp * \
+         boltzmann_in_DaMSqPerSSqPerK * \
+         velsq_mPerS_to_AngsPerPs 
 
 
 def random_energy(temp, n_degree_of_freedom):
+  """
+  Returns an energy (Da*angs/ps^2) sampled from a Maxwellian
+  distribution of energies at temp.
+  """
   average = mean_energy(temp, n_degree_of_freedom);
   std_dev = math.sqrt(average)
   return random.gauss(average, std_dev)
 
   
 def kinetic_energy(atoms):
+  """
+  Returns the kinetic energy (Da*angs/ps^2) of the atoms.
+  """
   en = 0.0
   for a in atoms:
     vel = v3.mag(a.vel)
@@ -105,7 +153,10 @@ def kinetic_energy(atoms):
 
 
 def gas_randomize(atoms, temp):
-  "Heats residues uses gas approximation: vel: angstroms/ps"
+  """
+  Randomly assigns a velocity to atoms based on a Maxwellian
+  distribution at temp.
+  """
   for atom in atoms:
     v3.set_vector(
         atom.vel,
@@ -114,8 +165,27 @@ def gas_randomize(atoms, temp):
         maxwell_velocity(temp, atom.mass))
 
 
+def make_atd_fn(i_residue, heating_temp, backbone_atoms):
+  """
+  Returns a function that applies velocity changes for the
+  original Anisotropic Thermal Diffusion technique, which
+  is essentially a localized thermostat on a single sidechain.
+  """
+  def gas_heat_sidechain(
+      soup, i_residue, heating_temp, backbone_atoms):
+    atoms = [a for a in soup.residue(i_residue).atoms() 
+             if a.type not in backbone_atoms]
+    gas_randomize(atoms, heating_temp)
+  return lambda soup: gas_heat_sidechain(
+      soup, i_residue, heating_temp, backbone_atoms)
+
+
 def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):
-  "Scales velocity of atoms to energy at temp. Vel: angstroms/ps"
+  """
+  Classic Anderson thermometer: controls the temperature
+  by scaling the velocity of atoms until the average energy
+  reaches the average velocity consistent with the given temp.
+  """
   target_energy = mean_energy(temp, n_degree_of_freedom)
   kin = kinetic_energy(atoms)
   if v3.is_similar_mag(kin, 0):
@@ -126,12 +196,35 @@ def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):
       v3.set_vector(atom.vel, v3.scale(atom.vel, scaling_factor))
 
 
-# Push functinos
+
+##########################################################
+# Pushing functions
+
+
+def get_atoms_of_residues(soup, res_indices, atom_types=None):
+  """
+  Return atoms of soup that belong to residues indicated by
+  res_indices and in atom_types.
+  """
+  atoms = []
+  for i in res_indices:
+    res_atoms = soup.residue(i).atoms()
+    if atom_types:
+      res_atoms = [a for a in res_atoms if a.type in atom_types]
+    atoms.extend(res_atoms)
+  return atoms
+  
 
 class PushApartByVel():
   """
-  This is probably the most common case, push apart two domains
-  using a maximum target velocity.
+  Strategy to appy forces to push apart two domains in a Soup.
+
+  This class will not be directly used. Rather the associated
+  make_puff_fn() will initialize an instance of PushApartByVel in
+  a closure and return the apply(soup) method via a lambda
+  to the pulse simulation of simulate.py. This closure will
+  allow complex initiations to be remembered during the course
+  of a pulsed simulation.
   """
   def __init__(
       self, domain1, domain2, target_val, dt=0.1,
@@ -211,6 +304,11 @@ class PushApartByVel():
       f.write(out_s)
 
   def apply(self, soup):
+    """
+    Apply velocity changes to the soup that will induce the
+    pulling. This is the key method that will be exported to the
+    pulse() function of simulate.py.
+    """
     self.soup = soup
     self.setup_domains()
     self.change_vels()
@@ -222,6 +320,12 @@ def make_puff_fn(
     domain1, domain2, target_val, dt=0.1, temp=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
+  """
+  Returns a function for simulate.py that implements 
+  PushApartByVel. 
+
+  This is the main interface to the pulsing function.
+  """
   strategy = PushApartByVel(
       domain1, domain2, target_val, dt, temp, 
       is_backbone_only, is_first_domain_only, 
@@ -231,6 +335,11 @@ def make_puff_fn(
 
 
 def read_puff_out(md_dir):
+  """
+  Yields a dictionary representing the properties of 
+  PushApartByVel at each frame of a pulsed simulation from the
+  specified md.puff.out file.
+  """
   # get time in ps, typical MD step is 0.001 ps = 1 fs
   config = os.path.join(md_dir, 'md.puff.config')
   parms = util.read_dict(config)
@@ -245,7 +354,8 @@ def read_puff_out(md_dir):
 
 class PushApartByAcc(PushApartByVel):
   """
-  The simplest push: a constant force, acceleartion taken from target_val.
+  A Strategy class that push apart two domains in Soup
+  with constant acceleartion.
   """
   def change_vels(self):
     # calculate the vel diff vector to apply
@@ -270,6 +380,9 @@ def make_puff_acc_fn(
     domain1, domain2, target_val, dt=0.1, temp=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
+  """
+  Returns a function that implements PushApartByAcc.
+  """
   strategy = PushApartByAcc(
       domain1, domain2, target_val, dt, temp, 
       is_backbone_only, is_first_domain_only, force_fname)
@@ -277,47 +390,54 @@ def make_puff_acc_fn(
   return pulse_fn
 
 
-# ATD sidechain heating
-
-def make_atd_fn(i_residue, heating_temp, backbone_atoms):
-  def gas_heat_sidechain(
-      soup, i_residue, heating_temp, backbone_atoms):
-    atoms = [a for a in soup.residue(i_residue).atoms() 
-             if a.type not in backbone_atoms]
-    gas_randomize(atoms, heating_temp)
-  return lambda soup: gas_heat_sidechain(
-      soup, i_residue, heating_temp, backbone_atoms)
-
-
-# General rotation functions
+##########################################################
+# 3. Rotation functions
 
 # Rotational Units
 # --------------------------------------------------------
-# rotational-velocity = º/ps = E+12 º/s 
-# rotational-acceleration = º/ps/ps = E+24º/s/s
-# moment-of-inertia = Da⋅Å⋅Å 
-#                   = 1.66E-27 kg⋅E-10m⋅E-10m 
-#                   = 1.66E-47 kg⋅m^2
+# rotational-velocity:
+#    1 º/ps = E+12 º/s 
+# rotational-acceleration:
+#    1 º/ps/ps = E+24º/s/s
+# moment-of-inertia
+#    1 Da⋅Å⋅Å = 1.66E-27 kg⋅E-10m⋅E-10m 
+#             = 1.66E-47 kg⋅m^2
 # torque = moment-of-inertia*rotational-acceleration
-#        = Da⋅Å⋅Å ⋅ º/ps/ps 
-#        = 1.66E-47 kg⋅m^2 ⋅ E+24⋅º/s/s
-#        = 1.66E-23 º⋅m⋅kg⋅m/s/s 
-#        = 1.66E-23 m⋅N
+#    Da⋅Å⋅Å⋅º/ps/ps  = 1.66E-47 kg⋅m^2 ⋅ E+24⋅º/s/s
+#                   = 1.66E-23 º⋅m⋅kg⋅m/s/s 
+#                   = 1.66E-23 º⋅m⋅N
 # force = torque/radius
-#       = Da⋅Å⋅Å⋅º/ps/ps / Å 
-#       = 1.66E-23 m⋅N/E-10m
-#       = 1.66E-13 N
-#       = 1.66 E-1 pN
+#    Da⋅Å⋅Å⋅º/ps/ps / Å = 1.66E-23 m⋅N/E-10m
+#                      = 1.66E-13 N
+#                      = 1.66 E-1 pN
+
 
 def moment_of_inertia(atom, axis, anchor):
-  "Returns moment in Da*angstroms^^2"
+  """
+  Returns the moment (DaAng^^2) of the atom connected to
+  anchor around axis.
+  """
   r = atom.pos - anchor
   r_perp = v3.perpendicular(r, axis)
   r_len = v3.mag(r_perp)
   return atom.mass * r_len * r_len
 
 
+def total_moment_of_inertia(atoms, axis, anchor):
+  """
+  Returns the total moment (DaAng^^2) of a bunch of atoms that
+  are connected to anchor around axis.
+  """
+  moments = [moment_of_inertia(atom, axis, anchor)
+             for atom in atoms]
+  return sum(moments)
+    
+
 def rotational_velocity(atom, axis, anchor):
+  """
+  Returns the rotational velocity (rad/ps) of the atom connected
+  to anchor around axis.
+  """
   r = atom.pos - anchor
   r_perp = v3.perpendicular(r, axis)
   vel_perp = v3.perpendicular(atom.vel, axis)
@@ -334,13 +454,11 @@ def rotational_velocity(atom, axis, anchor):
   return result
   
 
-def total_moment_of_inertia(atoms, axis, anchor):
-  moments = [moment_of_inertia(atom, axis, anchor)
-             for atom in atoms]
-  return sum(moments)
-    
-
 def weighted_rotational_velocity(atoms, axis, anchor):
+  """
+  Returns the average rotational velocity (rad/ps) of a bunch of
+  a atoms weighted by the moment of the atom.
+  """
   moments = [ \
       moment_of_inertia(atom, axis, anchor) for atom in atoms]
   total_moment = sum(moments)
@@ -353,6 +471,10 @@ def weighted_rotational_velocity(atoms, axis, anchor):
 
 
 def add_rotational_velocity(atoms, rot_vel, axis, anchor):
+  """
+  Adds the rot_vel to the vel vector of atoms with respect
+  to the rotation around axis and attached to anchor.
+  """
   for atom in atoms:
     r_perp = v3.perpendicular(atom.pos - anchor, axis)
     v_tang_dir = v3.cross(axis, r_perp)
@@ -365,11 +487,14 @@ def add_rotational_velocity(atoms, rot_vel, axis, anchor):
     atom.vel += v_tang
   
 
+##########################################################
 # Sidechain rotation functions
 
 def get_res_chi_topology(res):
   """
-  Gets the atom types for each chi angle in a residue type
+  Returns the chi topology for a given res, which is a list of
+  atoms that are affected if one rotates the chi0, chi1... 
+  dihedral angle.
   """
   res_type = res.type
   if res_type not in data.chi_topology:
@@ -387,12 +512,18 @@ def get_res_chi_topology(res):
 
 
 def get_n_chi(res):
+  """
+  Returns the number of chi angles that res has.
+  """
   if data.chi_topology.has_key(res.type):
     return len(data.chi_topology[res.type])
   return 0
 
 
 def calculate_chi(res, j):
+  """
+  Returns the angle for the j'th chi dihedral angle of res.
+  """
   res_chi_topology = get_res_chi_topology(res)
   if j < len(res_chi_topology):
     p = [res.atom(atom_type).pos for atom_type in res_chi_topology[j]]
@@ -401,6 +532,10 @@ def calculate_chi(res, j):
 
 
 def get_axis_anchor(res, i_chi):
+  """
+  Returns the axis of rotation and an anchor point of the i_chi
+  chi dihedral angle of res.
+  """
   chi_topology = get_res_chi_topology(res)
   p = [res.atom(a).pos for a in chi_topology[i_chi]]
   axis = p[2] - p[1]
@@ -410,7 +545,8 @@ def get_axis_anchor(res, i_chi):
     
 def atoms_affected_by_chi(res, i_chi):
   """
-  Identifies chi angle from atom_type: -1=backbone, 0=chi1, etc.
+  Returns the atoms in res that will be rotated if the i_chi
+  chi dihedral angle is rotated.
   """
   def sidechain_nesting(atom_type):
     label = atom_type
@@ -425,16 +561,26 @@ def atoms_affected_by_chi(res, i_chi):
       if label[0] == "H":
         nesting += 1
     return nesting
-  return [a for a in res.atoms() if sidechain_nesting(a.type) >= i_chi]
+  return [a for a in res.atoms()
+          if sidechain_nesting(a.type) >= i_chi]
 
 
-def get_rot_vel_chi(res, i):
-  axis, anchor = get_axis_anchor(res, i)    
-  atoms = atoms_affected_by_chi(res, i)
+def get_rot_vel_chi(res, i_chi):
+  """
+  Returns the weighted rotational velocity of the atoms 
+  that are rotated by the ith chi angle.
+  """
+  axis, anchor = get_axis_anchor(res, i_chi)    
+  atoms = atoms_affected_by_chi(res, i_chi)
   return weighted_rotational_velocity(atoms, axis, anchor)
 
 
 def get_random_chi_rot_vel(res, i, temp):
+  """
+  Returns a random energy from a Maxwellian energy distribution
+  consistent with the number of degrees of freedom of the
+  atoms involved in the i_chi angle.
+  """
   axis, anchor = get_axis_anchor(res, i)
   atoms = atoms_affected_by_chi(res, i)
   moment = total_moment_of_inertia(atoms, axis, anchor)
@@ -443,12 +589,20 @@ def get_random_chi_rot_vel(res, i, temp):
 
 
 def add_rot_vel_to_chi(res, i, target_rot_vel):
+  """
+  Adds target_rot_vel to the atoms affected by i around the
+  chi axis.
+  """
   axis, anchor = get_axis_anchor(res, i)
   atoms = atoms_affected_by_chi(res, i)
   add_rotational_velocity(atoms, target_rot_vel, axis, anchor)
 
 
 class Rip:
+  """
+  Strategy class to implement the rotational velocity changes
+  to a soup object. To be used by make_rip_fn.
+  """
   def __init__(self, i_res, heating_temp):
     self.i_res = i_res
     self.heating_temp = heating_temp
@@ -484,6 +638,10 @@ class Rip:
 
 
 def make_rip_fn(i_res, heating_temp):
+  """
+  Returns a function for simulate.py that implements 
+  Rip. 
+  """
   rip = Rip(i_res, heating_temp)
   return lambda soup: rip.apply(soup)
 

@@ -279,6 +279,12 @@ class TotalKineticEnergyAnalyzer(TrajectoryAnalyzer):
     self.file.write(
         "%f %f %f\n" % (time, energy, energy / self.n_atom))
 
+  def print_res_averages_per_ps(self):
+    """
+    Override, not needed. 
+    """
+    pass
+
 
 
 def guess_n_frame_per_ps(basename):
