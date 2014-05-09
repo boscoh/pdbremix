@@ -4,7 +4,7 @@ __doc__ = """
 Checks the existence of external binaries required for PDBREMIX
 
 PDBREMIX is a python library that wraps several common structural
-biology tools. For full,  functionality, install all indicated
+biology tools. For full functionality, install all indicated
 binaries.
 
 Usage: checkpdbremix [-o]

@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Generates loop insertions for PDB using Modeller
+Inserts loops into PDB using Modeller
 
-Usage: pdbinsert [options] <pdb> <name> [<resname> <seq>] ...
+Usage: pdbinsert [-m <n_model>] <pdb> <name> [<resname> <seq>] ...
 
-Options:
-  -m <n_model>   number of models [default: 5]
-  <resname>  loop is inserted after this residue. 
-              e.g. "A:15", "B:9E" etc.
-  <name>   Results are stored in this directory.
+Args:
+  -m <n_model>  number of models [default: 5]
+  <pdb>         PDB file 
+  <name>        directory in which results are stored
+  <resname>     residue indicating the insertion point of loop.
+                e.g. "A:15" meaning chain "A" and residue "15"
+  <seq>         the sequence of loop to be inserted.
 """
 
 
@@ -127,6 +129,10 @@ def find_insertion(test_res_id, pairs):
   
 def make_template_sequences_and_pdb(
     raw_pdb, pdb, insertions):
+  """
+  Returns the template sequence and target sequence of an 
+  insertion, as well as the template PDB file.
+  """
   p = pdbatoms.Soup(raw_pdb)
   template_seq = ""
   target_seq = ""
@@ -184,6 +190,9 @@ def make_template_sequences_and_pdb(
 
 
 def read_sorted_energy_pdb(basename):
+  """
+  Returns a ranked list of MODELLER scores and output PDB files.
+  """
   results = []
   for fname in glob.glob(basename + '.DL*'):
     lines = [l for l in open(fname, 'r').readlines() if l.strip()]
@@ -191,28 +200,25 @@ def read_sorted_energy_pdb(basename):
     energy = float(words[1])
     pdb = fname.replace('DL', 'BL')+'.pdb'
     pdb = os.path.abspath(pdb)
-    if not os.path.isfile(pdb):
-      raise Exception("File not found " + pdb)
     results.append((energy, pdb))
   results.sort(reverse=True)
   return results
 
 
-def change_resids_in_pdb(in_pdb, out_pdb, resids):
-  soup = pdbatoms.Soup(in_pdb)
-  for resid, r in zip(resids, soup.residues()):
-    chain_id, num = resid.split(":")
-    num = int(num)
-    r.set_chain_id(chain_id)
-    r.set_num(num)
-  soup.write_pdb(out_pdb)  
-
-
 def insert_sequences_into_pdb(
     raw_pdb, basename, insertions, n_model):
   """
-  insertions: list of pairs, each pair 
-  [('B:23', 'Q')] insertion point and insert
+  Runs MODELLER to insert loops into a PDB file.
+
+  Args:
+    - insertions: list of insertions
+
+  An insertion is a 2-tuple of strings e.g. [('B:23', 'Q')],
+  which consists of:
+    1. the residue tag of the insertion point 'B:23', which
+       in this case refers to chain 'B' and residue number '23'
+    2. the sequence of the insertion, which here is 'Q' glutamine
+
   """
   save_dir = os.getcwd()
 
@@ -226,17 +232,17 @@ def insert_sequences_into_pdb(
   pdbtext.clean_pdb(raw_pdb, clean_pdb)
 
   print "Generating alignment sequences"
-  pdb = basename + '.init.pdb'
+  template_pdb = basename + '.init.pdb'
   template_seq, target_seq = make_template_sequences_and_pdb(
-      clean_pdb, pdb, insertions)
+      clean_pdb, template_pdb, insertions)
 
   initial_name = 'init'
   align_file = basename + '.ali'
   make_alignment_file(
-      align_file, pdb, initial_name, basename,
+      align_file, template_pdb, initial_name, basename,
       template_seq, target_seq)
 
-  print "Running modeller"
+  print "Running MODELLER ..."
   model_loop(
       align_file, template_seq, initial_name, basename, n_model)
 
@@ -260,10 +266,10 @@ def insert_sequences_into_pdb(
 if __name__ == "__main__":
   arg = docopt(__doc__)
 
-  print ">>> Generating PDB structure with inserted loops"
+  print ">>> Inserting loops into PDB structure"
 
   pdb = arg['<pdb>']
-  print "Template PDB:", pdb
+  print "PDB:", pdb
 
   insertions = list(zip(arg['<resname>'], arg['<seq>']))
   for i, (resname, seq) in enumerate(insertions):
