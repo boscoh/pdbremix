@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Checks the existence of external binaries required for PDBREMIX
+
+PDBREMIX is a python library that wraps several common structural
+biology tools. For full,  functionality, install all indicated
+binaries.
+
+Usage: checkpdbremix [-o]
+
+  -o   just print out binaries.json location
+"""
+
+import glob
+import os
+
+from pdbremix import util
+from pdbremix import data
+from pdbremix.lib.docopt import docopt
+
+
+arg = docopt(__doc__)
+
+if arg['-o']:
+  print data.binaries_fname
+else:
+  print __doc__
+
+  print "Binary override configuration file:"
+  print
+  print "  - " + data.binaries_fname
+  print
+  print "Edit this file for your system."
+  print
+
+  found_binaries = []
+  missing_binaries = []
+  overriden_binaries = []
+  for key, val in data.binaries.items():
+    if val.strip() == "":
+      if util.which(key):
+        found_binaries.append(key)
+      else:
+        missing_binaries.append(key)
+    else:
+      overriden_binaries.append(key)
+
+  if overriden_binaries:
+    print "Binary overrides are:"
+    print
+    for bin in overriden_binaries:
+      print "  - \"%s\" => \"%s\"" % (bin, data.binaries[bin])
+    print
+
+  if found_binaries:
+    print "Other binaries used by PDBREMIX found on path:"
+    print
+    for bin in found_binaries:
+      print "  - \"%s\" is there" % bin
+  print
+
+  if missing_binaries:
+    print "Binaries used by PDBREMIX that are missing:"
+    print
+    for bin in missing_binaries:
+      print "  - \"%s\" is there" % bin
+  else:
+    print "You're doing great: no binaries are missing"
+  print
+
