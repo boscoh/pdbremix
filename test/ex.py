@@ -6,31 +6,40 @@ from pdbremix import force
 from pdbremix import util
 
 
-ff = 'NAMD2.8'
-ff = 'GROMACS4.5'
 ff = 'AMBER11-GBSA'
 ff = 'AMBER11'
-pdb = 'pdb/hairpin.pdb'
 
 ff = 'NAMD2.8'
 pdb = 'pdb/1cph.pdb'
-i_residue = 19
+i_residue = 18
 rip_res_type = "TYR"
+
+ff = 'GROMACS4.5'
+
+ff = 'NAMD2.8'
+pdb = 'pdb/hairpin.pdb'
+i_residue = 2
+rip_res_type = "TRP"
+
 
 pdb = os.path.abspath(pdb)
 name = os.path.splitext(os.path.basename(pdb))[0]
 sim_dir = 'md/%s/%s' % (ff, name)
 
-util.clean_fname(sim_dir)
+# util.clean_fname(sim_dir)
 
 save_dir = os.getcwd()
 
 
 def prepare_for_md():
   util.goto_dir(sim_dir)
+
+  print "Making topologies"
   top, crds = simulate.pdb_to_top_and_crds(ff, pdb, 'sim')
   util.goto_dir('min')
   top, crds, vels = simulate.get_restart_files('../sim')
+
+  print "Minimization"
   simulate.minimize(ff, top, crds, 'min')
   util.goto_dir(save_dir)
 
@@ -41,7 +50,10 @@ def test_prepare_for_md():
 
 def test_basic_md_merge():
   prepare_for_md()
+
   util.goto_dir(sim_dir)
+
+  print "Two part equilibration merge:"
   util.goto_dir('md1')
   top, crds, vels = simulate.get_restart_files('../min/min')
   simulate.langevin_thermometer(ff, top, crds, vels, 1000, 300, 'md', 10)
@@ -59,12 +71,16 @@ def test_basic_md_merge():
 def test_rip():
   prepare_for_md()
   util.goto_dir(sim_dir)
+
+  print "RIP"
   util.goto_dir('rip')
   md = '../md_merge/md'
   top, crds, vels = simulate.get_restart_files(md)
 
   soup = simulate.soup_from_restart_files(top, crds, vels) 
-  assert soup.residue(i_residue).type == rip_res_type
+  res = soup.residue(i_residue)
+  print res
+  assert res.type == rip_res_type
 
   pulse_fn = force.make_rip_fn(i_residue, 300)
   simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
@@ -74,6 +90,8 @@ def test_rip():
 def test_puff():
   prepare_for_md()
   util.goto_dir(sim_dir)
+
+  print "PUFF"
   util.goto_dir('puff')
   md = '../md_merge/md'
   top, crds, vels = simulate.get_restart_files(md)
@@ -86,6 +104,8 @@ def test_puff():
 def test_restraint():
   prepare_for_md()
   util.goto_dir(sim_dir)
+
+  print "Positional restraintds"
   util.goto_dir('restraint')
   top, crds, vels = simulate.get_restart_files('../min/min')
   restraint_pdb = '../sim.restraint.pdb'

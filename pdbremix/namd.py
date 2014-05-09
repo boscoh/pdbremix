@@ -46,14 +46,16 @@ import pdbtext
 # Standard units used in NAMD are:
 # - positions: angstroms
 # - velocities: angstroms/picosecond
+# - mass: Da
+# - charge: electron-charge
 
 
-def read_psf(psf):
+def soup_from_psf(psf):
   """
-  Returns a list of (mass, charge, chain_id) for the atoms 
-  in the topology file.
+  Returns a Soup from a .psf file
   """
-  result = []
+  soup = pdbatoms.Soup()
+  curr_res_num = None
   is_header = True
   for line in open(psf):
     if is_header:
@@ -62,13 +64,39 @@ def read_psf(psf):
         is_header = False
       continue
     words = line.split()
+    atom_num = int(words[0])
     chain_id = words[1]
-    q = words[6]
-    mass = words[7]
-    result.append((chain_id, q, mass))
-    if len(result) == n_atom:
+    res_num = int(words[2])
+    res_type = words[3]
+    atom_type = words[4]
+    charge = float(words[6])
+    mass = float(words[7])
+    if chain_id.startswith('WT') or chain_id.startswith('ION'):
+      is_hetatm = True
+      chain_id = " "
+    else:
+      is_hetatm = False
+      chain_id = chain_id[0]
+    if curr_res_num != res_num:
+      res = pdbatoms.Residue(res_type, chain_id, res_num)
+      soup.append_residue(res)
+      curr_res_num = res_num
+    atom = pdbatoms.Atom()
+    atom.vel = v3.vector()
+    atom.chain_id = chain_id
+    atom.is_hetatm = is_hetatm
+    atom.num = atom_num
+    atom.res_num = res_num
+    atom.res_type = res_type
+    atom.type = atom_type
+    atom.mass = mass
+    atom.charge = charge
+    atom.element = data.guess_element(res_type, atom_type)
+    soup.insert_atom(-1, atom)
+    if len(soup.atoms()) == n_atom:
       break
-  return result
+  convert_to_pdb_atom_names(soup)
+  return soup
 
 
 def convert_to_pdb_atom_names(soup):
@@ -144,20 +172,15 @@ def get_restart_files(basename):
   return psf, coor, vel
 
 
-def soup_from_restart_files(psf, in_coor, in_vel):
+def soup_from_restart_files(psf, in_coor, in_vel=''):
   """
   Reads a Soup from restart files.
   """
-  soup = pdbatoms.Soup(in_coor)
-  convert_to_pdb_atom_names(soup)
-  for atom, (chain_id, q, mass) in zip(soup.atoms(), read_psf(psf)):
-    atom.mass = float(mass)
-    atom.charge = float(q)
-    if chain_id.startswith('WT') or chain_id.startswith('ION'):
-      atom.is_hetatm = True
-      atom.chain_id = " "
-    else:
-      atom.chain_id = chain_id[0]
+  soup = soup_from_psf(psf)
+  coord_soup = pdbatoms.Soup(in_coor)
+  for atom, coord_atom in zip(soup.atoms(), coord_soup.atoms()):
+    p = coord_atom.pos
+    v3.set_vector(atom.pos, p[0], p[1], p[2])
   if in_vel:
     vel_soup = pdbatoms.Soup(in_vel)
     for atom, vel_atom in zip(soup.atoms(), vel_soup.atoms()):
@@ -496,7 +519,7 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10.0):
 # - Nose-Hoover barometer with flexible periodic box size
 
 # Binaries used:
-# 1. mdrun
+# 1. namd2
 
 # Files for trajectories:
 # 1. coordinate trajectory: md.dcd
@@ -914,8 +937,6 @@ class Trajectory:
   Attributes:
     basename (str) - basename used to guess all required files
     psf (str) - topology file of trajectory
-    coor (str) - restart coordinate file
-    vel (str) - restart velocity file
     dcd (str) - coordinate trajectory file
     vel_dcd (str) - velocity trajectory file
     coor_dcd_reader (DcdReader) - the reader of the coordinates
@@ -932,8 +953,7 @@ class Trajectory:
   def __init__(self, basename):
     self.basename = basename
     self.psf = basename + '.psf'
-    self.coor = basename + '.coor'
-    self.vel = basename + '.vel'
+    self.soup = soup_from_psf(self.psf)
     self.dcd = basename + '.dcd'    
     self.coor_dcd_reader = DcdReader(self.dcd)
     self.vel_dcd = basename + '.vel.dcd'
@@ -941,7 +961,6 @@ class Trajectory:
       self.vel_dcd_reader = DcdReader(self.vel_dcd)
     else:
       self.vel_dcd_reader = None
-    self.soup = soup_from_restart_files(self.psf, self.coor, self.vel)
     self.n_frame = self.coor_dcd_reader.n_frame
     self.i_frame = 0
     self.load_frame(0)

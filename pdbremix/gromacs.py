@@ -199,6 +199,8 @@ def soup_from_top_gro(top, gro, skip_solvent=False):
 
   atoms = []
 
+  # Read from .gro because .top does not contain water
+  # residue information, which is "inferred"
   lines = open(gro, 'r').readlines()
   for i_line, line in enumerate(lines[2:-1]):
     atom = AtomFromGroLine(line)
@@ -766,7 +768,8 @@ class TrrReader:
     self.read_header()
     self.calc_precision()
     self.calc_frame_info()
-    self.load_frame(0)
+    self.i_frame = 0
+    self.load_frame(self.i_frame)
 
   def read_header(self):
     self.u = xdrlib.Unpacker(self.file.read(200))
@@ -912,9 +915,9 @@ class Trajectory(object):
 
 def merge_simulations(basename, pulses):
   """
-  Given a bunch of directories with consecutive trajectories, all with
-  the same basename, the function will splice them into a single 
-  trajctory with basename in the current directory.
+  Given a bunch of directories with consecutive trajectories, all
+  with the same basename, the function will splice them into a
+  single  trajctory with basename in the current directory.
   """
   save_dir = os.getcwd()
 
@@ -933,8 +936,10 @@ def merge_simulations(basename, pulses):
 
   # Copy parameters of last pulse into current directory
   pulse = pulses[-1]
-  for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', '.grompp.mdp', '.gro']:
-    os.system('cp %s/%s*%s .' % (pulse, basename, ext))
+  for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', 
+              '.grompp.mdp', '.gro']:
+    for f in glob.glob('%s/%s*%s' % (pulse, basename, ext)):
+      shutil.copy(f, '.')
 
   os.chdir(save_dir)
     
