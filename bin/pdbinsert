@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
-
 __doc__ = """
 Generates loop insertions for PDB using Modeller
 
-Usage: pdbinsert <pdb> <name> [<resname> <seq>] ...
+Usage: pdbinsert [options] <pdb> <name> [<resname> <seq>] ...
 
- <resname>  loop is inserted after this residue. 
-            e.g. "A:15", "B:9E" etc.
- <name>   Results are stored in this directory.
+Options:
+  -m <n_model>   number of models [default: 5]
+  <resname>  loop is inserted after this residue. 
+              e.g. "A:15", "B:9E" etc.
+  <name>   Results are stored in this directory.
 """
 
 
@@ -206,7 +207,8 @@ def change_resids_in_pdb(in_pdb, out_pdb, resids):
   soup.write_pdb(out_pdb)  
 
 
-def insert_sequences_into_pdb(raw_pdb, basename, insertions):
+def insert_sequences_into_pdb(
+    raw_pdb, basename, insertions, n_model):
   """
   insertions: list of pairs, each pair 
   [('B:23', 'Q')] insertion point and insert
@@ -220,7 +222,7 @@ def insert_sequences_into_pdb(raw_pdb, basename, insertions):
   clean_pdb = basename + '.clean.pdb'
   pdbtext.clean_pdb(raw_pdb, clean_pdb)
 
-  print "Generating alignment templates"
+  print "Generating alignment sequences"
   pdb = basename + '.init.pdb'
   template_seq, target_seq = make_template_sequences_and_pdb(
       clean_pdb, pdb, insertions)
@@ -233,7 +235,7 @@ def insert_sequences_into_pdb(raw_pdb, basename, insertions):
 
   print "Running modeller"
   model_loop(
-      align_file, template_seq, initial_name, basename)
+      align_file, template_seq, initial_name, basename, n_model)
 
   modeller_results = read_sorted_energy_pdb(basename)
 
@@ -244,24 +246,34 @@ def insert_sequences_into_pdb(raw_pdb, basename, insertions):
   f = open(basename+'.scores', 'w')
   for i, (energy, in_pdb) in enumerate(modeller_results):
     out_pdb = basename + '%d.pdb' % (i+1)
-    f.write("Energy:%f, PDB:%s\n" % (energy, out_pdb))
-    # change_resids_in_pdb(in_pdb, out_pdb, resids)
+    f.write("Energy:%f, PDB:%s\n " % (energy, out_pdb))
+    print "Model %d: %s" % (i+1, out_pdb)
     shutil.copy(in_pdb, out_pdb)
   f.close()
+
+  print "Scores:", basename + '.scores'
+
 
 
 if __name__ == "__main__":
   arg = docopt(__doc__)
 
+  print ">>> Generating PDB structure with inserted loops"
+
   pdb = arg['<pdb>']
-  print "PDB:", pdb
+  print "Template PDB:", pdb
   pdb = os.path.abspath(pdb)
 
   insertions = list(zip(arg['<resname>'], arg['<seq>']))
-  print "Insertions:"
   for i, (resname, seq) in enumerate(insertions):
-    print " %d. %s after residue %s" % (i+1, seq, resname)
+    print "Insertion: %d. '%s' after residue %s" % (i+1, seq, resname)
+
+  n_model = int(arg['-m'])
+  print "Number of models:", n_model
 
   basename = arg['<name>']
-  insert_sequences_into_pdb(pdb, basename, insertions)
+
+  insert_sequences_into_pdb(pdb, basename, insertions, n_model)
+
+
 
