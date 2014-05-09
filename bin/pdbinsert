@@ -46,8 +46,9 @@ def make_alignment_file(
   i = n-1
   chain2 = protein.residue(i).chain_id
   res_num2 = protein.residue(i).num
-  f.write('structureX:' + pdb.replace('.pdb', '') + ':%d:%s:%d:%s::::\n' % \
-          (res_num1, chain1, res_num2, chain2))
+  f.write('structureX:%s:%d:%s:%d:%s::::\n' % \
+          (pdb.replace('.pdb', ''), res_num1, 
+           chain1, res_num2, chain2))
   f.write(format_string(template_seq))
 
   f.write('\n>P1;' + basename + '\n')
@@ -215,6 +216,8 @@ def insert_sequences_into_pdb(
   """
   save_dir = os.getcwd()
 
+  raw_pdb = os.path.abspath(raw_pdb)
+
   basename = arg['<name>']
   print "Modeller directory:", basename+'.modeller'
   util.goto_dir(basename+'.modeller')
@@ -254,7 +257,6 @@ def insert_sequences_into_pdb(
   print "Scores:", basename + '.scores'
 
 
-
 if __name__ == "__main__":
   arg = docopt(__doc__)
 
@@ -262,11 +264,10 @@ if __name__ == "__main__":
 
   pdb = arg['<pdb>']
   print "Template PDB:", pdb
-  pdb = os.path.abspath(pdb)
 
   insertions = list(zip(arg['<resname>'], arg['<seq>']))
   for i, (resname, seq) in enumerate(insertions):
-    print "Insertion: %d. '%s' after residue %s" % (i+1, seq, resname)
+    print "Insert: %d. '%s' after residue %s" % (i+1, seq, resname)
 
   n_model = int(arg['-m'])
   print "Number of models:", n_model

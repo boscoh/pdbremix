@@ -31,17 +31,19 @@ import pdbtext
 
 # 1. Reading and writing restart files
 
-# In PDBREMIX, restart files for GROMACS are assumed to
-# have the naming scheme:
+# In PDBREMIX, restart files for NAMD are assumed to
+# have the naming scheme, as chosen by namd2 restart
+# conventions:
 
-# 1. topology file: sim.top
-# 2. coordinate/velocity file: sim.gro
+# 1. topology file: sim.psf
+# 2. coordinate file: sim.coor
+# 2. velocity file: sim.vel
 
-# Parsers have been written to read .top and .gro files into
-# Python structures, and to write these back into .top and .gro
-# files, and to convert them into .pdb files
+# Parsers have been written to read .psf. The .coor and .vel
+# files are simply PDB files. These are the same file formats
+# used by CHARMM.
 
-# The units used in GROMACS are:
+# Standard units used in NAMD are:
 # - positions: angstroms
 # - velocities: angstroms/picosecond
 
