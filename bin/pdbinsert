@@ -232,8 +232,6 @@ def insert_sequences_into_pdb(
 
   modeller_results = get_score_sorted_pdbs(basename)
 
-  resids = [l.split()[0] for l in open(basename + '.init.resid')]
-
   os.chdir(save_dir)
 
   f = open(basename+'.scores', 'w')
