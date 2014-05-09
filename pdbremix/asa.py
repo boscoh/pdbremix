@@ -1,15 +1,17 @@
 # encoding: utf-8
 
 __doc__ = """ 
-Calculate the accessible surface area of a bunch of atoms
 
-It uses the simple Shrake-Rupley algorithm, that generates a relatively
-uniform density of dots over every atoms and eliminates those within the
-sphere of another atom. The  remaining dots is used to calculate the area.
+Calculate the accessible-surface area of atoms.
 
-Reference: A. Shrake & J. A. Rupley. "Environment and Exposure to Solvent of
-Protein Atoms. Lysozyme and Insulin." J Mol Biol. 79 (1973) 351- 371. 
-"""
+Uses the simple Shrake-Rupley algorithm, that generates a
+relatively uniform density of dots over every atoms and
+eliminates those within the sphere of another atom. The remaining
+dots is used to calculate the area.
+
+Reference: A. Shrake & J. A. Rupley. "Environment and Exposure to
+Solvent of Protein Atoms. Lysozyme and Insulin." J Mol Biol. 79
+(1973) 351- 371. """
 
 import math
 
@@ -19,8 +21,8 @@ import pdbatoms
 
 def generate_sphere_points(n):
   """
-  Returns list of 3d coordinates of points on a sphere using the
-  Golden-Section Spiral algorithm.
+  Returns list of coordinates on a sphere using the Golden-
+  Section Spiral algorithm.
   """
   points = []
   inc = math.pi * (3 - math.sqrt(5))
@@ -52,8 +54,9 @@ def find_neighbor_indices(atoms, probe, k):
 
 def calculate_asa(atoms, probe, n_sphere_point=960):
   """
-  Returns list of accessible surface areas of the atoms,
-  using the probe and atom radius to define the surface.
+  Returns the accessible-surface areas of the atoms, by rolling a
+  ball with probe radius over the atoms with their radius
+  defined.
   """
   sphere_points = generate_sphere_points(n_sphere_point)
  

@@ -2,7 +2,9 @@
 
 __doc__ = """
 Displays an AMBER MD trajectory using PYMOL
-*Not recommended for large systems
+
+*Not recommended for large systems. 
+
 Defaults to cartoon w/stick sidechains and no hydrogens
 
 Usage: trajpymol [-fdeb <bgcolor>] <md> [<res>]

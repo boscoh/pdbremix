@@ -1,11 +1,12 @@
 # encoding: utf-8
 
 __doc__ = """
-A 3D vector geometry library that relies on numpy.
 
-The vector and matrix objects are subclassd from numpy.array. 
+3D vector geometry library based on numpy.
+
+The vectors and transform matrices are subclassd from numpy.array. 
 All operations are accessed through functions, allowing easy
-switching with other libraries.
+switching with other libraries, such as v3array.
 """
 
 import math
@@ -19,7 +20,7 @@ def vector(*args):
   Creates a new vector
 
   Args:
-    none: returns zero vector
+    None: returns zero vector
     v (vector): returns copy of v
     x, y, z: returns (x, y, z)
   """
@@ -39,7 +40,11 @@ def vector(*args):
 
 def set_vector(*args):
   """
-  Changes values of a vector in place
+  Changes values of vector in place
+
+  Args:
+    v (vector), w (vector): copies values of w into v
+    v (vector), x, y, z: copiex x, y, z into v
   """
   vector = args[0]
   if len(args) == 2:
@@ -57,7 +62,7 @@ def mag(vector):
 
 def scale(vector, s):
   """
-  Returns a vector that has been scaled by s.
+  Returns vector that has been scaled by s.
   """
   return  s*vector
 
@@ -67,7 +72,7 @@ dot = np.dot
 
 def norm(vector):
   """
-  Returns a version of the vector normalized to magnitude=1.0
+  Returns vector normalized to magnitude=1.0
   """
   return vector/mag(vector)
 
@@ -77,12 +82,13 @@ cross = np.cross
 
 radians = np.radians
 
+
 degrees = np.degrees
 
 
 def identity():
   """
-  Returns the identity transform matrix.
+  Returns the identity transform.
   """
   m = np.zeros((4, 3))
   m[:3,:3] = np.eye(3)
@@ -91,11 +97,12 @@ def identity():
 
 def matrix_elem(matrix, i, j, val=None):
   """
-  Reads/writes the elements of the affine transformation
-  Matrix3d. By using a function interface, this allows 
-  other functions (such as RMSD calculatiors) to easily
-  swithc between this Vec3 representation and others such
-  as numpy arrays.
+  Reads/writes the elements of an affine transform.
+
+  1. 3x3 rotational component;
+      matrix_elem(m, i, j) for i=0..3, j=0..3
+  2. 3x1 translational component:
+      matrix_elem(m, 3, i) for i=0..3)
   """
   if val is None:
     return matrix[j,i]
@@ -105,15 +112,17 @@ def matrix_elem(matrix, i, j, val=None):
 
 def transform(matrix, vector):
   """
-  Returns the transformed vector of applying matrix to v.
+  Returns vector of applying the transform in matrix to v.
   """
   return np.dot(matrix[:3,:3], vector) + matrix[3,:]  
 
 
 def left_inverse(matrix):
   """
-  Returns the left inverse of m, where 
-  combine(left_inverse(m), m) == identity().
+  Returns the left inverse of m.
+
+  Example:
+    combine(left_inverse(m), m) == identity().
   """
   inverse = identity()
   r = matrix[:3,:3].transpose()
@@ -124,10 +133,9 @@ def left_inverse(matrix):
 
 def rotation(axis, theta):
   """
-  Returns a matrix that rotate a vector at the origin around axis.
-
-  from http://stackoverflow.com/a/6802723
+  Returns transform that rotate a vector at the origin around axis.
   """
+  # from http://stackoverflow.com/a/6802723
   m = identity()
   a = np.cos(theta/2)
   b, c, d = norm(axis) * np.sin(theta/2)
@@ -139,7 +147,7 @@ def rotation(axis, theta):
 
 def translation(displacement):
   """
-  Returns a matrix that translates a vector.
+  Returns transform that translates a vector.
   """
   m = identity()
   m[3,:] = displacement
@@ -148,9 +156,7 @@ def translation(displacement):
 
 def combine(m1, m2):
   """
-  Combines two transformations, using matrix multiplication
-  for the rotational matrices, and rotation applied to
-  the translational vector of b[3,i].
+  Returns transform that combines two other transforms.
   """
   m3 = identity()
   m3[:3,:3] = np.dot(m1[:3,:3], m2[:3,:3])

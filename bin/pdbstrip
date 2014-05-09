@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Strips PDB file for further processing
+Strips PDB file into a single conformation for MD simulations.
 
 Usage: pdbstrip [-ysano] <pdb> [<out_pdb>]
 

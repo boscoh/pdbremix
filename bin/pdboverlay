@@ -2,10 +2,7 @@
 
 
 __doc__ = """
-Takes a bunch of related PDBS:
-  1. aligns sequence with MAFFT to find conserved residues
-  2. structurally aligns conserved residues with THESEUS
-  3. displays the backbone overlay with PYMOL
+Displays homologous PDB structure using MAFFT, THESEUS and PYMOL
 
 Usage: pdboverlay [-h] [<pdb>] ...
 """

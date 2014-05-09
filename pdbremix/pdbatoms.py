@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """
-This module provides the Soup object that interacts with PDB
-structures, MD restart files and trajectories.
+
+Provides the Soup object to manipulate protein structures.
 
 The Soup object contains a list of Atom objects, which are also
 grouped into a list of Residues. The Residues provide a

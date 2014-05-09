@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Calculates RMSD of CA atoms between 2 PDB structures
-& generates the optimal superposition.
-(c) 2014, 2007 Bosco Ho
+Calculates RMSD between 2 PDB structures
 
 Usage: pdbrmsd [-o <transform_pdb1>] <pdb1> <pdb2> [<segments1>] [<segments2>]
 

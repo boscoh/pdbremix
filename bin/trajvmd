@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Load MD trajectories to VMD using a MD base for 
-AMBER, GROMACS, NAMD trajectories.
+Display AMBER, GROMACS, NAMD trajectories in VMD.
 
 usage: trajvmd <md>
 """

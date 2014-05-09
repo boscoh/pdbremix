@@ -1,7 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """
-Text manipulation routines to edit PDB files.
+
+Text manipulation of PDB protein structure files.
 
 This is a utility function providing common operations
 applied to PDB files that can easily be done with text

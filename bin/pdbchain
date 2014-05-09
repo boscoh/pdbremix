@@ -2,8 +2,7 @@
 
 
 __doc__ = """
-Shows the chain_id's in a PDB file and optionally
-extracts them as separate PDB files.
+Gets the chain and chain_ids of a PDB file.
 
 Usage: pdbchain <pdb> [<chain_id> ...]
 """

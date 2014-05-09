@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Looks for topology and restart files with name <md> and
-generates a PDB f0r it.
+Generates a PDB from an MD-simulation restart files.
 
 Usage: md2pdb <md>
 """

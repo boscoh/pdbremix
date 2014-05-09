@@ -2,8 +2,7 @@
 # encoding: utf-8
 
 """
-Displays subsets of residues in a pdb structure and coloring
-them. These residues can then be used to parameterize simulations.
+Shows pulled residues in a PUFF simulation in PYMOL.
 
 Usage: puffshow [options] <puff-config> 
   

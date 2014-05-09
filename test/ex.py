@@ -8,12 +8,14 @@ from pdbremix import util
 
 ff = 'NAMD2.8'
 ff = 'GROMACS4.5'
-pdb = 'pdb/1cph.pdb'
-ff = 'NAMD2.8'
 ff = 'AMBER11-GBSA'
 ff = 'AMBER11'
 pdb = 'pdb/hairpin.pdb'
 
+ff = 'NAMD2.8'
+pdb = 'pdb/1cph.pdb'
+i_residue = 19
+rip_res_type = "TYR"
 
 pdb = os.path.abspath(pdb)
 name = os.path.splitext(os.path.basename(pdb))[0]
@@ -60,9 +62,10 @@ def test_rip():
   util.goto_dir('rip')
   md = '../md_merge/md'
   top, crds, vels = simulate.get_restart_files(md)
-  soup = simulate.soup_from_restart_files(top, crds, vels)
-  i_residue = 2
-  res = soup.residue(i_residue)
+
+  soup = simulate.soup_from_restart_files(top, crds, vels) 
+  assert soup.residue(i_residue).type == rip_res_type
+
   pulse_fn = force.make_rip_fn(i_residue, 300)
   simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
   util.goto_dir(save_dir)

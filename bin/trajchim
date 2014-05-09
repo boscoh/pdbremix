@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Load AMBER, GROMACS or NAMD trajectories into CHIMERA
+Show AMBER, GROMACS or NAMD trajectories in CHIMERA
 
 Usage: trajchim [-c] [-e] <md> [<residue>]
 

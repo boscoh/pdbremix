@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """
-This module provides a way to abstract Molecular-Dynamics (MD)
-simulations with the Soup object.
+
+Common Interface for molecular dynamics packages.
 
 It provides a common API to 3 modules that wrap standard
 relatively-free molecular-dynamics packages:
@@ -47,7 +47,7 @@ def get_md_module(force_field):
   elif force_field.startswith('NAMD'):
     return namd
   else:
-    raise ValueError, "unrecognized force-field" + force_field
+    raise ValueError("unrecognized force-field" + force_field)
 
 
 
@@ -88,7 +88,7 @@ def get_restart_files(basename):
       return module.get_restart_files(basename)
     except util.FileException:
       pass
-  raise Exception("Couldn't find restart files for " + basename)
+  raise util.FileException("Couldn't find restart files for " + basename)
   
 
 def soup_from_restart_files(top, crds, vels, skip_solvent=True):
@@ -126,7 +126,7 @@ def convert_restart_to_pdb(basename, pdb):
       return module.convert_restart_to_pdb(basename, pdb)
     except util.FileException:
       pass
-  raise Exception("Couldn't find restart files for " + basename)
+  raise util.FileException("Couldn't find restart files for " + basename)
 
 
 # # 2. Generate restart files from PDB
@@ -168,7 +168,7 @@ def pdb_to_top_and_crds(
 # - optional positional restraints: 100 kcal/mol/angs**2
 # - periodic box with PME electrostatics
 # - Langevin thermostat for constant temperature
-# - Nose-Hoover barometer with flexible periodic box size
+# - Nose-Hoover barometer with flexible box size
 
 # Each package maintains its own files, but all required
 # will share a common basename with standard extensions
@@ -307,7 +307,7 @@ def pulse(
   Runs a pulse simulation that uses the restart-file modification
   strategy to manage a steered-molecular dynamics simulation.
 
-  The pulsed approachapplies external forces in pulses, which is
+  The pulsed approacha pplies external forces in pulses, which is
   practically carried out be running short constant-energy
   simulations and directly modifying the restart velocities
   between each simulation.

@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """
-This module provides a way to abstract the reading of 
-Molecular-Dynamics (MD) trajectories. 
+
+Interface to read molecular dynamics trajectories. 
 
 Simulation trajectories are read into a Trajectory object
 that provides a Soup object, which is updated everytime a
@@ -41,7 +41,7 @@ import gromacs
 
 def open_trajectory(basename):
   """
-  Returns a Trajectory object by guessing the type from basename.
+  Returns Trajectory object by guessing the type from basename.
   """
   if os.path.isfile(basename + '.trr'):
     print "Detected GROMACS trajectory"
@@ -70,7 +70,7 @@ def make_equilibrium_pdb(trajectory, pdb, start=None, end=None):
   if end < 0 or end > trajectory.n_frame+1:
     raise IndexError("End frame out of range")
   
-  # initialize sum object
+  # sum_soup stores cumulative values
   sum_soup = trajectory.soup.copy()
   for a in sum_soup.atoms():
     v3.set_vector(a.pos, 0, 0, 0)
@@ -100,7 +100,7 @@ def make_pdb_from_trajectory(
   """
   trajectory = open_trajectory(basename)
   trajectory.load_frame(i_frame)
-  if res_vals is not None:
+  if res_bfactors is not None:
     trajectory.soup.load_residue_bfactors(res_bfactors)
   trajectory.soup.write_pdb(out_pdb)
   del trajectory
@@ -126,7 +126,6 @@ class TrajectoryAnalyzer(object):
     self.trj = trj
     self.n_frame_per_ps = n_frame_per_ps
 
-    # collect non-solvent residues
     self.residues = get_non_solvent_residues(self.trj.soup)
     self.n_residue = len(self.residues)
     self.cumul_res_averages = [0.0 for i in range(self.n_residue)]
@@ -314,19 +313,17 @@ def analyze_trajectory(
   system using the TrajectoryAnalyzer straegy objects in 
   analyzers.
   """
+  trj = open_trajectory(basename)
+
+  # Instantiate analyzers
   if n_frame_per_ps is None:
     n_frame_per_ps = guess_n_frame_per_ps(basename)
-
   if analyzer_classes is None:
     analyzer_classes = [
         KineticEnergyAnalyzer, 
         RmsdAnalyzer, 
         CaRmsdAnalyzer,
         TotalKineticEnergyAnalyzer]
-
-  trj = open_trajectory(basename)
-
-  # Instantiate analyzers
   analyzers = [a(trj, n_frame_per_ps, ref_pdb) \
                for a in analyzer_classes]
 
@@ -335,11 +332,11 @@ def analyze_trajectory(
     trj.load_frame(i)
     for analyzer in analyzers:
       analyzer.process_frame()
+    # A whole ps has been processed, save
     if (i+1) % n_frame_per_ps == 0 or i == 0:
       for analyzer in analyzers:
         analyzer.process_frame_on_ps()
 
-  # Close analyzers
   for analyzer in analyzers:
     analyzer.close()
 

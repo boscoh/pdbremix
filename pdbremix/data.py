@@ -1,7 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """ 
-Module to store data, and related info
+
+Stores data for PDBREMIX.
 
 - directory of explici data directory
 - mappings of residue names to chars

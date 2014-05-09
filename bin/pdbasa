@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Calculates the Accessible Surface Area of atoms in a PDB file. 
+Calculates the accessible surface-area a PDB file. 
+
 Algorithm adapted from Rose lab's chasa.py implementation of
 Shrake & Rupley (19743) JMB:351. (c) 2007 Bosco Ho.
 

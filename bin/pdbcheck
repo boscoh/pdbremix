@@ -2,8 +2,7 @@
 # encoding: utf-8
 
 __doc__ = """
-Checks PDB for incomplete sidechains, chain breaks, 
-disulfide bonds & steric clashes.
+Checks PDB for structural integrity for MD simulations.
 
 Usage: pdbcheck <pdb> ...
 """

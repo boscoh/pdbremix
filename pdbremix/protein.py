@@ -1,3 +1,13 @@
+# encoding: utf-8
+
+__doc__ = """
+
+Common protein manipulations.
+
+This is a collection of some common PDB and Soup manipulations
+of protein strucutres.
+"""
+
 
 import string
 

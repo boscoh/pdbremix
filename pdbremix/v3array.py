@@ -1,11 +1,12 @@
 # encoding: utf-8
 
 __doc__ = """
-A 3D vector geometry library that works in pure Python.
 
-The vector and matrix objects are subclassd from array.array. 
-All operations are accessed through functions, allowing easy
-switching with other libraries, such as numpy arrays.
+3D vector geometry library in pure Python.
+
+The vectors and transform matrices are subclassd from array.array. 
+Most operations are accessed through functions, allowing easy
+switching with other libraries, such as v3numpy.
 """
 
 import math
@@ -15,12 +16,11 @@ from array import array
 
 class Vec3(array):
   """
-  This is a subclass of array to model a 3D vector.
+  Represents a 3-dimensional vector/coordinate.
 
-  Arithmetic operators overloading are defined to 
-  carry out basic artihmetic vector operations. Scaling
-  and other non-arithmetic operators are carried out
-  with functions.
+  Arithmetic operators are overloaded for artihmetic vector
+  operations. Scaling and other non-arithmetic operators are
+  carried out with functions.
   """
   
   def __new__(cls, x=0, y=0, z=0):
@@ -59,8 +59,8 @@ def vector(*args):
   Creates a new vector
 
   Args:
-    none: returns zero vector
-    v (vector): returns copy
+    None: returns zero vector
+    v (vector): returns copy of v
     x, y, z: returns (x, y, z)
   """
   if len(args) == 0:
@@ -76,7 +76,11 @@ def vector(*args):
 
 def set_vector(*args):
   """
-  Changes values of a vector in place
+  Changes values of Vec3 in place
+
+  Args:
+    v (vector), w (vector): copies values of w into v
+    v (vector), x, y, z: copiex x, y, z into v
   """
   v = args[0]
   if len(args) == 2:
@@ -88,7 +92,7 @@ def set_vector(*args):
 
 def mag(v):
   """
-  Returns the magnitude of a vector
+  Returns the magnitude of v.
   """
   x, y, z = v
   return math.sqrt(x*x + y*y + z*z)
@@ -96,7 +100,7 @@ def mag(v):
 
 def scale(v, s):
   """
-  Returns a vector that has been scaled by s.
+  Returns Vec3 that has been scaled by s.
   """
   return vector(s*v[0], s*v[1], s*v[2])
 
@@ -112,14 +116,14 @@ def dot(v1, v2):
 
 def norm(v):
   """
-  Returns a version of the vector normalized to magnitude=1.0
+  Returns scaled v, normalized to magnitude 1.0.
   """
   return scale(v, 1.0/mag(v))
 
 
 def cross(v1, v2):
   """
-  Returns the cross product between the two vectors
+  Returns the cross product of two vectors. 
   """
   x1, y1, z1 = v1
   x2, y2, z2 = v2
@@ -138,22 +142,18 @@ def radians(degrees):
 
 def degrees(radians):
   """
-  Converts radians to degrees, which is better for reporting.
+  Converts radians to degrees, better for reporting.
   """
   return 180.0 / math.pi*degrees * radians
 
 
 class Matrix3d(array):
   """
-  Class to represent affine transforms in 3D space.
+  Represents affine transforms in 3D space. 
 
-  Matrix3d is stored as an array of 12 floats, to be
-  accessed by the auxilary function matrix_elem().
-  The 12 floats represents a 3x3 rotational matrix and
-  a translation vector - matrix(3,i).
-
-  This is subclassed mainly to provide a more informative
-  __repr__ function.
+  To be accessed by the auxilary function matrix_elem(). Matrix3d
+  subclasses an array of 12 floats. This is subclassed mainly to
+  provide a more informative __repr_function.  
   """
 
   def __new__(cls, matrix_array=(1,0,0,0,1,0,0,0,1,0,0,0)):
@@ -172,18 +172,19 @@ class Matrix3d(array):
 
 def identity():
   """
-  Returns the identity transform matrix.
+  Returns the identity transform.
   """
   return Matrix3d()
 
 
 def matrix_elem(matrix, i, j, val=None):
   """
-  Reads/writes the elements of the affine transformation
-  Matrix3d. By using a function interface, this allows 
-  other functions (such as RMSD calculatiors) to easily
-  swithc between this Vec3 representation and others such
-  as numpy arrays.
+  Reads/writes the elements of an affine transform.
+
+  1. 3x3 rotational component;
+      matrix_elem(m, i, j) for i=0..3, j=0..3
+  2. 3x1 translational component:
+      matrix_elem(m, 3, i) for i=0..3)
   """
   k = i*3 + j
   if val is None:
@@ -195,7 +196,7 @@ def matrix_elem(matrix, i, j, val=None):
 
 def transform(matrix, v):
   """
-  Returns the transformed vector of applying matrix to v.
+  Returns vector of applying the transform in matrix to v.
   """
   v_x, v_y, v_z = v
   x = matrix_elem(matrix, 0, 0) * v_x + \
@@ -215,8 +216,10 @@ def transform(matrix, v):
 
 def left_inverse(m):
   """
-  Returns the left inverse of m, where 
-  combine(left_inverse(m), m) == identity().
+  Returns the left inverse of m.
+
+  Example:
+    combine(left_inverse(m), m) == identity().
   """
   rot_t = identity()
   for i in range(0, 3):
@@ -232,7 +235,7 @@ def left_inverse(m):
 
 def rotation(axis, theta):
   """
-  Returns a matrix that rotate a vector at the origin around axis.
+  Returns transform that rotate a vector at the origin around axis.
   """
   m = identity()
   c = math.cos(theta)
@@ -253,7 +256,7 @@ def rotation(axis, theta):
 
 def translation(t):
   """
-  Returns a matrix that translates a vector.
+  Returns transform that translates a vector by t.
   """
   m = identity()
   for i in range(3):
@@ -263,10 +266,11 @@ def translation(t):
 
 def combine(a, b):
   """
-  Combines two transformations, using matrix multiplication
-  for the rotational matrices, and rotation applied to
-  the translational vector of b[3,i].
+  Returns transform that combines two transforms.
   """
+  # The combination is carried out by matrix multiplication
+  # for the rotational matrix component, and the translation 
+  # component is rotated.
   c = identity()
   for i in range(0, 3):
     for j in range(0, 3):
@@ -383,7 +387,7 @@ def dihedral(p1, p2, p3, p4):
 
 def distance(p1, p2):
   """
-  Returns distance between the two points
+  Returns distance between two points
   """ 
   return mag(p1 - p2)
 

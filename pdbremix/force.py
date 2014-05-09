@@ -1,9 +1,12 @@
 # encoding: utf-8
 
 __doc__ = """
-This module provides functions to calculate velocity changes
-in Soup objects due to different types of applied forces. This
-can be saved to restart files for AMBER, NAMD and GROMACS.
+
+Generate forces for steered molecular-dynamics using PUFF.
+
+This module provides functions to generate forces by inducing
+velocity changes in Soup objects. This can be saved to restart
+files of MD simulations for AMBER, NAMD and GROMACS.
 
 There are four functions that are to be used:
 
@@ -21,7 +24,6 @@ There are four functions that are to be used:
 
 4. make_rip_fn(i_res, heating_temp)
 
-
 These are all function factories to generate a function in the
 form:
 
@@ -36,10 +38,7 @@ mainly:
 - mass: Da
 
 However, various conversions are needed to connect with various
-thermostatistical identites as well as for output. For instance,
-kinetic energies calculated from mass and velocities result in
-the units: Da⋅Ångstrom^2/ps^2, which need to be converted to
-kcal/mol for output. 
+thermostatistical identites as well as for output. 
 """
 
 
@@ -54,10 +53,40 @@ import v3
 import data
 
 
+##########################################################
+# Unit conversions
+
+# force = Da⋅Å/ps/ps 
+#       = 1.66E-13 kg⋅m/s/s 
+#       = 1.66E-13 N 
+#       = 1.66E-1 pN
+
+# Work/energy conversions
+#      = Da⋅Å⋅Å/ps/ps 
+#      = Da⋅Å/ps/ps ⋅ Å 
+#      = 1.66E-1 pNÅ
+work_DaAngSqPerPsSq_to_pNAng = 1.66E-1
+work_Nm_to_kcal = 0.000238846
+avogadro = 6.02214179E23
+work_pNAng_to_kcalPerMol = 1E-12*1E-10*work_Nm_to_kcal*avogadro
+
+# molecular-dynamics integration time-step
+timestep_in_ps = 0.001 
+
+# Velocity conversions
+vel_mPerS_to_AngsPerPs = 0.01 
+velsq_mPerS_to_AngsPerPs = 1.0E-4 
+
+# Boltzmann constant
+#    = 1.3806488E-23 J/K 
+#    = 1.3806488E-23 kg ⋅ m^2/s^2/K 
+#    = 1.3806488E-23 1/1.66E-27Da ⋅ m^2/s^2/K
+#    = 8314.47148 Da⋅m^2/s^2/K
+boltzmann_in_DaMSqPerSSqPerK = 8314.47148  
+
 
 ##########################################################
 # Heating functions
-
 
 
 def average_vel(atoms):
@@ -72,22 +101,6 @@ def average_vel(atoms):
   return v3.scale(momentum, 1.0/mass)
 
 
-# Work/energy conversions
-# force = Da⋅Å/ps/ps 
-#       = 1.66E-13 kg⋅m/s/s 
-#       = 1.66E-13 N 
-#       = 1.66E-1 pN
-# work/energy = Da⋅Å⋅Å/ps/ps 
-#             = Da⋅Å/ps/ps ⋅ Å 
-#             = 1.66E-1 pNÅ
-work_DaAngSqPerPsSq_to_pNAng = 1.66E-1
-work_Nm_to_kcal = 0.000238846
-avogadro = 6.02214179E23
-work_pNAng_to_kcalPerMol = 1E-12*1E-10*work_Nm_to_kcal*avogadro
-
-# molecular-dynamics integration time-step
-timestep_in_ps = 0.001 
-
 def add_vel_to_atoms(atoms, vel_diff):
   """
   Adds vel_diff to the vel vector of atoms.
@@ -99,16 +112,6 @@ def add_vel_to_atoms(atoms, vel_diff):
         v3.dot(vel_diff, a.vel) * a.mass * timestep_in_ps * \
         work_DaAngSqPerPsSq_to_pNAng
 
-
-# Velocity conversions
-vel_mPerS_to_AngsPerPs = 0.01 
-velsq_mPerS_to_AngsPerPs = 1.0E-4 
-# Boltzmann constant
-#    = 1.3806488E-23 J/K 
-#    = 1.3806488E-23 kg ⋅ m^2/s^2/K 
-#    = 1.3806488E-23 1/1.66E-27Da ⋅ m^2/s^2/K
-#    = 8314.47148 Da⋅m^2/s^2/K
-boltzmann_in_DaMSqPerSSqPerK = 8314.47148  
 
 def maxwell_velocity(temp, mass):
   """
@@ -167,25 +170,31 @@ def gas_randomize(atoms, temp):
 
 def make_atd_fn(i_residue, heating_temp, backbone_atoms):
   """
-  Returns a function that applies velocity changes for the
-  original Anisotropic Thermal Diffusion technique, which
-  is essentially a localized thermostat on a single sidechain.
+  Returns pulse_fn that locally heats a sidechain.
   """
+  # This method is called the Anisotropic Thermal Diffusion and
+  # was originally desiged by Ota & Agard "Intramolecular
+  # Signaling Pathways Revealed by Modeling Anisotropic Thermal
+  # Diffusion" JMB (2005) 12:345.
+
   def gas_heat_sidechain(
       soup, i_residue, heating_temp, backbone_atoms):
     atoms = [a for a in soup.residue(i_residue).atoms() 
              if a.type not in backbone_atoms]
     gas_randomize(atoms, heating_temp)
+
   return lambda soup: gas_heat_sidechain(
       soup, i_residue, heating_temp, backbone_atoms)
 
 
 def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):
   """
-  Classic Anderson thermometer: controls the temperature
-  by scaling the velocity of atoms until the average energy
-  reaches the average velocity consistent with the given temp.
+  Scales the velocity of atoms such that average energy
+  is consistent with the temperature.
   """
+  # This is the classic Anderson approach to temperature
+  # regulation. Whilst deterministic, can be easily trapped in
+  # local minima.
   target_energy = mean_energy(temp, n_degree_of_freedom)
   kin = kinetic_energy(atoms)
   if v3.is_similar_mag(kin, 0):
@@ -217,15 +226,13 @@ def get_atoms_of_residues(soup, res_indices, atom_types=None):
 
 class PushApartByVel():
   """
-  Strategy to appy forces to push apart two domains in a Soup.
+  Strategy to push apart two domains in a Soup.
 
-  This class will not be directly used. Rather the associated
-  make_puff_fn() will initialize an instance of PushApartByVel in
-  a closure and return the apply(soup) method via a lambda
-  to the pulse simulation of simulate.py. This closure will
-  allow complex initiations to be remembered during the course
-  of a pulsed simulation.
+  This class is designed to be initialized by make_puff_fn(),
+  which returns the apply method of this object to the pulse()
+  function of simulate.py 
   """
+
   def __init__(
       self, domain1, domain2, target_val, dt=0.1,
       temp=None, is_backbone_only=False, 
@@ -321,10 +328,7 @@ def make_puff_fn(
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
   """
-  Returns a function for simulate.py that implements 
-  PushApartByVel. 
-
-  This is the main interface to the pulsing function.
+  Returns a pulse_fn implemented by PushApartByVel. 
   """
   strategy = PushApartByVel(
       domain1, domain2, target_val, dt, temp, 
@@ -354,8 +358,9 @@ def read_puff_out(md_dir):
 
 class PushApartByAcc(PushApartByVel):
   """
-  A Strategy class that push apart two domains in Soup
-  with constant acceleartion.
+  Strategy to push apart two domains with constant acceleration.
+
+  This is designed to be instantiated by make_puff_acc_fn().
   """
   def change_vels(self):
     # calculate the vel diff vector to apply
@@ -381,7 +386,7 @@ def make_puff_acc_fn(
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
   """
-  Returns a function that implements PushApartByAcc.
+  Returns pulse_fn that implements PushApartByAcc.
   """
   strategy = PushApartByAcc(
       domain1, domain2, target_val, dt, temp, 
@@ -457,7 +462,7 @@ def rotational_velocity(atom, axis, anchor):
 def weighted_rotational_velocity(atoms, axis, anchor):
   """
   Returns the average rotational velocity (rad/ps) of a bunch of
-  a atoms weighted by the moment of the atom.
+  a atoms weighted by the rotational moments.
   """
   moments = [ \
       moment_of_inertia(atom, axis, anchor) for atom in atoms]
@@ -513,7 +518,7 @@ def get_res_chi_topology(res):
 
 def get_n_chi(res):
   """
-  Returns the number of chi angles that res has.
+  Returns the number of chi angles of res.
   """
   if data.chi_topology.has_key(res.type):
     return len(data.chi_topology[res.type])
@@ -600,8 +605,9 @@ def add_rot_vel_to_chi(res, i, target_rot_vel):
 
 class Rip:
   """
-  Strategy class to implement the rotational velocity changes
-  to a soup object. To be used by make_rip_fn.
+  Strategy to directly rotate a residue via chi angles.
+
+  This is designed to be instantiated by make_rip_fn().
   """
   def __init__(self, i_res, heating_temp):
     self.i_res = i_res
@@ -639,8 +645,7 @@ class Rip:
 
 def make_rip_fn(i_res, heating_temp):
   """
-  Returns a function for simulate.py that implements 
-  Rip. 
+  Returns pulse_fn that implements Rip.
   """
   rip = Rip(i_res, heating_temp)
   return lambda soup: rip.apply(soup)

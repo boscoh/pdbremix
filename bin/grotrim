@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
-import glob
-from pdbremix import util
-from pdbremix import data
-from pdbremix.lib.docopt import docopt
-
 __doc__ = """
-Skips frames and strip waters in a GROMACS trr trajectory
+Strips frames of a GROMACS .trr trajectory file.
+
 usage: grotrim <in_md> <n_frame>
 
 <in_md>   basename of GROMACS trajectory files .gro and .trr 
 <n_frame>  write out every n_frame
 """
+
+import glob
+from pdbremix import util
+from pdbremix import data
+from pdbremix.lib.docopt import docopt
+
 
 arg = docopt(__doc__)
 

@@ -2,15 +2,19 @@
 
 
 __doc__ = """
-Inserts a loop after <resname> with <seq>. Uses modeller to make
-five best loops. All the results are saved in the directory <name>.
+Generates loop insertions for PDB using Modeller
 
 Usage: pdbinsert <pdb> <name> [<resname> <seq>] ...
+
+ <resname>  loop is inserted after this residue. 
+            e.g. "A:15", "B:9E" etc.
+ <name>   Results are stored in this directory.
 """
 
 
 import os
 import glob
+import shutil
 
 from pdbremix.lib.docopt import docopt
 from pdbremix import pdbatoms
@@ -27,8 +31,8 @@ def format_string(s, width=60):
   return result
   
 
-def make_align(
-    align_file, pdb, initial_name, target_name,
+def make_alignment_file(
+    align_file, pdb, initial_name, basename,
     template_seq, target_seq):
   f = open(align_file, 'w')
   f.write('C; alignment in the PIR format\n')
@@ -45,45 +49,14 @@ def make_align(
           (res_num1, chain1, res_num2, chain2))
   f.write(format_string(template_seq))
 
-  f.write('\n>P1;' + target_name + '\n')
-  f.write('sequence:' + target_name + '::::::::\n')
+  f.write('\n>P1;' + basename + '\n')
+  f.write('sequence:' + basename + '::::::::\n')
   f.write(format_string(target_seq))
 
   f.close()
 
 
-modeller = """
-# Homology modeling by the automodel class
-from modeller import *
-from modeller.automodel import *    # Load the automodel class
-
-log.verbose()
-env = environ()
-
-# directories for input atom files
-env.io.atom_files_directory = ['.']
-
-a = loopmodel(
-    env,
-    alnfile  = 'align.ali',     # alignment filename
-    knowns   = 'in_pdb',              # codes of the templates
-    sequence = 'out_target')              # code of the target
-a.starting_model= 1                 # index of the first model
-a.ending_model  = 1                 # index of the last model
-                                    # (determines how many models to calculate)
-a.md_level = None                   # No refinement of model
-
-a.loop.starting_model = 1           # First loop model
-a.loop.ending_model   = n_loop      # Last loop model
-a.loop.md_level       = refine.fast # Loop model refinement level
-
-a.make()                            # do homology modeling
-"""
-
-def model_loop(
-    align_file, template_seq, 
-    initial_name, target_name, n_loop=4):
-    
+def select_residue_range_script(template_seq):
   loops = []
   is_loop = False
   for i in range(len(template_seq)):
@@ -96,30 +69,61 @@ def model_loop(
   loop_strs = \
       ["self.residue_range('%d', '%d')" % (x,y)
        for x,y in loops]
-  loop_str = ', '.join(loop_strs)
-    
-  script = modeller.replace('in_pdb', initial_name)
-  script = script.replace('out_target', target_name)
-  script = script.replace('align.ali', align_file)
-  script = script.replace('n_loop', str(n_loop))
-  script = script.replace('loops', loop_str)
-
-  py_name = target_name + '.py'
-  f = open(py_name,'w')
-  f.write(script)
-  f.close()
-  
-  data.binary('mod9v8', py_name, target_name+'.modeller')
+  return ', '.join(loop_strs)
 
 
-def match_pair(in_res_id, pairs):
+modeller_script = """
+# Homology modeling by the automodel class
+from modeller import *
+from modeller.automodel import *    # Load the automodel class
+
+log.verbose()
+env = environ()
+
+# directories for input atom files
+env.io.atom_files_directory = ['.']
+
+a = loopmodel(
+    env,
+    alnfile  = '%(align_ali)s',      # alignment filename
+    knowns   = '%(in_pdb)s',         # codes of the templates
+    sequence = '%(out_target)s')     # code of the target
+
+# determines how many models to calculate
+a.starting_model= 1                  # index of the first model
+a.ending_model  = 1                  # index of the last model
+
+a.md_level = None                    # No refinement of model
+ 
+a.loop.starting_model = 1            # First loop model
+a.loop.ending_model   = %(n_loop)s   # Last loop model
+a.loop.md_level       = refine.fast  # Loop model refinement level
+
+# do homology modeling 
+a.make()                             
+"""
+
+def model_loop(
+    align_file, template_seq, initial_name, basename, n_loop=4):
+  script = modeller_script % {
+    'in_pdb': initial_name,
+    'out_target': basename,
+    'align_ali': align_file,
+    'n_loop': str(n_loop),
+  }
+  py_name = basename + '.py'
+  f = open(py_name,'w').write(script)
+  data.binary('mod9v8', py_name, basename+'.modeller')
+
+
+def find_insertion(test_res_id, pairs):
   for res_id, seq in pairs:
-    if res_id == in_res_id:
+    if res_id == test_res_id:
       return res_id, seq
   return '', ''
   
   
-def make_templates(
+def make_template_sequences_and_pdb(
     raw_pdb, pdb, insertions):
   p = pdbatoms.Soup(raw_pdb)
   template_seq = ""
@@ -129,11 +133,11 @@ def make_templates(
   # to get screwed up
   for i in reversed(range(len(p.residues()))):
     residue = p.residue(i)
-    res_id = residue.name()
+    res_id = residue.tag()
 
-    insert_res_id, insert_seq = match_pair(res_id, insertions)
+    insert_res_id, insert_seq = find_insertion(res_id, insertions)
+
     if insert_res_id:
-      print "test (%s)==(%s)" % (res_id, insertions)
       blank_seq = "-"*len(insert_seq)
       template_seq = blank_seq + template_seq
       target_seq = insert_seq + target_seq
@@ -177,60 +181,87 @@ def make_templates(
   return template_seq, target_seq
 
 
-def make_summary_text(name):
-  tag = name + '.DL*'
-  f = open(name + '.energy.txt', 'w')
-  energies = []
-  for fname in glob.glob(tag):
-    lines = open(fname, 'r').readlines()
-    for l in reversed(lines):
-      if l:
-        words = l.split()
-        s = ' '.join(words)
-        f.write(fname + ': ' + s + '\n')
-        energies.append((float(words[1]), fname))
-        break
-  f.close()
-  energies.sort()
-  fname = energies[0][1].replace('DL', 'BL') + '.pdb'
+def read_sorted_energy_pdb(basename):
+  results = []
+  for fname in glob.glob(basename + '.DL*'):
+    lines = [l for l in open(fname, 'r').readlines() if l.strip()]
+    words = lines[-1].split()
+    energy = float(words[1])
+    pdb = fname.replace('DL', 'BL')+'.pdb'
+    pdb = os.path.abspath(pdb)
+    if not os.path.isfile(pdb):
+      raise Exception("File not found " + pdb)
+    results.append((energy, pdb))
+  results.sort(reverse=True)
+  return results
 
-  init_pdb = fname
-  out_pdb = '%s.pdb' % (name)
-  p = pdbatoms.Soup(init_pdb)
-  resids = [l.split()[0] for l in open(name + '.init.resid')]
-  for resid, r in zip(resids, p.residues()):
+
+def change_resids_in_pdb(in_pdb, out_pdb, resids):
+  soup = pdbatoms.Soup(in_pdb)
+  for resid, r in zip(resids, soup.residues()):
     chain_id, num = resid.split(":")
     num = int(num)
     r.set_chain_id(chain_id)
     r.set_num(num)
-  p.write_pdb(out_pdb)  
-        
-  
-def process_pdb(raw_pdb, target_name, insertions):
+  soup.write_pdb(out_pdb)  
+
+
+def insert_sequences_into_pdb(raw_pdb, basename, insertions):
   """
   insertions: list of pairs, each pair 
   [('B:23', 'Q')] insertion point and insert
   """
-  clean_pdb = target_name + '.clean.pdb'
+  save_dir = os.getcwd()
+
+  basename = arg['<name>']
+  print "Modeller directory:", basename+'.modeller'
+  util.goto_dir(basename+'.modeller')
+
+  clean_pdb = basename + '.clean.pdb'
   pdbtext.clean_pdb(raw_pdb, clean_pdb)
-  pdb = target_name + '.init.pdb'
-  template_seq, target_seq = make_templates(
+
+  print "Generating alignment templates"
+  pdb = basename + '.init.pdb'
+  template_seq, target_seq = make_template_sequences_and_pdb(
       clean_pdb, pdb, insertions)
+
   initial_name = 'init'
-  align_file = target_name + '.ali'
-  make_align(
-      align_file, pdb, initial_name, target_name,
+  align_file = basename + '.ali'
+  make_alignment_file(
+      align_file, pdb, initial_name, basename,
       template_seq, target_seq)
+
+  print "Running modeller"
   model_loop(
-      align_file, template_seq, initial_name, target_name)
-  make_summary_text(target_name)
+      align_file, template_seq, initial_name, basename)
+
+  modeller_results = read_sorted_energy_pdb(basename)
+
+  resids = [l.split()[0] for l in open(basename + '.init.resid')]
+
+  os.chdir(save_dir)
+
+  f = open(basename+'.scores', 'w')
+  for i, (energy, in_pdb) in enumerate(modeller_results):
+    out_pdb = basename + '%d.pdb' % (i+1)
+    f.write("Energy:%f, PDB:%s\n" % (energy, out_pdb))
+    # change_resids_in_pdb(in_pdb, out_pdb, resids)
+    shutil.copy(in_pdb, out_pdb)
+  f.close()
 
 
 if __name__ == "__main__":
   arg = docopt(__doc__)
-  pdb = os.path.abspath(arg['<pdb>'])
-  name = arg['<name>']
+
+  pdb = arg['<pdb>']
+  print "PDB:", pdb
+  pdb = os.path.abspath(pdb)
+
   insertions = list(zip(arg['<resname>'], arg['<seq>']))
-  print "inputs", pdb, name, insertions
-  util.goto_dir(name)
-  process_pdb(pdb, 'go', insertions)
+  print "Insertions:"
+  for i, (resname, seq) in enumerate(insertions):
+    print " %d. %s after residue %s" % (i+1, seq, resname)
+
+  basename = arg['<name>']
+  insert_sequences_into_pdb(pdb, basename, insertions)
+

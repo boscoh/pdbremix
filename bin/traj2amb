@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 __doc__ = """
+Converts NAMD and GROMACS trajectories to AMBER
+
 Usage: traj2amb <md> 
 """
 

@@ -1,7 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """ 
-Calculate the RMSD and optimal rotation of a set of position vectors.
+
+RMSD calculators and optimal rotation of sets of coordinates.
 
 Two algorithms are provided: 
 

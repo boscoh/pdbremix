@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 __doc__ = """ 
-Module to interface with PYMOL, preparing PDB files so that
-they will display cleanly in PYMOL. 
+
+Intrface to PYMOL with useful pre-processing.
 
 As well various functions use PYMOL as an image generator of
 protein structures. 

@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 __doc__ = """ 
+
 Fetches PDB files from RCSB web sites.
 
 Simple utility functions to fetch PDB files given a list

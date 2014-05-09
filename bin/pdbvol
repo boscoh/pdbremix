@@ -3,6 +3,7 @@
 
 __doc__ = """
 Calculates the volume of the atoms in a PDB file.
+
 Copyright (c) 2007 Bosco Ho.  
 
 Usage: pdbvol [-s <spacing>] <pdb> ...

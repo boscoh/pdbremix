@@ -1,12 +1,7 @@
 # encoding: utf-8
 
 __doc__ = """ 
-Calculate the volume of a group of atoms
-
-This uses the grid approach. A large grid of equidistant points
-are constructed around the protein. Grid points are elimnated if 
-they are found within the radii of an atom. The number
-of points eliminated represents the volume.
+Volume calculator for a list of atoms.
 """
 
 import math
@@ -18,7 +13,12 @@ import v3
 
 class Grid:
   """
-  Class to build a build and handle grid-point elimination.
+  Class to implement grid-point elimination.
+
+  A large grid of equidistant points is built. Functions are 
+  provided to eliminate any points found within the radius of
+  a probe atom. The number of eliminated points is used to
+  estimate volume.
 
   Attributes:
     width (float)
@@ -29,6 +29,7 @@ class Grid:
     __init__
     reset
     exclude_sphere
+    n_excluded
     write_pdb
   """
 
@@ -128,11 +129,8 @@ class Grid:
         
 def volume(atoms, grid_spacing, pdb=""):
   """
-  Returns the volume of a given list of atoms, and writes a
-  PDB file of fictious atoms that represents the volume.
-
-  Sets up a grid that is set to surround the given list
-  of atoms. Then for each atom, interrogates the grid.
+  Returns the volume of a list of atoms, and writes a PDB file of
+  fictious atoms to fill the volume.
   """
   center = pdbatoms.get_center(atoms)
   width = pdbatoms.get_width(atoms, center) + 4.0
@@ -146,7 +144,8 @@ def volume(atoms, grid_spacing, pdb=""):
   print "Volume %.1f angstroms^3 (%d x %.3f angstroms^3)" \
           % (volume, grid.n_excluded(), d_volume)
   if pdb:
-    print "Warning: there will probably be more residues/atoms than PDB can uniquely number"
+    print "Warning: there will probably be more residues/atoms " \
+          "than PDB can uniquely number"
     grid.write_pdb(pdb)
     print pdb
 

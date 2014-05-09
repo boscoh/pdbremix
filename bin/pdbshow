@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Shows PDB files using PYMOL with extra options. Default is
-ribbon with sidechain sticks and colored chains.
+Shows PDB using PYMOL with residue centering and B-factor coloring.
 
 Usage: pdbshow [options] <pdb> ...
 
