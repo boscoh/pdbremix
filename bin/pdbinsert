@@ -60,22 +60,6 @@ def make_alignment_file(
   f.close()
 
 
-def select_residue_range_script(template_seq):
-  loops = []
-  is_loop = False
-  for i in range(len(template_seq)):
-    if not is_loop and template_seq[i] == "-":
-      is_loop = True
-      loops.append([i+1, None])
-    if is_loop and template_seq[i] != "-":
-      loops[-1][1] = i
-      is_loop = False
-  loop_strs = \
-      ["self.residue_range('%d', '%d')" % (x,y)
-       for x,y in loops]
-  return ', '.join(loop_strs)
-
-
 modeller_script = """
 # Homology modeling by the automodel class
 from modeller import *
@@ -189,7 +173,7 @@ def make_template_sequences_and_pdb(
   return template_seq, target_seq
 
 
-def read_sorted_energy_pdb(basename):
+def get_score_sorted_pdbs(basename):
   """
   Returns a ranked list of MODELLER scores and output PDB files.
   """
@@ -246,7 +230,7 @@ def insert_sequences_into_pdb(
   model_loop(
       align_file, template_seq, initial_name, basename, n_model)
 
-  modeller_results = read_sorted_energy_pdb(basename)
+  modeller_results = get_score_sorted_pdbs(basename)
 
   resids = [l.split()[0] for l in open(basename + '.init.resid')]
 
