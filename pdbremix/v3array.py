@@ -53,6 +53,9 @@ class Vec3(array):
   def __pos__(self):
     return self
 
+  def copy(self):
+    return vector(self)
+    
 
 def vector(*args):
   """
@@ -76,7 +79,7 @@ def vector(*args):
 
 def set_vector(*args):
   """
-  Changes values of Vec3 in place
+  Changes components of vector in place
 
   Args:
     v (vector), w (vector): copies values of w into v
@@ -100,7 +103,7 @@ def mag(v):
 
 def scale(v, s):
   """
-  Returns Vec3 that has been scaled by s.
+  Returns vector that is v scaled (multiplied) by s
   """
   return vector(s*v[0], s*v[1], s*v[2])
 
@@ -256,7 +259,7 @@ def rotation(axis, theta):
 
 def translation(t):
   """
-  Returns transform that translates a vector by t.
+  Returns transform that translates by displacement vector t.
   """
   m = identity()
   for i in range(3):
@@ -330,7 +333,7 @@ def parallel(v, axis):
 
 def perpendicular(v, axis):
   """
-  Returns component of v that is perpendicular to axis.
+  Returns component of v perpendicular to axis.
   """
   return v - parallel(v, axis)
 

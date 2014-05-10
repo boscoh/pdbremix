@@ -32,6 +32,7 @@ import util
 import v3
 import pdbatoms
 import data
+import rmsd
 
 import namd
 import amber
@@ -121,168 +122,92 @@ class TrajectoryAnalyzer(object):
   Abstract strategy object to analyze the frames of a trajectory
   and write the results to a text file.
   """
+  var_name = 'override'
 
-  def __init__(self, trj, n_frame_per_ps, var_name, ref_pdb):
+  def __init__(self, trj, n_frame_per_ps, ref_pdb):
     self.trj = trj
     self.n_frame_per_ps = n_frame_per_ps
+    if ref_pdb:
+      self.ref_soup = pdbatoms.Soup(ref_pdb)
+    else:
+      self.ref_soup = self.trj.soup.copy()
+    fname = trj.basename + '.' + self.var_name + '.per_frame'
+    self.file_per_frame = open(fname, 'w')
+    fname = trj.basename + '.' + self.var_name + '.per_ps'
+    self.file_per_ps = open(fname, 'w')
+    self.results = None
+    self.cumul_results = None
 
-    self.residues = get_non_solvent_residues(self.trj.soup)
-    self.n_residue = len(self.residues)
-    self.cumul_res_averages = [0.0 for i in range(self.n_residue)]
-    self.res_averages_per_ps = []
-
-    self.atoms = self.trj.soup.atoms()
-    self.n_atom = len(self.atoms)
-
-    self.fname = trj.basename + '.' + var_name + '.per_frame'
-    self.file = open(self.fname, 'w')
-
+  def calculate_results(self):
+    """
+    To be overriden: write to self.results = []
+    """
+    pass
+  
   def process_frame_on_ps(self):
     if self.trj.i_frame == 0:
       n_frame = 1
     else:
       n_frame = self.n_frame_per_ps
-
-    # save averaged res values in array for later
-    for i in range(self.n_residue):
-      self.cumul_res_averages[i] /= float(n_frame)
-    self.res_averages_per_ps.append(
-        copy.deepcopy(self.cumul_res_averages))
-    
+    # save results for ps calculation
+    for i in range(len(self.cumul_results)):
+      self.cumul_results[i] /= float(n_frame)
+    s = ' '.join(map(str, self.cumul_results))
+    self.file_per_ps.write(s + '\n')
     # clear for next ps
     if self.trj.i_frame > 0:
-      for j in range(self.n_residue):
-        self.cumul_res_averages[j] = 0.0
+      for i in range(len(self.cumul_results)):
+        self.cumul_results[i] = 0.0
 
-  def extract_vals_to_atom(self):
-    """
-    To be overriden by desccendent classes. Results
-    are to be written to atom.val for each atom.
-    """
-    pass
-  
   def process_frame(self):
     time = self.trj.i_frame / float(self.n_frame_per_ps)
-    self.extract_vals_to_atom()
-    res_averages = [0.0 for i in range(self.n_residue)]
-    for i in range(self.n_residue):
-      atoms = self.residues[i].atoms()
-      res_sum = sum([atom.val for atom in atoms])
-      res_averages[i] = res_sum / float(len(atoms))
-    for i in range(self.n_residue):
-      self.cumul_res_averages[i] += res_averages[i]
+
+    self.calculate_results()
+
     # write res_averages to file
-    res_str = " ".join([str(val) for val in res_averages])
-    self.file.write("%f %s\n" % (time, res_str))
-    
-  def print_res_averages_per_ps(self):
-    f = open(self.fname.replace('frame', 'ps'), "w")
-    for i in range(self.n_residue):
-      vals_by_time = [res_vals[i] 
-                      for res_vals in self.res_averages_per_ps]
-      str_list = [str(v) for v in vals_by_time]
-      f.write(' '.join(str_list) + "\n")
-    f.close()
+    s = " ".join(map(str, self.results))
+    self.file_per_frame.write(s + "\n")
 
+    if self.cumul_results is None:
+      self.cumul_results = [0.0 for i in range(len(self.results))]
+
+    for i in range(len(self.results)):
+      self.cumul_results[i] += self.results[i]
+
+    # A whole ps has been processed, save
+    if (self.trj.i_frame+1) % self.n_frame_per_ps == 0 or i == 0:
+      self.process_frame_on_ps()
+    
   def close(self):
-    self.file.close()
-    self.print_res_averages_per_ps()
+    self.file_per_frame.close()
+    self.file_per_ps.close()
 
 
 
-class RmsdAnalyzer(TrajectoryAnalyzer):
-  """
-  TrajectoryAnalyzer object to calculate the RMSD of residues.
-  """
-  def __init__(self, trj, n_frame_per_ps, ref_pdb):
-    TrajectoryAnalyzer.__init__(self, trj, n_frame_per_ps, "rmsd", ref_pdb)
-    if ref_pdb:
-      self.ref_soup = pdbatoms.Soup(ref_pdb)
-    else:
-      self.ref_soup = self.trj.soup.copy()
-    self.ref_soup.write_pdb("ref.pdb")
-    self.ref_residues = get_non_solvent_residues(self.ref_soup)
-    self.ref_atoms = []
-    for r in self.ref_residues:
-      self.ref_atoms.extend(r.atoms())
-  
-  def extract_vals_to_atom(self):
-    for atom, ref_atom in zip(self.atoms, self.ref_atoms):
-      atom.val = v3.distance(atom.pos, ref_atom.pos)
-    
-
-  
 class CaRmsdAnalyzer(TrajectoryAnalyzer):
   """
-  TrajectoryAnalyzer object to calculate the C-alpha RMSD.
+  TrajectoryAnalyzer to calculate C-alpha RMSD.
   """
-  def __init__(self, trj, n_frame_per_ps, ref_pdb):
-    TrajectoryAnalyzer.__init__(
-        self, trj, n_frame_per_ps, "carmsd", ref_pdb)
-    if ref_pdb:
-      self.ref_soup = pdbatoms.Soup(ref_pdb)
-    else:
-      self.ref_soup = self.trj.soup.copy()
-    self.ref_residues = get_non_solvent_residues(self.ref_soup)
-    self.ref_atoms = []
-    for r in self.ref_residues:
-      self.ref_atoms.extend(r.atoms())
-
-  def process_frame(self):
-    time = self.trj.i_frame / float(self.n_frame_per_ps)
-
-    res_averages = [0.0 for i in range(self.n_residue)]
-    for i in range(self.n_residue):
-      if self.residues[i].has_atom('CA'):
-        res_averages[i] = v3.distance(
-            self.residues[i].atom('CA').pos,
-            self.ref_residues[i].atom('CA').pos)
-    res_str = " ".join([str(val) for val in res_averages])
-    self.file.write("%f %s\n" % (time, res_str))
-
-    for i in range(self.n_residue):
-      self.cumul_res_averages[i] += res_averages[i]
-
+  var_name = 'rmsd'
+  def calculate_results(self):
+    val = rmsd.rmsd_of_soups(self.ref_soup, self.trj.soup)
+    self.results = [val]
 
 
 class KineticEnergyAnalyzer(TrajectoryAnalyzer):
   """
-  TrajectoryAnalyzer object to calculate kinetic energy 
-  of residues.
+  TrajectoryAnalyzer to calculate kinetic energy of residues.
   """
-  def __init__(self, trj, n_frame_per_ps, ref_pdb):
-    TrajectoryAnalyzer.__init__(
-      self, trj, n_frame_per_ps, "kin", ref_pdb)
-  
-  def extract_vals_to_atom(self):
-    for atom in self.atoms:
-      vel = v3.mag(atom.vel)
-      atom.val = 0.5 * atom.mass * vel * vel
-
-
-
-class TotalKineticEnergyAnalyzer(TrajectoryAnalyzer):
-  """
-  Strategy object to calculate the total kinetic energy.
-  """
-  def __init__(self, trj, n_frame_per_ps, ref_pdb):
-    TrajectoryAnalyzer.__init__(
-        self, trj, n_frame_per_ps, "total_kin", ref_pdb)
-
-  def process_frame(self):
-    time = self.trj.i_frame / float(self.n_frame_per_ps)
-    energy = 0.0
-    for atom in self.atoms:
-      vel = v3.mag(atom.vel)
-      energy += 0.5 * atom.mass * vel * vel
-    self.file.write(
-        "%f %f %f\n" % (time, energy, energy / self.n_atom))
-
-  def print_res_averages_per_ps(self):
-    """
-    Override, not needed. 
-    """
-    pass
+  var_name = 'kin'
+  def calculate_results(self):
+    self.results = []
+    for residue in self.trj.soup.residues():
+      energy = 0.0
+      atoms = residue.atoms()
+      for atom in atoms:
+        vel = v3.mag(atom.vel)
+        energy += 0.5 * atom.mass * vel * vel
+      self.results.append(energy / float(len(atoms)))
 
 
 
@@ -321,21 +246,16 @@ def analyze_trajectory(
   if analyzer_classes is None:
     analyzer_classes = [
         KineticEnergyAnalyzer, 
-        RmsdAnalyzer, 
-        CaRmsdAnalyzer,
-        TotalKineticEnergyAnalyzer]
+        CaRmsdAnalyzer]
   analyzers = [a(trj, n_frame_per_ps, ref_pdb) \
                for a in analyzer_classes]
 
   # Go through frame by frame
   for i in range(trj.n_frame):
+    print "Processing frame %d/%d" % (i, trj.n_frame)
     trj.load_frame(i)
     for analyzer in analyzers:
       analyzer.process_frame()
-    # A whole ps has been processed, save
-    if (i+1) % n_frame_per_ps == 0 or i == 0:
-      for analyzer in analyzers:
-        analyzer.process_frame_on_ps()
 
   for analyzer in analyzers:
     analyzer.close()

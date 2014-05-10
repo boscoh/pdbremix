@@ -129,8 +129,8 @@ def get_superposable_atoms(soup, segments, atom_types):
   return result
 
 
-def rmsd_of_pdbs(
-    pdb1, pdb2, segments1=[], segments2=[], 
+def rmsd_of_soups(
+    soup1, soup2, segments1=[], segments2=[], 
     atom_types=['CA'], transform_pdb1=None):
   """
   Returns the RMSD between two PDB structures and optionally
@@ -145,9 +145,6 @@ def rmsd_of_pdbs(
     atom_types (list): list of atom_types in the residues that
                        we want to generate the indices from.  
   """
-  soup1 = pdbatoms.Soup(pdb1)
-  soup2 = pdbatoms.Soup(pdb2)
-
   atoms1 = get_superposable_atoms(soup1, segments1, atom_types)
   atoms2 = get_superposable_atoms(soup2, segments2, atom_types)
 
@@ -174,4 +171,25 @@ def rmsd_of_pdbs(
   return sum_rmsd(crds1, crds2)
 
 
+def rmsd_of_pdbs(
+    pdb1, pdb2, segments1=[], segments2=[], 
+    atom_types=['CA'], transform_pdb1=None):
+  """
+  Returns the RMSD between two PDB structures and optionally
+  writes the best transformed structure of pdb1 in transform_pdb.
+
+  Args:
+    segments1 (list): list of pairs of residue names in pdb1,
+                     such as ['A:1','A:3'], interpreted as the 
+                     two ends of a fragment in soup that we want
+                     the atom index of
+    segments2 (list): same as above but for pdb2
+    atom_types (list): list of atom_types in the residues that
+                       we want to generate the indices from.  
+  """
+  soup1 = pdbatoms.Soup(pdb1)
+  soup2 = pdbatoms.Soup(pdb2)
+  return rmsd_of_soups(
+    pdb1, pdb2, segments1, segments2, 
+    atom_types, transform_pdb1)
   
