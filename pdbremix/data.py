@@ -163,4 +163,24 @@ chi_topology = {
   'TYR': [['N', 'CA', 'CB', 'CG'], ['CA', 'CB', 'CG', 'CD1']],
   'VAL': [['N', 'CA', 'CB', 'CG1']]}
 
-  
+
+def get_res_chi_topology(res_type):
+  """
+  Returns the chi topology for a given residue, which is a list of
+  atoms that are affected if one rotates the chi0, chi1... 
+  dihedral angle.
+  """
+  # Some common residue renamings in AMBER and GROMACS
+  if res_type in ["HID", "HIE", "HIP", "HSE"] or "HIS" in res_type:
+    res_type = "HIS"
+  if res_type in ["LYP"]:
+    res_type = "LYS"
+  if res_type in ["CYM", "CYX", "CYN"]:
+    res_type = "CYS"
+  if res_type not in chi_topology:
+    return []
+  else:
+    return chi_topology[res_type]
+
+
+

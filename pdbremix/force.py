@@ -492,41 +492,18 @@ def add_rotational_velocity(atoms, rot_vel, axis, anchor):
     atom.vel += v_tang
   
 
-##########################################################
-# Sidechain rotation functions
-
-def get_res_chi_topology(residue):
-  """
-  Returns the chi topology for a given residue, which is a list of
-  atoms that are affected if one rotates the chi0, chi1... 
-  dihedral angle.
-  """
-  res_type = residue.type
-  # Some common residue renamings in AMBER and GROMACS
-  if res_type in ["HID", "HIE", "HIP"] or "HIS" in res_type:
-    res_type = "HIS"
-  if res_type in ["LYP"]:
-    res_type = "LYS"
-  if res_type in ["CYM", "CYX", "CYN"]:
-    res_type = "CYS"
-  if res_type not in data.chi_topology:
-    return []
-  else:
-    return data.chi_topology[res_type]
-
-
 def get_n_chi(residue):
   """
   Returns the number of chi angles of residue.
   """
-  res_chi_topology = len(get_res_chi_topology(residue))
+  return len(data.get_res_chi_topology(residue.type))
 
 
 def calculate_chi(residue, i_chi):
   """
   Returns the angle for the i_chi dihedral angle of residue.
   """
-  res_chi_topology = get_res_chi_topology(residue)
+  res_chi_topology = data.get_res_chi_topology(residue.type)
   if i_chi < len(res_chi_topology):
     p = [residue.atom(atom_type).pos 
          for atom_type in res_chi_topology[i_chi]]
@@ -539,7 +516,7 @@ def get_axis_anchor(residue, i_chi):
   Returns the axis of rotation and an anchor point of i_chi
   dihedral of residue.
   """
-  res_chi_topology = get_res_chi_topology(residue)
+  res_chi_topology = data.get_res_chi_topology(residue.type)
   p = [residue.atom(a).pos for a in res_chi_topology[i_chi]]
   axis = p[2] - p[1]
   anchor = p[2]

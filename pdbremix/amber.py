@@ -93,12 +93,6 @@ def convert_to_pdb_atom_names(soup):
     if res.type in data.solvent_res_types:
       for a in res.atoms():
         a.is_hetatm = True
-    if res.type == "HSE":
-      res.set_type("HIS")
-    if res.type == "HIE":
-      res.set_type("HIS")
-    if res.type == "CYX":
-      res.set_type("CYS")
     for atom in res.atoms():
       if atom.type[-1].isdigit() and atom.type[0] == "H":
         new_atom_type = atom.type[-1] + atom.type[:-1]
