@@ -53,8 +53,9 @@ class Vec3(array):
   def __pos__(self):
     return self
 
-  def copy(self):
-    return vector(self)
+  def __deepcopy__(self, memo):
+    cls = self.__class__
+    return array.__new__(cls, 'd', (self[0],self[1],self[2]))
     
 
 def vector(*args):
