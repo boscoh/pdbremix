@@ -502,27 +502,24 @@ def get_res_chi_topology(residue):
   dihedral angle.
   """
   res_type = residue.type
+  # Some common residue renamings in AMBER and GROMACS
+  if res_type in ["HID", "HIE", "HIP"] or "HIS" in res_type:
+    res_type = "HIS"
+  if res_type in ["LYP"]:
+    res_type = "LYS"
+  if res_type in ["CYM", "CYX", "CYN"]:
+    res_type = "CYS"
   if res_type not in data.chi_topology:
     return []
-  if res_type in ["HSE"]:
-    res_type = "HIS"
-  result = copy.deepcopy(data.chi_topology[res_type])
-  if res_type == "ILE" and residue.has_atom("CD1"):
-    for i in range(0, len(result)):
-      for j in range(0, len(result[i])):
-        if result[i][j] == "CD":
-          result[i][j] = "CD1"
-          break
-  return result
+  else:
+    return data.chi_topology[res_type]
 
 
 def get_n_chi(residue):
   """
   Returns the number of chi angles of residue.
   """
-  if data.chi_topology.has_key(residue.type):
-    return len(data.chi_topology[residue.type])
-  return 0
+  res_chi_topology = len(get_res_chi_topology(residue))
 
 
 def calculate_chi(residue, i_chi):
@@ -542,8 +539,8 @@ def get_axis_anchor(residue, i_chi):
   Returns the axis of rotation and an anchor point of i_chi
   dihedral of residue.
   """
-  chi_topology = get_res_chi_topology(residue)
-  p = [residue.atom(a).pos for a in chi_topology[i_chi]]
+  res_chi_topology = get_res_chi_topology(residue)
+  p = [residue.atom(a).pos for a in res_chi_topology[i_chi]]
   axis = p[2] - p[1]
   anchor = p[2]
   return axis, anchor
