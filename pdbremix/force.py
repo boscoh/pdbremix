@@ -10,19 +10,19 @@ files of MD simulations for AMBER, NAMD and GROMACS.
 
 There are four functions that are to be used:
 
-1. make_atd_fn(i_residue, heating_temp, backbone_atoms)
+1. make_atd_fn(i_residue, heating_temperature, backbone_atoms)
 
 2. make_puff_fn(
-    domain1, domain2, target_val, dt=0.1, temp=None, 
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out')
 
 3. make_puff_acc_fn(
-    domain1, domain2, target_val, dt=0.1, temp=None, 
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out')
 
-4. make_rip_fn(i_res, heating_temp)
+4. make_rip_fn(i_res, heating_temperature)
 
 These are all function factories to generate a function in the
 form:
@@ -113,33 +113,33 @@ def add_vel_to_atoms(atoms, vel_diff):
         work_DaAngSqPerPsSq_to_pNAng
 
 
-def maxwell_velocity(temp, mass):
+def maxwell_velocity(temperature, mass):
   """
   Returns a velocity (in angs/ps) sampled from a Maxwell velocity
-  distribution determined by mass and temp. 
+  distribution determined by mass and temperature. 
   """
-  velsq_ave = boltzmann_in_DaMSqPerSSqPerK * temp / mass 
+  velsq_ave = boltzmann_in_DaMSqPerSSqPerK * temperature / mass 
   return random.gauss(0, math.sqrt(velsq_ave)) * \
          vel_mPerS_to_AngsPerPs
 
 
-def mean_energy(temp, n_degree_of_freedom):
+def mean_energy(temperature, n_degree_of_freedom):
   """
   Returns the average energy (Da*angs/ps^2) of n degree of 
   freedom at temperature. if n_degree_of_freedom = 3,
   this is the average energy of a point particle.
   """
-  return 0.5 * n_degree_of_freedom * temp * \
+  return 0.5 * n_degree_of_freedom * temperature * \
          boltzmann_in_DaMSqPerSSqPerK * \
          velsq_mPerS_to_AngsPerPs 
 
 
-def random_energy(temp, n_degree_of_freedom):
+def random_energy(temperature, n_degree_of_freedom):
   """
   Returns an energy (Da*angs/ps^2) sampled from a Maxwellian
-  distribution of energies at temp.
+  distribution of energies at temperature.
   """
-  average = mean_energy(temp, n_degree_of_freedom);
+  average = mean_energy(temperature, n_degree_of_freedom);
   std_dev = math.sqrt(average)
   return random.gauss(average, std_dev)
 
@@ -155,20 +155,20 @@ def kinetic_energy(atoms):
   return en
 
 
-def gas_randomize(atoms, temp):
+def gas_randomize(atoms, temperature):
   """
   Randomly assigns a velocity to atoms based on a Maxwellian
-  distribution at temp.
+  distribution at temperature.
   """
   for atom in atoms:
     v3.set_vector(
         atom.vel,
-        maxwell_velocity(temp, atom.mass),
-        maxwell_velocity(temp, atom.mass),
-        maxwell_velocity(temp, atom.mass))
+        maxwell_velocity(temperature, atom.mass),
+        maxwell_velocity(temperature, atom.mass),
+        maxwell_velocity(temperature, atom.mass))
 
 
-def make_atd_fn(i_residue, heating_temp, backbone_atoms):
+def make_atd_fn(i_residue, heating_temperature, backbone_atoms):
   """
   Returns pulse_fn that locally heats a sidechain.
   """
@@ -178,16 +178,16 @@ def make_atd_fn(i_residue, heating_temp, backbone_atoms):
   # Diffusion" JMB (2005) 12:345.
 
   def gas_heat_sidechain(
-      soup, i_residue, heating_temp, backbone_atoms):
+      soup, i_residue, heating_temperature, backbone_atoms):
     atoms = [a for a in soup.residue(i_residue).atoms() 
              if a.type not in backbone_atoms]
-    gas_randomize(atoms, heating_temp)
+    gas_randomize(atoms, heating_temperature)
 
   return lambda soup: gas_heat_sidechain(
-      soup, i_residue, heating_temp, backbone_atoms)
+      soup, i_residue, heating_temperature, backbone_atoms)
 
 
-def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):
+def anderson_velocity_scale(atoms, temperature, n_degree_of_freedom):
   """
   Scales the velocity of atoms such that average energy
   is consistent with the temperature.
@@ -195,10 +195,10 @@ def anderson_velocity_scale(atoms, temp, n_degree_of_freedom):
   # This is the classic Anderson approach to temperature
   # regulation. Whilst deterministic, can be easily trapped in
   # local minima.
-  target_energy = mean_energy(temp, n_degree_of_freedom)
+  target_energy = mean_energy(temperature, n_degree_of_freedom)
   kin = kinetic_energy(atoms)
   if v3.is_similar_mag(kin, 0):
-    gas_randomize(atoms, temp)
+    gas_randomize(atoms, temperature)
   else:
     scaling_factor = math.sqrt(target_energy / kin)
     for atom in atoms:
@@ -235,23 +235,23 @@ class PushApartByVel():
 
   def __init__(
       self, domain1, domain2, target_val, dt=0.1,
-      temp=None, is_backbone_only=False, 
+      temperature=None, is_backbone_only=False, 
       is_first_domain_only=True,
       force_fname='md.puff.out'):
     self.domain1 = domain1
     self.domain2 = domain2
     self.dt = dt
     self.target_val = target_val
-    self.temp = temp
+    self.temperature = temperature
     self.force_fname = os.path.abspath(force_fname)
     self.is_backbone_only = is_backbone_only  
     self.is_first_domain_only = is_first_domain_only  
 
   def setup_domains(self):
     # scale the temperature (necessary at high pulling speeds)
-    if self.temp:
+    if self.temperature:
       atoms = self.soup.atoms()
-      anderson_velocity_scale(atoms, self.temp, 3*len(atoms))
+      anderson_velocity_scale(atoms, self.temperature, 3*len(atoms))
 
     # select the atoms from the domains definition
     selection = data.backbone_atoms if self.is_backbone_only else None
@@ -324,14 +324,14 @@ class PushApartByVel():
 
 
 def make_puff_fn(
-    domain1, domain2, target_val, dt=0.1, temp=None, 
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
   """
   Returns a pulse_fn implemented by PushApartByVel. 
   """
   strategy = PushApartByVel(
-      domain1, domain2, target_val, dt, temp, 
+      domain1, domain2, target_val, dt, temperature, 
       is_backbone_only, is_first_domain_only, 
       force_fname)
   pulse_fn = lambda soup: strategy.apply(soup)
@@ -382,14 +382,14 @@ class PushApartByAcc(PushApartByVel):
 
 
 def make_puff_acc_fn(
-    domain1, domain2, target_val, dt=0.1, temp=None, 
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
     is_backbone_only=False, is_first_domain_only=False, 
     force_fname='md.puff.out'):
   """
   Returns pulse_fn that implements PushApartByAcc.
   """
   strategy = PushApartByAcc(
-      domain1, domain2, target_val, dt, temp, 
+      domain1, domain2, target_val, dt, temperature, 
       is_backbone_only, is_first_domain_only, force_fname)
   pulse_fn = lambda soup: strategy.apply(soup)
   return pulse_fn
@@ -495,19 +495,19 @@ def add_rotational_velocity(atoms, rot_vel, axis, anchor):
 ##########################################################
 # Sidechain rotation functions
 
-def get_res_chi_topology(res):
+def get_res_chi_topology(residue):
   """
-  Returns the chi topology for a given res, which is a list of
+  Returns the chi topology for a given residue, which is a list of
   atoms that are affected if one rotates the chi0, chi1... 
   dihedral angle.
   """
-  res_type = res.type
+  res_type = residue.type
   if res_type not in data.chi_topology:
     return []
   if res_type in ["HSE"]:
     res_type = "HIS"
   result = copy.deepcopy(data.chi_topology[res_type])
-  if res_type == "ILE" and res.has_atom("CD1"):
+  if res_type == "ILE" and residue.has_atom("CD1"):
     for i in range(0, len(result)):
       for j in range(0, len(result[i])):
         if result[i][j] == "CD":
@@ -516,42 +516,43 @@ def get_res_chi_topology(res):
   return result
 
 
-def get_n_chi(res):
+def get_n_chi(residue):
   """
-  Returns the number of chi angles of res.
+  Returns the number of chi angles of residue.
   """
-  if data.chi_topology.has_key(res.type):
-    return len(data.chi_topology[res.type])
+  if data.chi_topology.has_key(residue.type):
+    return len(data.chi_topology[residue.type])
   return 0
 
 
-def calculate_chi(res, j):
+def calculate_chi(residue, i_chi):
   """
-  Returns the angle for the j'th chi dihedral angle of res.
+  Returns the angle for the i_chi dihedral angle of residue.
   """
-  res_chi_topology = get_res_chi_topology(res)
-  if j < len(res_chi_topology):
-    p = [res.atom(atom_type).pos for atom_type in res_chi_topology[j]]
+  res_chi_topology = get_res_chi_topology(residue)
+  if i_chi < len(res_chi_topology):
+    p = [residue.atom(atom_type).pos 
+         for atom_type in res_chi_topology[i_chi]]
     return v3.normalize_angle(v3.dihedral(p[0], p[1], p[2], p[3]))
-  raise ValueError, "No Chi%d angle for res %d" % (j, i)
+  raise ValueError, "No Chi%d angle for residue %d" % (i_chi, i)
 
 
-def get_axis_anchor(res, i_chi):
+def get_axis_anchor(residue, i_chi):
   """
-  Returns the axis of rotation and an anchor point of the i_chi
-  chi dihedral angle of res.
+  Returns the axis of rotation and an anchor point of i_chi
+  dihedral of residue.
   """
-  chi_topology = get_res_chi_topology(res)
-  p = [res.atom(a).pos for a in chi_topology[i_chi]]
+  chi_topology = get_res_chi_topology(residue)
+  p = [residue.atom(a).pos for a in chi_topology[i_chi]]
   axis = p[2] - p[1]
   anchor = p[2]
   return axis, anchor
   
     
-def atoms_affected_by_chi(res, i_chi):
+def atoms_affected_by_chi(residue, i_chi):
   """
-  Returns the atoms in res that will be rotated if the i_chi
-  chi dihedral angle is rotated.
+  Returns the atoms in residue that will be rotated if the i_chi
+  dihedral is rotated.
   """
   def sidechain_nesting(atom_type):
     label = atom_type
@@ -566,40 +567,40 @@ def atoms_affected_by_chi(res, i_chi):
       if label[0] == "H":
         nesting += 1
     return nesting
-  return [a for a in res.atoms()
+  return [a for a in residue.atoms()
           if sidechain_nesting(a.type) >= i_chi]
 
 
-def get_rot_vel_chi(res, i_chi):
+def get_rot_vel_chi(residue, i_chi):
   """
   Returns the weighted rotational velocity of the atoms 
-  that are rotated by the ith chi angle.
+  that are rotated by the i_chi dihedral.
   """
-  axis, anchor = get_axis_anchor(res, i_chi)    
-  atoms = atoms_affected_by_chi(res, i_chi)
+  axis, anchor = get_axis_anchor(residue, i_chi)    
+  atoms = atoms_affected_by_chi(residue, i_chi)
   return weighted_rotational_velocity(atoms, axis, anchor)
 
 
-def get_random_chi_rot_vel(res, i, temp):
+def get_random_chi_rot_vel(residue, i_chi, temperature):
   """
   Returns a random energy from a Maxwellian energy distribution
   consistent with the number of degrees of freedom of the
-  atoms involved in the i_chi angle.
+  atoms involved in the i_chi dihedral.
   """
-  axis, anchor = get_axis_anchor(res, i)
-  atoms = atoms_affected_by_chi(res, i)
+  axis, anchor = get_axis_anchor(residue, i_chi)
+  atoms = atoms_affected_by_chi(residue, i_chi)
   moment = total_moment_of_inertia(atoms, axis, anchor)
-  energy = random_energy(temp, 3*len(atoms))
+  energy = random_energy(temperature, 3*len(atoms))
   return math.sqrt(2 * energy / moment)
 
 
-def add_rot_vel_to_chi(res, i, target_rot_vel):
+def add_rot_vel_to_chi(residue, i_chi, target_rot_vel):
   """
-  Adds target_rot_vel to the atoms affected by i around the
+  Adds target_rot_vel to the atoms affected by i_chi around the
   chi axis.
   """
-  axis, anchor = get_axis_anchor(res, i)
-  atoms = atoms_affected_by_chi(res, i)
+  axis, anchor = get_axis_anchor(residue, i_chi)
+  atoms = atoms_affected_by_chi(residue, i_chi)
   add_rotational_velocity(atoms, target_rot_vel, axis, anchor)
 
 
@@ -609,44 +610,44 @@ class Rip:
 
   This is designed to be instantiated by make_rip_fn().
   """
-  def __init__(self, i_res, heating_temp):
+  def __init__(self, i_res, heating_temperature):
     self.i_res = i_res
-    self.heating_temp = heating_temp
+    self.heating_temperature = heating_temperature
     self.mean_chis = None
     self.max_delta_chi = v3.radians(60)
 
   def apply(self, soup):
-    res = soup.residue(self.i_res)
-    atoms = res.atoms()
-    n_chi = get_n_chi(res)
+    residue = soup.residue(self.i_res)
+    atoms = residue.atoms()
+    n_chi = get_n_chi(residue)
 
     if self.mean_chis is None:
-      self.mean_chis = [calculate_chi(res, i) for i in range(n_chi)]
+      self.mean_chis = [calculate_chi(residue, i) for i in range(n_chi)]
 
-    rot_vels = [get_rot_vel_chi(res, i) for i in range(n_chi)]
+    rot_vels = [get_rot_vel_chi(residue, i) for i in range(n_chi)]
     for atom in atoms:
       v3.set_vector(atom.vel, 0.0, 0.0, 0.0)
 
     for i_chi in reversed(range(n_chi)):
-      chi = calculate_chi(res, i_chi)
-      delta_chi = v3.normalize_angle(chi - self.mean_chis[i])
+      chi = calculate_chi(residue, i_chi)
+      delta_chi = v3.normalize_angle(chi - self.mean_chis[i_chi])
       target_rot_vel = get_random_chi_rot_vel(
-          res, i_chi, self.heating_temp)
+          residue, i_chi, self.heating_temperature)
       if abs(delta_chi) > self.max_delta_chi:
         if delta_chi > self.max_delta_chi:
           target_rot_vel = -target_rot_vel
       else:
         if rot_vels[i_chi] < 0.0:
           target_rot_vel *= -target_rot_vel
-      add_rot_vel_to_chi(res, i_chi, target_rot_vel)
+      add_rot_vel_to_chi(residue, i_chi, target_rot_vel)
 
-    anderson_velocity_scale(atoms, self.heating_temp, 3*len(atoms))
+    anderson_velocity_scale(atoms, self.heating_temperature, 3*len(atoms))
 
 
-def make_rip_fn(i_res, heating_temp):
+def make_rip_fn(i_res, heating_temperature):
   """
   Returns pulse_fn that implements Rip.
   """
-  rip = Rip(i_res, heating_temp)
+  rip = Rip(i_res, heating_temperature)
   return lambda soup: rip.apply(soup)
 

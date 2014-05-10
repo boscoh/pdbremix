@@ -2,16 +2,18 @@
 
 `pdbremix` is a python library for computational structural biology.
 
-The library provides a light API; it has no external python dependencies, so works in jython and pypy. 
+The library provides a light API.
+
+; it has no external python dependencies, so works in jython and pypy. 
 
 The library can be split up into:
 
-1. standalone tools for PDB structures
+1. standalone tools for analysis of PDB structures
 2. wrappers around external tools for PDB structures 
 3. tools to analyze MD trajectories
 3. python interface to analyze and edit PDB structures
 4. python interface to run molecular-dynamics simulations
-5. python interface to analyse molecular dynamics trajectories
+5. python interface to analyse trajectories
 
 
 ## Standalone PDB structure analysis tools
@@ -21,8 +23,10 @@ The library can be split up into:
 - `pdbfetch` fetches PDB files from the RCSB website
 - `pdbheader` displays summary of PDB files
 - `pdbseq` displays sequences in a PDB file
+
+- `pdbcheck` checks for structural defects in a PDB file
+- `pdbstrip` to clean up a PDB file
 - `pdbchain` extracts chains from a PDB file
-- `pdbcheck` checks for common defects in a PDB file
 
 The following tools implement standard structural biology algorithms using pure Python:
 
