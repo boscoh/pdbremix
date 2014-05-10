@@ -33,6 +33,7 @@ import v3
 import pdbatoms
 import data
 import rmsd
+import force
 
 import namd
 import amber
@@ -127,15 +128,22 @@ class TrajectoryAnalyzer(object):
   def __init__(self, trj, n_frame_per_ps, ref_pdb):
     self.trj = trj
     self.n_frame_per_ps = n_frame_per_ps
+    
+    # for reference frame
     if ref_pdb:
       self.ref_soup = pdbatoms.Soup(ref_pdb)
     else:
       self.ref_soup = self.trj.soup.copy()
+
+    # output files
     fname = trj.basename + '.' + self.var_name + '.per_frame'
     self.file_per_frame = open(fname, 'w')
     fname = trj.basename + '.' + self.var_name + '.per_ps'
     self.file_per_ps = open(fname, 'w')
+
+    # cumul results for ps save
     self.cumul_results = None
+    self.n_cumul_frame = 0
 
   def calculate_results(self):
     """
@@ -144,9 +152,8 @@ class TrajectoryAnalyzer(object):
     return []
   
   def process_frame_on_ps(self):
-    if self.trj.i_frame > 0:
-      for i in range(len(self.cumul_results)):
-        self.cumul_results[i] /= float(self.n_frame_per_ps)
+    for i in range(len(self.cumul_results)):
+      self.cumul_results[i] /= float(self.n_cumul_frame)
 
     # save results for ps calculation
     s = ' '.join(map(str, self.cumul_results))
@@ -156,26 +163,24 @@ class TrajectoryAnalyzer(object):
     if self.trj.i_frame > 0:
       for i in range(len(self.cumul_results)):
         self.cumul_results[i] = 0.0
+    self.n_cumul_frame = 0
 
-  def process_frame(self, i_frame):
-    time = self.trj.i_frame / float(self.n_frame_per_ps)
-
+  def process_frame(self):
     results = self.calculate_results()
 
     # write results to file_per_frame
     s = " ".join(map(str, results))
     self.file_per_frame.write(s + "\n")
 
-    # add results to cumul_results
+    # initialize on first frame
     if self.cumul_results is None:
       self.cumul_results = [0.0 for i in range(len(results))]
+
+    # add results to cumul_results
     for i in range(len(results)):
       self.cumul_results[i] += results[i]
+    self.n_cumul_frame += 1
 
-    # A whole ps has been save to file_per_ps
-    if (i_frame+1) % self.n_frame_per_ps == 0 or i_frame == 0:
-      self.process_frame_on_ps()
-    
   def close(self):
     self.file_per_frame.close()
     self.file_per_ps.close()
@@ -187,10 +192,8 @@ class CaRmsdAnalyzer(TrajectoryAnalyzer):
   TrajectoryAnalyzer to calculate C-alpha RMSD.
   """
   var_name = 'rmsd'
-
   def calculate_results(self):
-    val = rmsd.rmsd_of_soups(self.ref_soup, self.trj.soup)
-    return [val]
+    return [rmsd.rmsd_of_soups(self.ref_soup, self.trj.soup)]
 
 
 class KineticEnergyAnalyzer(TrajectoryAnalyzer):
@@ -202,12 +205,8 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
   def calculate_results(self):
     results = []
     for residue in self.trj.soup.residues():
-      energy = 0.0
       atoms = residue.atoms()
-      for atom in atoms:
-        vel = v3.mag(atom.vel)
-        energy += 0.5 * atom.mass * vel * vel
-      results.append(energy / float(len(atoms)))
+      results.append(force.kinetic_energy(atoms) / float(len(atoms)))
     return results
 
 
@@ -249,11 +248,14 @@ def analyze_trajectory(
                for a in analyzer_classes]
 
   # Go through frame by frame
-  for i in range(trj.n_frame):
-    print "Processing frame %d/%d" % (i, trj.n_frame)
-    trj.load_frame(i)
+  for i_frame in range(trj.n_frame):
+    print "Processing frame %d/%d" % (i_frame, trj.n_frame)
+    trj.load_frame(i_frame)
     for analyzer in analyzers:
-      analyzer.process_frame(i)
+      analyzer.process_frame()
+    # A whole ps has been save to file_per_ps
+    if (i_frame+1) % n_frame_per_ps == 0 or i_frame == 0:
+      analyzer.process_frame_on_ps()
 
   for analyzer in analyzers:
     analyzer.close()

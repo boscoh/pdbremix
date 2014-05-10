@@ -768,8 +768,8 @@ class TrrReader:
     self.read_header()
     self.calc_precision()
     self.calc_frame_info()
-    self.i_frame = 0
-    self.load_frame(self.i_frame)
+    self.i_frame = None
+    self.load_frame(0)
 
   def read_header(self):
     self.u = xdrlib.Unpacker(self.file.read(200))
