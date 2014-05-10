@@ -24,13 +24,15 @@ The library can be split up into:
 - `pdbchain` extracts chains from a PDB file
 - `pdbcheck` checks for common defects in a PDB file
 
-These tools implement standard structural biology algorithms using pure Python:
+The following tools implement standard structural biology algorithms using pure Python:
 
 - `pdbvol` calculates the volume
 - `pdbasa` calculates the accessible surface-area
 - `pdbrmsd` calculates RMSD between structures
 
-- `md2pdb` converts MD restart files into PDB
+For these tools, you can get a large speed gain if you run them  through `pypy`, where as an example:
+
+	> pypy `which pdbvol` 1be9.pdb
 
 You can get help for these with the `-h` option on the command-line. 
 
@@ -106,17 +108,13 @@ The library was originally written to do PUFF steered-molecular dynamics simulat
 - `puffshow` displays pulling residues in PUFF sim
 
 
-## Python Interface to manipulate PDB Structures
+## Vector geometry library
 
-### Vector geometry library
-
-For a structural biology library, you need a good vector geometry library. Here we provide `v3`:
+As in any structural biology library, we provide a vector geometry library, which is called `v3`:
 
 	from pdbremix import v3
 
-The library switches between a pure python `v3array` version or if you have a numpy, a numpy-dependent version `v3numpy`. 
-
-If you want specifically the python version:
+`v3` was designed to be function-based, with vector and transform objects subclassed from arrays. This allows the library to easily switch between a pure Python version and a numpy-dependent version. If you want specifically the python version:
 
 	import pdbremix.v3array as v3
 
@@ -124,140 +122,180 @@ Or the numpy version:
 
 	import pdbremix.v3numpy as v3
 
-The interface is accessed through functions rather than methods or operator overloading (except for arithmetic vector). This allows the library swapping. Vectors are created by a function:
+Vectors are created and copied by the `vector` function:
 
-		v = v3.vector() # the zero vector
-
+	v = v3.vector() # the zero vector
 	z = v3.vector(1,2,3)
-
 	w = v3.vector(z) # a copy
 
 As vectors are subclassed from arrays, to access components:
 
 	print v[0], v[1], v[2]
 
-Vector functions return by value except for `set_vector`, which changes components in place:
+Most functions return by value, except for `set_vector`, which changes components in place:
 
-	v = v3.vector(1, 1, 1)
-	set_vector(v, 2, 2, 2)
+	v3.set_vector(v, 2, 2, 2)
 
-Here are a set of common vector operations, from which most vector operations can be constructed:
+Here are a set of common vector operations:
 
 	mag(v)
-	Returns magnitude of v.
+		Returns magnitude of v.
 	scale(v, s)
-	Returns the vector of v where components multiplied by s.
+		Returns the vector of v where components multiplied by s.
 	dot(v1, v2)
-	Returns the dot product of two vectors.
+		Returns the dot product of two vectors.
 	cross(v1, v2)
-	Returns the cross product of two vectors.
+		Returns the cross product of two vectors.
 	norm(v)
-	Returns vector of v where magnitude is normalised to 1.
+		Returns vector of v where magnitude is normalised to 1.
 	parallel(v, axis)
-	Returns vector component of v parallel to axis.
+		Returns vector component of v parallel to axis.
 	perpendicular(v, axis)
-	Returns vector component of v perpendicular to axis.
+		Returns vector component of v perpendicular to axis.
 
-We also need a representations for affine (rotation+translation) transforms of vectors. In `v3`, transforms are created by these functions:
+Vectors will be used to represent coordinates/points, velocities, displacements etc. Functions are provided to measure their geometric properties:
 
-	identity()
-		Returns the identity transform.
-	rotation(axis, theta)
-		Returns transform that rotates around the origin.
-	rotation_at_center(axis, theta, center)
-		Returns transform that rotates around center.
-	translation(t)
-		Returns transform that translates a vector by t.
-	left_inverse(m)
-		Returns the left inverse of m.
-			Example:
-			  combine(left_inverse(m), m) == identity().
+	distance(p1, p2)
+		Returns distance between two points
 
-Which can be combined into single transforms:
+	vec_angle(a, b)
+		Returns angle in radians between a and b.
+	vec_dihedral(a, axis, c)
+		Returns dihedral angle between a and c, along the axis.
+	dihedral(p1, p2, p3, p4)
+		Returns dihedral angle defined by the four positions.
 
-	combine(a, b)
-	Returns transform that combines two transforms.
+	normalize_angle(angle)
+		Returns angle in radians that is [-pi, pi]()
+	degrees(radians)
+		Converts radians to degrees, better for reporting.
+	radians(degrees)
+		Converts degrees to radians, which is used in math functions.
 
-The purpose of transforms is to transform a vector, and this is done by:
+	get_center(crds)
+		Returns the geometric center of a bunch of positions.
+	get_width(crds)
+		Returns the maximum width between any two crds in the group.
 
-	transform(matrix, v)
-			Returns transform that translates by displacement vector t.
+#### Affine Transforms
 
-You typically won’t want to access the elements of a matrix, but if you do, it is through this in-place function:
+We also need a representations for affine transforms, which involve a rotation and a translation. 
+
+The purpose of a transform `matrix` is to transform a vector `v`:
+
+	v3.transform(matrix, v)
+
+In `v3`, we represent the transform as a 4x3 matrix with two parts:
+
+1. 3x3 rotational component:
+
+		matrix_elem(m, i, j) for i=0..3, j=0..3
+
+2. 3x1 translational component:
+
+		matrix_elem(m, 3, i) for i=0..3
+
+To read/write the elements of a transform, we use:
 
 	matrix_elem(matrix, i, j, val=None)
-	Reads/writes the elements of an affine transform.
-	1. 3x3 rotational component;
-	    matrix_elem(m, i, j) for i=0..3, j=0..3
-	2. 3x1 translational component:
-	    matrix_elem(m, 3, i) for i=0..3)
 
-distance(p1, p2)
-Returns distance between two points
-degrees(radians)
-Converts radians to degrees, better for reporting.
-radians(degrees)
-Converts degrees to radians, which is used in math functions.
-normalize_angle(angle)
-Returns angle in radians that is [-pi, pi]()
-vec_angle(a, b)
-Returns angle in radians between a and b.
-vec_dihedral(a, axis, c)
-Returns dihedral angle between a and c, along the axis.
-dihedral(p1, p2, p3, p4)
-Returns dihedral angle defined by the four positions.
+Most of the time, you would build a transform from these basic transform generating functions:
 
-is_similar_mag(a, b, small=0.0001)
-Evaluates similar magnitudes to within small.
-is_similar_matrix(a, b, small=0.0001)
-Evaluates similar matrixes through matrix components.
-is_similar_vector(a, b, small=0.0001)
-Evaluates similar matrixes through matrix components.
+	v3.identity()
+	v3.rotation(axis, theta)
+	v3.rotation_at_center(axis, theta, center)
+	v3.translation(t)
+	v3.left_inverse(m)
 
-get_center(crds)
-Returns the geometric center of a bunch of positions.
-get_width(crds)
-Returns the maximum width between any two crds in the group.
+And combine them in the correct sequence:
 
-random_mag()
-Returns a random positive number from [0, 90]() for testing.
-random_matrix()
-Returns a random transformation matrix for testing.
-random_real()
-Returns a random real +/- from [-90, 90]() for testing.
-random_rotation()
-Returns a random rotational matrix for testing.
-random_vector()
-Returns a random vector for testing.
+	c = v3.combine(a, b)
 
-v3.py
-v3array.py
-v3numpy.py
+#### Testing Vectors and Transforms
+
+Finally, we introduce functions to test similarity for vectors and transforms:
+	
+	is_similar_mag(a, b, small=0.0001)
+		Evaluates similar magnitudes to within small.
+	is_similar_matrix(a, b, small=0.0001)
+		Evaluates similar matrixes through matrix components.
+	is_similar_vector(a, b, small=0.0001)
+		Evaluates similar matrixes through matrix components.
+
+And a bunch of random geometric object generators, used for testing:	
+
+	random_mag()
+		Returns a random positive number from [0, 90]() for testing.
+	random_matrix()
+		Returns a random transformation matrix for testing.
+	random_real()
+		Returns a random real +/- from [-90, 90]() for testing.
+	random_rotation()
+		Returns a random rotational matrix for testing.
+	random_vector()
+		Returns a random vector for testing.
 
 ### Reading in a Soup
 
+Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the `fetch` module:
 
-The main object for manipulating PDB structures is the Soup object in `pdbatoms`. It is essentially a collection of atoms with a coordinated list of residues. A residue in this case represents a collection of atoms that forms a recognizable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. 
+	from pdbremix import fetch
+	fetch.get_pdbs_with_http(['1be9'])
 
-Specifically chains are separate operations on a Soup and not explicitly represented. 
+The main object for manipulating PDB structures is the Soup object in `pdbatoms`. We can read a Soup from a PDB file:
 
-	 from pdbremix import fetch
-	 from pdbremix import pdbatoms
-	
-	 fetch.fetch_pdb("1be9")
-	 soup = pdbatoms.Soup("1be9.pdb")
-	
-	 print len(soup)
-	
-	 print soup.residues()
+	from pdbremix import pdbatoms
+	soup = pdbatoms.Soup("1be9.pdb")
+
+**List of Atoms.** A Soup is essentially a collection of atoms, which we can grab by:
+
+	atoms = soup.atoms()
+
+An atom has attributes:
+
+  - pos (v3.vector)
+  - vel (v3.vector)
+  - mass (float)
+  - charge (float)
+  - type (str)
+  - element (str)
+  - num (int)
+  - chain_id (str)
+  - res_type (str)
+  - res_num (str)
+  - res_insert (str)
+  - bfactor (float)
+  - occupancy (float)
+  - alt_conform (str)
+  - is_hetatm (bool)
+
+Since `atom.pos` and `atom.vel` are vectors, these can all be manipulated by functions from the `v3` library. Atom contains one special method `transform` that handle affine transforms. 
+
+For example, to move an atom 1.0 angstrom along the X-axis:
+
+	t = v3.translation(v3.vector(1,0,0))
+	atom = atoms[0]
+	atom.transform(t)
+
+**List of Residues** As well, Soup contains a list of residues:
+
+	residues = soup.residues()
+
+A residue in this case represents a collection of atoms that forms a recognizable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. 
+
+One useful heuristic is that 
+Although chains are representedSpecifically chains are separate operations on a Soup and not explicitly represented. 
+
+	print len(soup)
+	nnprint soup.residues()
 	
 	 print soup.atoms()
+
 
 util.py
 asa.py
 data.py
 fetch.py
-pdbatoms.py
 pdbtext.py
 protein.py
 pymol.py
@@ -273,25 +311,6 @@ namd.py
 
 traj.py
 
-
-## A vector library
-
-- numerics
-- function based, not object based
-- allows wrapping around other libraries
-- not operator overloading, with matrices, it's too easy to get confused
-- allows non-numpy library, so pypy
-	pypy `which pdbasa` 1be9.pdb
-
-# representing PDB structures
-
-- I have written quite a few variations of the pdbatoms library, I've found the right level of abstraction, the simplest required to do all the things that I find useful
-- the PDB really has 
-	1. atoms
-	2. residues
-- chains are really not implemented coherently and should be considered on an ad-hoc basis
-- really important to have a PDB structure with a general geometrical transformation library
-- move pieces around, splice things around, use proper vector geometry
 
 # patching PDB structures
 - delete extra waters
