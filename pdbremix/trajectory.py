@@ -2,7 +2,7 @@
 
 __doc__ = """
 
-Interface to read molecular dynamics trajectories. 
+Interface to read molecular-dynamics trajectories. 
 
 Simulation trajectories are read into a Trajectory object
 that provides a Soup object, which is updated everytime a
@@ -22,8 +22,9 @@ Trajectory object:
 Currently supported trajectories:
 - AMBER: .top .trj .vel.trj
 - GROMACS: .top .gro .trr
-- NAMD: .psf .gro .dcd .vel.dcd
+- NAMD: .psf .dcd .vel.dcd
 """
+
 
 import os
 import copy
@@ -199,7 +200,8 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
     for residue in self.trj.soup.residues():
       if residue.type not in data.solvent_res_types:
         atoms = residue.atoms()
-        results.append(force.kinetic_energy(atoms) / float(len(atoms)))
+        energy = force.kinetic_energy(atoms)/float(len(atoms))
+        results.append(energy)
     return results
 
 

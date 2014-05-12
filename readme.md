@@ -1,4 +1,4 @@
-# PDBREMIX
+# pdbremix
 
 `pdbremix` is a library for computational structural biology.
 
@@ -6,69 +6,83 @@ The library consists of:
 
 1. tools to analyze and view PDB structures
 2. tools to run MD simulations and analyze trajectories
-3. python interface to analyze and edit PDB structures
+3. python interface to analyze PDB structures
 4. python interface to run molecular-dynamics simulations
-5. python interface to analyse trajectories
+5. python interface to analyze trajectories
 
-`Pdbremix` is written in pure Python that works with PyPy for a dramatic speed-up.
+`Pdbremix` is written in pure Python and works with PyPy for useful speed-up.
 
 ## Installation
 
-Install with `pip` is best:
+Install with `pip` is easiest:
 
-    > pip install pdbremix
-   
-Otherwise download from github and install.
+	> pip install pdbremix
 
-If you want the test and example files, this second way is the way to go.
+Otherwise download from github and install:
 
-### Wrappers around external tools
+	https://github.com/boscoh/pdbremix/master/tarball
 
-There are many wonderful tools for computational structural biology that have less-than-stellar interfaces. `pdbremix` wraps some of these tools with a friendlier interface and extra functionality. 
+From here, you can access the unit tests and example files.
 
-To use these tools, first check what binaries that `pdbremix` can find on your system:
+There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps some of these tools with better interfaces and extra functionality. 
+
+To check which of these tools that `pdbremix` can access from the path:
 
 	> checkpdbremix
 
-To hand-code the exact location of the binaries, or to run the binaries with exotic flags, edit the config file with the `-o` option such as:
+If you know where the binaries are, or if you want to add exotic flags to the binaries, edit the confguration file that is given with the `-o` flag:
 
 	> vi `checkpdbremix -o`
 
 
-
 ## Tools to analyze PDB structures
 
-### Standalone tools
+`pdbremix` provides a bunch of tools to investigate PDB structures.
 
-`pdbremix` provides a bunch of tools to investigate PDB structures that can be used out of the box:
+### Standalone tools in Pure Python
+
+Some of them can be used straight out of the box:
 
 - `pdbfetch` fetches PDB files from the RCSB website
 - `pdbheader` displays summary of PDB files
-- `pdbseq` displays sequences in a PDB file
-- `pdbchain` extracts chains from a PDB file
-- `pdbcheck` checks for common defects in a PDB file
-- `pdbstrip` strips the PDB file into a single clean conformation
+- `pdbseq` displays sequences in a PDB
+- `pdbchain` extracts chains from a PDB
+- `pdbcheck` checks for common defects in a PDB
+- `pdbstrip` cleans up PDB for MD simulations
 
-The following tools implement standard structural biology algorithms using pure Python:
+These tools implement standard structural biology algorithms:
 
-- `pdbvol` calculates the volume
-- `pdbasa` calculates the accessible surface-area
-- `pdbrmsd` calculates RMSD between structures
+- `pdbvol` calculates volume of a PDB
+- `pdbasa` calculates accessible surface-area of a PDB
+- `pdbrmsd` calculates RMSD between PDB files
 
-For these tools, you can get a large speed gain if you run them  through `pypy`, where as an example:
+For these algorithmic tools, you get a large speed gain if you run them  through `pypy`:
 
+	> pdbfetch 1be9
+	> pdbstrip 1be9.pdb
 	> pypy `which pdbvol` 1be9.pdb
 
-You can get help for these with the `-h` option on the command-line. 
+Help for the tools is available with the `-h` option. 
 
 
 ### Wrappers around external tools
 
-These command-line tools provide a better interface to common tools such as PYMOL, MODELLER and THESEUS:
+These command-line tools provide a better interface to external tools for some rather common structural biology use cases.
 
-- `pdbshow` wrapper for PYMOL to display PDB with residue centring and b-factor colouring
-- `pdboverlay` wraps MAFFT, THESEUS and PYMOL to display homologous proteins
-- `pdbinsert` wraps MODELLER to build loops for gaps in a PDB structure
+- `pdbshow` displays PDB structures in PYMOL with extras.
+
+	1. provides useful display defaults: coloring by chains, ribbons on, sticks for sidechains. 
+	2. Residue centering
+	3. coloring by B-factor.
+	4. removes solvent to view MD-generated files
+
+- `pdboverlay` display homologous proteins using MAFFT, THESEUS and PYMOL.
+
+	I believe this provides the best solution. Use one of the best sequence alignment tools to get the sequence alignment. Use the smart weighted RMSD alignment of THESEUS, and display this in PYMOL using a display schemes that highlights RMSD the homology between proteins.
+
+- `pdbinsert` fill gaps in a PDB file with MODELLER
+
+	Many PDB files have gaps in their structure. If you want to use them for simulation, you will have to patch these gaps. Now your answer is probably MODELLER but MODELLER is not designed for casual use. For this very common case:
 
 
 
@@ -76,9 +90,29 @@ These command-line tools provide a better interface to common tools such as PYMO
 
 `pdbremix` provides a simplified interface to run molecular-dynamics on 3 standard MD packages: AMBER11+, GROMACS4.5+ and NAMD2.8+.
 
-- md2pdb
+### Making topology files
 
- `pdbremix` assumes that associated files for an MD trajectory *has a common base name*. 
+To achieve this abstraction, `pdbremix` assumes all the files of a simulation will have a common basename. To generate these files from a PDB, run:
+
+	> pdbfetch 1be9
+	> pdbstrip 1be9.pdb
+	> pdb2top 1be9.pdb sim AMBER11
+
+This will make: 
+
+1. sim.top, sim.crd - is all you need to run an AMBER simulation. 
+2. sim.pdb - is a fleshed out PDB that is populated with AMBER generated hydrogen atoms, need for positional constraints.
+
+The other packages are:
+- AMBER11-GBSA
+- NAMD2.8
+- GROMACS4.5
+
+### Running simulations
+
+### Trajectory analysis
+
+ `pdbremix` assumes that associated files for an MD trajectory has a *common basename*. 
 
 In AMBER:
 
@@ -100,14 +134,14 @@ In NAMD:
 
 Once named properly, these tools can be used:
 
-- `trajstep` extracts basic trajectory parameters
+- `trajstep` extracts basic parameters of atrajctory
 - `trajvar` calculates energy and RMSD of trajectory
 
 Use these tools to display trajectories: 
 
-- `trajvmd` open trajectories in VMD *recommended*
-- `trajchim` open trajectories in CHIMERA
-- `trajpym` open trajectories in PYMOL *AMBER only*
+- `trajvmd` display trajectory in VMD *recommended*
+- `trajchim` display trajectory in CHIMERA
+- `trajpym` display trajectory in PYMOL *AMBER only*
 
 These are some package specific tools: 
 
@@ -176,20 +210,6 @@ We also need a representations for affine transforms, which involve a rotation a
 
 	v3.transform(matrix, v)
 
-In `v3`, we represent the transform as a 4x3 matrix with two parts:
-
-1. 3x3 rotational component:
-
-		matrix_elem(m, i, j) for i=0..3, j=0..3
-
-2. 3x1 translational component:
-
-		matrix_elem(m, 3, i) for i=0..3
-
-To read/write the elements of a transform, we use:
-
-	matrix_elem(matrix, i, j, val=None)
-
 Most of the time, you would build a transform from these basic generating functions:
 
 	v3.identity()
@@ -201,6 +221,21 @@ Most of the time, you would build a transform from these basic generating functi
 And combine them in the correct sequence:
 
 	c = v3.combine(a, b)
+
+But if you do need to mess around with a transform, then you need to know that a transform is represented by a 4x3 matrix, of which the elements are accessed by:
+
+	matrix_elem(matrix, i, j, val=None)
+
+The matrix consists of 2 parts:
+
+1. 3x3 rotational component:
+
+		matrix_elem(m, i, j) for i=0..3, j=0..3
+
+2. 3x1 translational component:
+
+		matrix_elem(m, 3, i) for i=0..3 
+
 
 #### Testing Vectors and Transforms
 
@@ -287,9 +322,9 @@ One key heuristic is that the type of atoms in a residue is unique. So the funct
 
 will return an atom based on type in an atom.
 
-So in a Soup, if you know the res atom_type’s _
+So in a Soup, if you know the res atom\_type’s \_
 
-  soup.residue_by_tag(‘A:15’).name(‘CA’)
+  soup.residue\_by\_tag(‘A:15’).name(‘CA’)
 
 Or by index:
 
@@ -361,7 +396,7 @@ pymol.py
 	`pdbpym -b -c B:8 -t B:7 1be9.pdb`
 
 
-## Molecular dynamics tools
+## Python Interface to Molecular Dynamics
 
 The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
 

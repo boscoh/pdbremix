@@ -136,6 +136,8 @@ def rmsd_of_soups(
   Returns the RMSD between two PDB structures and optionally
   writes the best transformed structure of pdb1 in transform_pdb.
 
+  By default, it chooses the CA atoms in the soup.
+
   Args:
     segments1 (list): list of pairs of residue names in pdb1,
                      such as ['A:1','A:3'], interpreted as the 
@@ -150,7 +152,7 @@ def rmsd_of_soups(
 
   crds1 = [a.pos for a in atoms1]
   crds2 = [a.pos for a in atoms2]
-
+ 
   center1 = v3.get_center(crds1)
   center2 = v3.get_center(crds2)
 
@@ -190,6 +192,6 @@ def rmsd_of_pdbs(
   soup1 = pdbatoms.Soup(pdb1)
   soup2 = pdbatoms.Soup(pdb2)
   return rmsd_of_soups(
-    pdb1, pdb2, segments1, segments2, 
+    soup1, soup2, segments1, segments2, 
     atom_types, transform_pdb1)
   

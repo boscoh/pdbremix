@@ -259,13 +259,13 @@ def rotation(axis, theta):
   return m
 
 
-def translation(t):
+def translation(displacement):
   """
-  Returns transform that translates by displacement vector t.
+  Returns transform that translates by displacement.
   """
   m = identity()
   for i in range(3):
-    matrix_elem(m, 3, i, t[i])
+    matrix_elem(m, 3, i, displacement[i])
   return m
 
 
@@ -273,19 +273,18 @@ def combine(a, b):
   """
   Returns transform that combines two transforms.
   """
-  # The combination is carried out by matrix multiplication
-  # for the rotational matrix component, and the translation 
-  # component is rotated.
   c = identity()
-  for i in range(0, 3):
-    for j in range(0, 3):
+  for i in range(3):
+    # combine the rotational part by matrix multiplication
+    for j in range(3):
       val = 0.0
-      for k in range(0, 3):
-         val += matrix_elem(a,k,i) * matrix_elem(b,j,k)
+      for k in range(3):
+         val += matrix_elem(a, k, i) * matrix_elem(b, j, k)
       matrix_elem(c, j, i, val)
-    val = matrix_elem(a,3,i)
-    for k in range(0,3):
-      val += matrix_elem(a,k,i) * matrix_elem(b,3,k)
+    val = matrix_elem(a, 3, i)
+    # combine the translational part by vector rotation
+    for k in range(3):
+      val += matrix_elem(a, k, i) * matrix_elem(b, 3, k)
     matrix_elem(c, 3, i, val)
   return c
 
