@@ -494,7 +494,7 @@ def pdb_to_top_and_crds(
 minimization_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.crd', 
-  'output_name' : 'min', 
+  'output_basename' : 'min', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
   'restraint_force': 100.0,
@@ -504,7 +504,7 @@ minimization_parms = {
 constant_energy_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.crd', 
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
   'restraint_force': 100.0,
@@ -515,13 +515,13 @@ constant_energy_parms = {
 langevin_thermometer_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.crd', 
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'force_field': 'GBSA',
   'restraint_pdb': '',
   'restraint_force': 100.0,
   'random_seed' : 2342, 
-  'temp_thermometer' : 300.0, 
-  'temp_initial': 0.0, # ignored if it is 0.0
+  'temperature_thermometer' : 300.0, 
+  'temperature_initial_velocities': 0.0, # ignored if it is 0.0
   'n_step_per_snapshot' : 5, 
   'n_step_dynamics' : 1000, 
   'n_step_per_thermostat' : 100, 
@@ -559,8 +559,8 @@ dynamics_script = """
 
 # langevin thermometer
 thermostat_script = """
-  ntt = 3, gamma_ln = 5, temp0 = %(temp_thermometer)s, vlimit = 0.0,
-  ig = %(random_seed)s, tempi = %(temp_initial)s, 
+  ntt = 3, gamma_ln = 5, temp0 = %(temperature_thermometer)s, vlimit = 0.0,
+  ig = %(random_seed)s, tempi = %(temperature_initial_velocities)s, 
 """
 
 
@@ -599,7 +599,7 @@ def make_sander_input_file(parms):
     else:
       script += "  ntx = 1,\n"
     script += dynamics_script
-    if 'temp_thermometer' in parms:
+    if 'temperature_thermometer' in parms:
       script += thermostat_script
 
   else:
@@ -645,7 +645,7 @@ def run(in_parms):
   Run a AMBER simulations using the PDBREMIX in_parms dictionary.
   """
   parms = copy.deepcopy(in_parms)
-  basename = parms['output_name']
+  basename = parms['output_basename']
 
   # Copies across topology file
   input_top = parms['topology'] 
@@ -1070,7 +1070,7 @@ def calculate_energy(top, crd):
   parms.extend({
     'topology': top,
     'input_crds': crd,
-    'output_name': 'energy',
+    'output_basename': 'energy',
     'n_step_minimization': 0,
     'n_step_steepest_descent': 0})
   run(parms)

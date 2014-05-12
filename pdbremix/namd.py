@@ -531,7 +531,7 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10.0):
 minimization_parms = { 
   'topology' : 'in.psf', 
   'input_crds' : 'in.pdb', 
-  'output_name' : 'min', 
+  'output_basename' : 'min', 
   'force_field': 'NAMD', 
   'restraint_pdb': '',
   'restraint_force': 100.0,
@@ -542,7 +542,7 @@ constant_energy_parms = {
   'topology' : 'in.top', 
   'input_crds': 'in.coor',
   'input_vels': 'in.vel',
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'random_seed' : 2342, 
   'force_field': 'NAMD', 
   'n_step_per_snapshot' : 5, 
@@ -555,9 +555,9 @@ langevin_thermometer_parms = {
   'topology' : 'in.top', 
   'input_crds': 'in.coor',
   'input_vels': '',
-  'temp_thermometer' : 300.0, 
+  'temperature_thermometer' : 300.0, 
   'force_field': 'NAMD', 
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'random_seed' : 2342, 
   'n_step_per_snapshot' : 5, 
   'n_step_dynamics' : 1000, 
@@ -572,7 +572,7 @@ structure %(topology)s
 coordinates %(input_crds)s
 
 # set output basenames
-outputName %(output_name)s
+outputName %(output_basename)s
 binaryOutput no
 """
 
@@ -614,9 +614,9 @@ constraintScaling %(restraint_force)s
 
 molecular_dynamics_script = """
 # DCD output
-dcdFile %(output_name)s.dcd
+dcdFile %(output_basename)s.dcd
 dcdFreq %(n_step_per_snapshot)s
-velDcdFile %(output_name)s.vel.dcd
+velDcdFile %(output_basename)s.vel.dcd
 velDcdFreq %(n_step_per_snapshot)s
 
 # Molecular Dynamics Timesteps
@@ -666,7 +666,7 @@ velocities %(input_vels)s
 
 generate_velocities_script = """
 # Generate velocities from temperature
-temperature %(temp_initial)s
+temperature %(temperature_initial_velocities)s
 seed %(random_seed)s
 """
 
@@ -674,7 +674,7 @@ temperature_coupling_script = """
 # Temperature Coupling with Langevin Thermometer
 langevin on
 langevinHydrogen off
-langevinTemp %(temp_thermometer)s
+langevinTemp %(temperature_thermometer)s
 langevinDamping 5.0
 """
 
@@ -689,7 +689,7 @@ langevinPiston        on
 langevinPistonTarget  1.01325   #  in bar -> 1 atm
 langevinPistonPeriod  200.0
 langevinPistonDecay   100.0
-langevinPistonTemp    %(temp_thermometer)s
+langevinPistonTemp    %(temperature_thermometer)s
 """
   
 minimization_script = """
@@ -714,11 +714,11 @@ def make_namd_input_file(parms):
     script += molecular_dynamics_script % parms
     if parms['input_vels']:
       script += import_velocities_script % parms
-    elif 'temp_initial' in parms and parms['temp_initial'] > 0.0:
+    elif 'temperature_initial_velocities' in parms and parms['temperature_initial_velocities'] > 0.0:
       script += generate_velocities_script % parms
     else:
       raise IndexError("No initial velocity information for dynamics run")
-    if 'temp_thermometer' in parms:
+    if 'temperature_thermometer' in parms:
       script += temperature_coupling_script % parms
       script += constant_pressure_script % parms
   else:
@@ -731,7 +731,7 @@ def run(in_parms):
   Runs a NAMD simulation using the PDBREMIX in_parms dictionary.
   """
   parms = copy.deepcopy(in_parms)
-  name = parms['output_name']
+  name = parms['output_basename']
 
   # load the included CHARMM2 energy parameters
   parms['parameter'] = os.path.join(data.data_dir, 'charmm22.parameter')

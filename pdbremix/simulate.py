@@ -199,7 +199,7 @@ def fetch_simulation_parameters(
     'force_field': force_field,
     'topology': top,
     'input_crds': crds,
-    'output_name': basename,
+    'output_basename': basename,
   })
   if restraint_pdb:
     parms['restraint_pdb'] = restraint_pdb
@@ -214,7 +214,7 @@ def run_simulation_with_parameters(parms):
   # .config file. As an Exception is thrown if simulation failed,
   # the existence of an equivalent .config file is an indicator
   # that the simulation has already successfully run.
-  config = parms['output_name'] + ".config"
+  config = parms['output_basename'] + ".config"
   if util.is_same_dict_in_file(parms, config):
     print "Skipping: simulation already run."
     return
@@ -262,8 +262,8 @@ def langevin_thermometer(
   parms['input_vels'] = vels
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
-  parms['temp_thermometer'] = "%.1f" % temp
-  parms['temp_initial'] = "%.1f" % temp
+  parms['temperature_thermometer'] = "%.1f" % temp
+  parms['temperature_initial_velocities'] = "%.1f" % temp
   run_simulation_with_parameters(parms)
 
 
@@ -284,7 +284,7 @@ def constant_energy(
   parms['input_vels'] = vels
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
-  assert 'temp_thermometer' not in parms
+  assert 'temperature_thermometer' not in parms
   assert 'temp_init' not in parms
   run_simulation_with_parameters(parms)
 
@@ -423,9 +423,9 @@ def pulse(
 #   parms.extend({
 #     'topology': top,
 #     'input_crds': crd,
-#     'output_name': 'md',
-#     'temp_thermometer': temperature,
-#     'temp_initial': temperature,
+#     'output_basename': 'md',
+#     'temperature_thermometer': temperature,
+#     'temperature_initial_velocities': temperature,
 #     'n_step_per_snapshot': 50,
 #     'n_step_dynamics': 1000})
 #   run(parms)
@@ -436,7 +436,7 @@ def pulse(
 #   parms = constant_energy_parms.copy()
 #   parms['topology'] = top
 #   parms['input_crds'] = crd
-#   parms['output_name'] = 'md'
+#   parms['output_basename'] = 'md'
 #   parms['n_step_per_snapshot'] = 50
 #   parms['n_step_dynamics'] = 10000
 #   run(parms)
@@ -446,9 +446,9 @@ def pulse(
 #   parms = langevin_thermometer_parms.copy()
 #   parms['topology'] = top
 #   parms['input_crds'] = crd
-#   parms['output_name'] = 'md'
-#   parms['temp_thermometer'] = temperature
-#   parms['temp_initial'] = temperature
+#   parms['output_basename'] = 'md'
+#   parms['temperature_thermometer'] = temperature
+#   parms['temperature_initial_velocities'] = temperature
 #   parms['n_step_per_snapshot'] = 50
 #   parms['n_step_dynamics'] = 1000
 #   run(parms)

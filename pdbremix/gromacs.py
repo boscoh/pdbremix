@@ -522,27 +522,17 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10):
 minimization_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.gro', 
-  'output_name' : 'min', 
+  'output_basename' : 'min', 
   'force_field': 'GROMACS',
   'restraint_pdb': '',
   'restraint_force': 100.0,
   'n_step_minimization' : 100, 
 } 
 
-minimization_mdp = """
-; template .mdp file used as input into grompp to generate energy minimization for mdrun
-
-; Parameters describing what to do, when to stop and what to save
-integrator  = steep    ; Algorithm (steep = steepest descent minimization)
-emtol       = 1000.0   ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
-emstep      = 0.01     ; Energy step size
-nsteps      = %(n_step_minimization)s    ; Maximum number of (minimization) steps to perform
-"""
-
 constant_energy_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.gro', 
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'force_field': 'GROMACS',
   'solvent_state': 2,
   'surface_area': 1,
@@ -555,17 +545,26 @@ constant_energy_parms = {
 langevin_thermometer_parms = { 
   'topology' : 'in.top', 
   'input_crds' : 'in.gro', 
-  'output_name' : 'md', 
+  'output_basename' : 'md', 
   'force_field': 'GROMACS',
-  'cutoff': 16.0,  # non-bonded cutoff
   'restraint_pdb': '',
   'restraint_force': 100.0,
   'random_seed' : 2342, 
-  'temp_thermometer' : 300.0, 
-  'temp_initial': 0.0, # ignored if it is 0.0
+  'temperature_thermometer' : 300.0, 
+  'temperature_initial_velocities': 0.0, # ignored if it is 0.0
   'n_step_per_snapshot' : 50, 
   'n_step_dynamics' : 1000, 
 } 
+
+minimization_mdp = """
+; template .mdp file used as input into grompp to generate energy minimization for mdrun
+
+; Parameters describing what to do, when to stop and what to save
+integrator  = steep    ; Algorithm (steep = steepest descent minimization)
+emtol       = 1000.0   ; Stop minimization when the maximum force < 1000.0 kJ/mol/nm
+emstep      = 0.01     ; Energy step size
+nsteps      = %(n_step_minimization)s    ; Maximum number of (minimization) steps to perform
+"""
 
 dynamics_mdp = """
 title           = Template for constant temperature/pressure
@@ -594,13 +593,13 @@ temp_mdp = """
 tcoupl          = V-rescale     ; modified Berendsen thermostat
 tc-grps         = Protein Non-Protein   ; two coupling groups - more accurate
 tau_t           = 0.1   0.1     ; time constant, in ps
-ref_t           = %(temp_thermometer)s  %(temp_thermometer)s   ; reference temperature, one for each group, in K
+ref_t           = %(temperature_thermometer)s  %(temperature_thermometer)s   ; reference temperature, one for each group, in K
 """
 
 vel_mdp = """
 ; Velocity generation
 gen_vel          = yes       ; assign velocities from Maxwell distribution
-gen_temp         = %(temp_initial)s     ; temperature for Maxwell distribution
+gen_temp         = %(temperature_initial_velocities)s     ; temperature for Maxwell distribution
 gen_seed         = -1        ; generate a random seed
 """
 
@@ -618,12 +617,12 @@ def make_mdp(parms):
     mdp = minimization_mdp 
   else:
     mdp = dynamics_mdp 
-    if 'temp_thermometer' in parms:
+    if 'temperature_thermometer' in parms:
       mdp += temp_mdp 
     else:
       mdp += "; Temperature coupling is off\n"
       mdp += "tcoupl          = no\n"
-    if 'temp_initial' in parms and parms['temp_initial'] > 0.0:
+    if 'temperature_initial_velocities' in parms and parms['temperature_initial_velocities'] > 0.0:
       mdp += vel_mdp 
     else:        
       mdp += "; Velocity generation\n"
@@ -669,7 +668,7 @@ def run(in_parms):
   Run a GROMACS simulations using the PDBREMIX parms dictionary.
   """
   parms = copy.deepcopy(in_parms)
-  basename = parms['output_name']
+  basename = parms['output_basename']
 
   # Copies across topology and related *.itp files, with appropriate
   # filename renaming in #includes
