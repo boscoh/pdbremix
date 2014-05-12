@@ -109,15 +109,6 @@ def make_pdb_from_trajectory(
 
 
 
-def get_non_solvent_residues(soup):  
-  residues = []
-  for r in soup.residues():
-    if r.type not in data.solvent_res_types:
-      residues.append(r)
-  return residues
-
-
-
 class TrajectoryAnalyzer(object):
   """
   Abstract strategy object to analyze the frames of a trajectory
@@ -157,7 +148,8 @@ class TrajectoryAnalyzer(object):
 
     # save results for ps calculation
     s = ' '.join(map(str, self.cumul_results))
-    self.file_per_ps.write(s + '\n')
+    t = round(self.trj.i_frame / float(self.n_frame_per_ps))
+    self.file_per_ps.write('%.f %s\n' % (t, s))
 
     # clear for next ps
     if self.trj.i_frame > 0:
@@ -170,7 +162,8 @@ class TrajectoryAnalyzer(object):
 
     # write results to file_per_frame
     s = " ".join(map(str, results))
-    self.file_per_frame.write(s + "\n")
+    frame = self.trj.i_frame
+    self.file_per_frame.write("%d %s\n" % (frame, s))
 
     # initialize on first frame
     if self.cumul_results is None:
@@ -201,12 +194,12 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
   TrajectoryAnalyzer to calculate kinetic energy of residues.
   """
   var_name = 'kin'
-
   def calculate_results(self):
     results = []
     for residue in self.trj.soup.residues():
-      atoms = residue.atoms()
-      results.append(force.kinetic_energy(atoms) / float(len(atoms)))
+      if residue.type not in data.solvent_res_types:
+        atoms = residue.atoms()
+        results.append(force.kinetic_energy(atoms) / float(len(atoms)))
     return results
 
 
@@ -253,9 +246,9 @@ def analyze_trajectory(
     trj.load_frame(i_frame)
     for analyzer in analyzers:
       analyzer.process_frame()
-    # A whole ps has been save to file_per_ps
-    if (i_frame+1) % n_frame_per_ps == 0 or i_frame == 0:
-      analyzer.process_frame_on_ps()
+      # A whole ps has been save to file_per_ps
+      if (i_frame+1) % n_frame_per_ps == 0 or i_frame == 0:
+        analyzer.process_frame_on_ps()
 
   for analyzer in analyzers:
     analyzer.close()

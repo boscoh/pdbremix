@@ -1,32 +1,53 @@
 # PDBREMIX
 
-`pdbremix` is a python library for computational structural biology.
+`pdbremix` is a library for computational structural biology.
 
-The library provides a light API.
+The library consists of:
 
-; it has no external python dependencies, so works in jython and pypy. 
-
-The library can be split up into:
-
-1. standalone tools for analysis of PDB structures
-2. wrappers around external tools for PDB structures 
-3. tools to analyze MD trajectories
+1. tools to analyze and view PDB structures
+2. tools to run MD simulations and analyze trajectories
 3. python interface to analyze and edit PDB structures
 4. python interface to run molecular-dynamics simulations
 5. python interface to analyse trajectories
 
+`Pdbremix` is written in pure Python that works with PyPy for a dramatic speed-up.
 
-## Standalone PDB structure analysis tools
+## Installation
+
+Install with `pip` is best:
+
+    > pip install pdbremix
+   
+Otherwise download from github and install.
+
+If you want the test and example files, this second way is the way to go.
+
+### Wrappers around external tools
+
+There are many wonderful tools for computational structural biology that have less-than-stellar interfaces. `pdbremix` wraps some of these tools with a friendlier interface and extra functionality. 
+
+To use these tools, first check what binaries that `pdbremix` can find on your system:
+
+	> checkpdbremix
+
+To hand-code the exact location of the binaries, or to run the binaries with exotic flags, edit the config file with the `-o` option such as:
+
+	> vi `checkpdbremix -o`
+
+
+
+## Tools to analyze PDB structures
+
+### Standalone tools
 
 `pdbremix` provides a bunch of tools to investigate PDB structures that can be used out of the box:
 
 - `pdbfetch` fetches PDB files from the RCSB website
 - `pdbheader` displays summary of PDB files
 - `pdbseq` displays sequences in a PDB file
-
-- `pdbcheck` checks for structural defects in a PDB file
-- `pdbstrip` to clean up a PDB file
 - `pdbchain` extracts chains from a PDB file
+- `pdbcheck` checks for common defects in a PDB file
+- `pdbstrip` strips the PDB file into a single clean conformation
 
 The following tools implement standard structural biology algorithms using pure Python:
 
@@ -41,19 +62,7 @@ For these tools, you can get a large speed gain if you run them  through `pypy`,
 You can get help for these with the `-h` option on the command-line. 
 
 
-## Wrappers around external tools
-
-There are many wonderful tools for computational structural biology that have less-than-stellar interfaces. `pdbremix` wraps some of these tools with a friendlier interface and extra functionality. 
-
-To use these tools, first check what binaries that `pdbremix` can find on your system:
-
-	> checkpdbremix
-
-To hand-code the exact location of the binaries, or to run the binaries with exotic flags, edit the config file with the `-o` option such as:
-
-	> vi `checkpdbremix -o`
-
-## Wrappers around external PDB structure tools
+### Wrappers around external tools
 
 These command-line tools provide a better interface to common tools such as PYMOL, MODELLER and THESEUS:
 
@@ -62,9 +71,14 @@ These command-line tools provide a better interface to common tools such as PYMO
 - `pdbinsert` wraps MODELLER to build loops for gaps in a PDB structure
 
 
-## Trajectory analysis tools
 
-`pdbremix` provides a simplified interface to run molecular-dynamics on 3 standard MD packages: AMBER11+, GROMACS4.5+ and NAMD2.8+. `pdbremix` assumes that associated files for an MD trajectory *has a common base name*. 
+## Simulation and Trajectory Tools
+
+`pdbremix` provides a simplified interface to run molecular-dynamics on 3 standard MD packages: AMBER11+, GROMACS4.5+ and NAMD2.8+.
+
+- md2pdb
+
+ `pdbremix` assumes that associated files for an MD trajectory *has a common base name*. 
 
 In AMBER:
 
@@ -101,24 +115,16 @@ These are some package specific tools:
 - `grotrim` trim GROMACS .trr trajectory files
 
 
-## Molecular dynamics tools
 
-The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
+## Python interface to PDB structures
 
-- `pdbrestart`
-- `pdbminimize`
-- `pdbequil`
-- `puff` runs a PUFF simulation
-- `puffshow` displays pulling residues in PUFF sim
-
-
-## Vector geometry library
+### Vector geometry library
 
 As in any structural biology library, we provide a vector geometry library, which is called `v3`:
 
 	from pdbremix import v3
 
-`v3` was designed to be function-based, with vector and transform objects subclassed from arrays. This allows the library to easily switch between a pure Python version and a numpy-dependent version. If you want specifically the python version:
+`v3` was designed to be function-based, with vector and transform objects subclassed from arrays. This allows the library to easily switch between a pure Python version and a numpy-dependent version. If you want just the python version:
 
 	import pdbremix.v3array as v3
 
@@ -140,52 +146,33 @@ Most functions return by value, except for `set_vector`, which changes component
 
 	v3.set_vector(v, 2, 2, 2)
 
-Here are a set of common vector operations:
+Here are a set of common vector operationsnthat returns by value:
 
 	mag(v)
-		Returns magnitude of v.
 	scale(v, s)
-		Returns the vector of v where components multiplied by s.
 	dot(v1, v2)
-		Returns the dot product of two vectors.
 	cross(v1, v2)
-		Returns the cross product of two vectors.
 	norm(v)
-		Returns vector of v where magnitude is normalised to 1.
 	parallel(v, axis)
-		Returns vector component of v parallel to axis.
 	perpendicular(v, axis)
-		Returns vector component of v perpendicular to axis.
 
 Vectors will be used to represent coordinates/points, velocities, displacements etc. Functions are provided to measure their geometric properties:
 
 	distance(p1, p2)
-		Returns distance between two points
-
 	vec_angle(a, b)
-		Returns angle in radians between a and b.
 	vec_dihedral(a, axis, c)
-		Returns dihedral angle between a and c, along the axis.
 	dihedral(p1, p2, p3, p4)
-		Returns dihedral angle defined by the four positions.
-
+	
 	normalize_angle(angle)
-		Returns angle in radians that is [-pi, pi]()
 	degrees(radians)
-		Converts radians to degrees, better for reporting.
 	radians(degrees)
-		Converts degrees to radians, which is used in math functions.
-
+	
 	get_center(crds)
-		Returns the geometric center of a bunch of positions.
 	get_width(crds)
-		Returns the maximum width between any two crds in the group.
 
 #### Affine Transforms
 
-We also need a representations for affine transforms, which involve a rotation and a translation. 
-
-The purpose of a transform `matrix` is to transform a vector `v`:
+We also need a representations for affine transforms, which involve a rotation and a translation. Such a transform `matrix` is designed to transform a vector `v`:
 
 	v3.transform(matrix, v)
 
@@ -203,7 +190,7 @@ To read/write the elements of a transform, we use:
 
 	matrix_elem(matrix, i, j, val=None)
 
-Most of the time, you would build a transform from these basic transform generating functions:
+Most of the time, you would build a transform from these basic generating functions:
 
 	v3.identity()
 	v3.rotation(axis, theta)
@@ -218,28 +205,21 @@ And combine them in the correct sequence:
 #### Testing Vectors and Transforms
 
 Finally, we introduce functions to test similarity for vectors and transforms:
-	
+ 
 	is_similar_mag(a, b, small=0.0001)
-		Evaluates similar magnitudes to within small.
 	is_similar_matrix(a, b, small=0.0001)
-		Evaluates similar matrixes through matrix components.
 	is_similar_vector(a, b, small=0.0001)
-		Evaluates similar matrixes through matrix components.
 
-And a bunch of random geometric object generators, used for testing:	
+And a bunch of random geometric object generators, used for testing:  
 
-	random_mag()
-		Returns a random positive number from [0, 90]() for testing.
-	random_matrix()
-		Returns a random transformation matrix for testing.
-	random_real()
-		Returns a random real +/- from [-90, 90]() for testing.
-	random_rotation()
-		Returns a random rotational matrix for testing.
+	random_mag() # random positive float from [0, 90]()
+	random_real() # random float from [-90, 90]() 
 	random_vector()
-		Returns a random vector for testing.
+	random_rotation()
+	random_matrix()
 
-### Reading in a Soup
+
+### Reading a PDB structure in a Soup
 
 Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the `fetch` module:
 
@@ -251,7 +231,9 @@ The main object for manipulating PDB structures is the Soup object in `pdbatoms`
 	from pdbremix import pdbatoms
 	soup = pdbatoms.Soup("1be9.pdb")
 
-**List of Atoms.** A Soup is essentially a collection of atoms, which we can grab by:
+### Soup as a list of atoms
+
+A Soup is essentially a collection of atoms, which we can grab by:
 
 	atoms = soup.atoms()
 
@@ -264,60 +246,85 @@ An atom has attributes:
   - type (str)
   - element (str)
   - num (int)
-  - chain_id (str)
-  - res_type (str)
-  - res_num (str)
-  - res_insert (str)
+  - chain\_id (str)
+  - res\_type (str)
+  - res\_num (str)
+  - res\_insert (str)
   - bfactor (float)
   - occupancy (float)
-  - alt_conform (str)
-  - is_hetatm (bool)
+  - alt\_conform (str)
+  - is\_hetatm (bool)
 
-Since `atom.pos` and `atom.vel` are vectors, these can all be manipulated by functions from the `v3` library. Atom contains one special method `transform` that handle affine transforms. 
+Since `atom.pos` and `atom.vel` are vectors, these can be manipulated by functions from the `v3` library. Atom contains one special method `transform` that handle affine transforms:
 
-For example, to move an atom 1.0 angstrom along the X-axis:
+	displacment = v3.vector(1,0,0)
+	translation = v3.translation(displacement)
+	atom.transform(translation)
+	soup.transform(translation)
 
-	t = v3.translation(v3.vector(1,0,0))
-	atom = atoms[0]
-	atom.transform(t)
+For more information about vectors, see above.
 
-**List of Residues** As well, Soup contains a list of residues:
+The atoms returned by soup.atoms() is a Python list, and is meant to be searched for using Python idioms.
+
+You search through it by looping and comparing:
+
+	hydrogens = []
+	for atom in soup.atoms():
+	 if atom.elem == 'H':
+	   hydogens.append(atom)
+
+### Searching through residues
+
+As well, Soup contains a list of residues:
 
 	residues = soup.residues()
 
-A residue in this case represents a collection of atoms that forms a recognizable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. 
+A residue in this case represents a collection of atoms that forms a recognisable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. 
 
-One useful heuristic is that 
-Although chains are representedSpecifically chains are separate operations on a Soup and not explicitly represented. 
+One key heuristic is that the type of atoms in a residue is unique. So the function:
 
-	print len(soup)
-	nnprint soup.residues()
-	
-	 print soup.atoms()
+   residue.atom(‘CA’)
 
+will return an atom based on type in an atom.
 
-util.py
-asa.py
-data.py
-fetch.py
-pdbtext.py
-protein.py
-pymol.py
-rmsd.py
+So in a Soup, if you know the res atom_type’s _
 
-volume.py
+  soup.residue_by_tag(‘A:15’).name(‘CA’)
 
-simulate.py
-force.py
-amber.py
-gromacs.py
-namd.py
+Or by index:
 
-traj.py
+  soup.residue(4).name(‘CA’)
 
+You can loop through residues and atoms. To find all atoms surrounding a residue:
 
-# patching PDB structures
-- delete extra waters
+	for residue in soup.residues():
+	 if residue.has\_atom("CA"):
+	ca = residue("CA")
+	for atom in soup.atoms():
+	  if v3.distance(ca.pos, atom.pos) < 4:
+
+Once you have the atoms you want, you can measure their geometric properties via the `v3` module.
+
+Chains are not represented explicitly. In this author’s opinion, the data structure gets excessively complicated for little gain. It’s easier to just deal with it on a case-by-case basis.
+
+- dealing with chains
+
+- hetatms, atoms and other stuff
+
+- solvent\_res\_type
+
+- assign new chainIds
+- adding, deleting atoms and residues
+- changing properties of atoms and residues
+- selecting residues and atoms
+
+### Handling chains in PDB files
+
+### Patching PDB structures
+
+- pdbtext.py
+- pdbtext parsing - cleaning structures
+- - delete extra waters
 - delete non-standard amino acids
 - look for steric clashes
 - identify chain breaks/missing amino acids
@@ -326,7 +333,62 @@ traj.py
 - remove extra models
 - alternate conformations
 
-# abstracting MD simulations
+- common manipulations - protein.py
+- moving things around
+- saving b-Factors
+- saving pdb files
+- renumbring
+
+
+## Structure Analysis
+
+- asa.py
+- rmsd.py
+- raw calculation, in the only place that numpy is required, it uses the classic SVD decomposition in numpy to calculate the optimal superposition between two sets of points
+- volume
+
+
+
+### Making Images of Proteins
+
+pymol.py
+
+- frustrating to get the view you want, loading trajectories is a multiple step processing in viewers
+- viewers Pymol, Chimera, VMD have scripting languages
+- if we enforce our naming convention, can really save time
+- e.g. load trajectories using a simple command line
+- pipe in useful information and *transformations* 
+	`pdbpym -b -c B:8 -t B:7 1be9.pdb`
+
+
+## Molecular dynamics tools
+
+The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
+
+- Restart files for maximum flexibility
+
+- PUFF steered molecular dynamics
+
+- Reading trajectories
+
+Combines trajectory reading with topology
+You need atomic masses and charges for calculations
+Reads as coordinates and or as pdbatoms.Polymer structure
+Common interface for AMBER, NAMD and GROMACS
+
+- `pdbrestart`
+- `pdbminimize`
+- `pdbequil`
+- `puff` runs a PUFF simulation
+- `puffshow` displays pulling residues in PUFF sim
+
+simulate.py
+force.py
+amber.py
+gromacs.py
+namd.py
+
+traj.py
 
 - coercing all necessary files under the same basename
 - making topology, coordinate, velocity files
@@ -348,34 +410,7 @@ traj.py
 	- Generalized Born electrostatics
 	- Surface Area tension hydrophobic term
 
-# PDB fetch
 
-# Surface Area Calculation
-
-# Volume Calculation
-
-# RMSD
-- raw calculation, in the only place that numpy is required, it uses the classic SVD decomposition in numpy to calculate the optimal superposition between two sets of points
-- pdboverlay
-
-# Interacting with viewers
-- frustrating to get the view you want, loading trajectories is a multiple step processing in viewers
-- viewers Pymol, Chimera, VMD have scripting languages
-- if we enforce our naming convention, can really save time
-- e.g. load trajectories using a simple command line
-- pipe in useful information and *transformations* 
-	`pdbpym -b -c B:8 -t B:7 1be9.pdb`
-
-# Restart files for maximum flexibility
-
-# PUFF steered molecular dynamics
-
-# Reading trajectories
-
-Combines trajectory reading with topology
-You need atomic masses and charges for calculations
-Reads as coordinates and or as pdbatoms.Polymer structure
-Common interface for AMBER, NAMD and GROMACS
 
 # Notes
 https://github.com/synapticarbors/pyqcprot
@@ -386,4 +421,3 @@ amber ff on gromacs http://www.somewhereville.com/?p=114
 ffamber http://ffamber.cnsm.csulb.edu/
 http://web.mit.edu/vmd\_v1.9.1/namd-tutorial-unix.pdf
 http://bionano.physics.illinois.edu/Tutorials/ssbTutorial.pdf
-

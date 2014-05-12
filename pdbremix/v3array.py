@@ -172,6 +172,7 @@ class Matrix3d(array):
     s += "          #-----------------------------------\n"
     s += "          " + str3(*self[9:12]) + "))"
     return s
+    
 
 
 def identity():

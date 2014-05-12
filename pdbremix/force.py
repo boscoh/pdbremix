@@ -404,23 +404,24 @@ def make_puff_acc_fn(
 #    1 º/ps = E+12 º/s 
 # rotational-acceleration:
 #    1 º/ps/ps = E+24º/s/s
-# moment-of-inertia
-#    1 Da⋅Å⋅Å = 1.66E-27 kg⋅E-10m⋅E-10m 
-#             = 1.66E-47 kg⋅m^2
-# torque = moment-of-inertia*rotational-acceleration
-#    Da⋅Å⋅Å⋅º/ps/ps  = 1.66E-47 kg⋅m^2 ⋅ E+24⋅º/s/s
-#                   = 1.66E-23 º⋅m⋅kg⋅m/s/s 
-#                   = 1.66E-23 º⋅m⋅N
+# moment-of-inertia = 1 Da⋅Å⋅Å
+#                   = 1.66E-27 kg⋅E-10m⋅E-10m 
+#                   = 1.66E-47 kg⋅m^2
+# torque = moment-of-inertia * rotational-acceleration
+#        = Da⋅Å⋅Å⋅º/ps/ps  
+#        = 1.66E-47 kg⋅m^2 ⋅ E+24⋅º/s/s
+#        = 1.66E-23 º⋅m⋅kg⋅m/s/s 
+#        = 1.66E-23 º⋅m⋅N
 # force = torque/radius
-#    Da⋅Å⋅Å⋅º/ps/ps / Å = 1.66E-23 m⋅N/E-10m
-#                      = 1.66E-13 N
-#                      = 1.66 E-1 pN
+#       = Da⋅Å⋅Å⋅º/ps/ps / Å 
+#       = 1.66E-23 m⋅N/E-10m
+#       = 1.66E-13 N
+#       = 1.66 E-1 pN
 
 
 def moment_of_inertia(atom, axis, anchor):
   """
-  Returns the moment (DaAng^^2) of the atom connected to
-  anchor around axis.
+  Returns the moment (DaAng^^2) of atom around axis at anchor.
   """
   r = atom.pos - anchor
   r_perp = v3.perpendicular(r, axis)
@@ -430,8 +431,8 @@ def moment_of_inertia(atom, axis, anchor):
 
 def total_moment_of_inertia(atoms, axis, anchor):
   """
-  Returns the total moment (DaAng^^2) of a bunch of atoms that
-  are connected to anchor around axis.
+  Returns the total moment (DaAng^^2) of atomss around axis at
+  anchor.
   """
   moments = [moment_of_inertia(atom, axis, anchor)
              for atom in atoms]
@@ -505,9 +506,9 @@ def calculate_chi(residue, i_chi):
   """
   res_chi_topology = data.get_res_chi_topology(residue.type)
   if i_chi < len(res_chi_topology):
-    p = [residue.atom(atom_type).pos 
-         for atom_type in res_chi_topology[i_chi]]
-    return v3.normalize_angle(v3.dihedral(p[0], p[1], p[2], p[3]))
+    atom_types = res_chi_topology[i_chi]
+    crds = [residue.atom(t).pos for t in atom_types]
+    return v3.normalize_angle(v3.dihedral(*crds))
   raise ValueError, "No Chi%d angle for residue %d" % (i_chi, i)
 
 
