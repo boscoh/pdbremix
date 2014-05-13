@@ -246,8 +246,6 @@ def ligands_as_sticks_script(pdbs, color=""):
 highlight_res_script = """
 select highlight, %(res)s
 show stick, highlight
-color green, highlight
-deselect
 """
 
 

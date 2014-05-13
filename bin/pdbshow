@@ -99,9 +99,6 @@ if __name__=="__main__":
   else:
     script += "show stick\n"
   script += pymol.ligands_as_sticks_script(pdbs)
-  if highlight_res is not None:
-    res = pymol.pymol_id_from_resname(highlight_res)
-    script += pymol.highlight_res_script % { 'res':res }
   if arg['-e']:
     script += pymol.peptide_style_script
   script += pymol.hide_backbone_sticks_script
@@ -110,6 +107,9 @@ if __name__=="__main__":
   script += "remove resn XXX\n"
   if center_res:
     script += "center %s\n" % pymol.pymol_id_from_resname(center_res)
+  if highlight_res is not None:
+    res = pymol.pymol_id_from_resname(highlight_res)
+    script += pymol.highlight_res_script % { 'res':res }
   if arg['-o']:
     script += "save %s\n" % out_file
   if arg['-q']:
