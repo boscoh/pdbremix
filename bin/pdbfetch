@@ -16,7 +16,7 @@ from pdbremix import fetch
 if __name__ == "__main__":
   arg = docopt(__doc__)
   if arg['-f']:
-    fetch.get_pdbs_with_ftp(arg['<pdb>'])
+    fetch.get_pdbs_with_ftp(*arg['<pdb>'])
   else:
-    fetch.get_pdbs_with_http(arg['<pdb>'])
+    fetch.get_pdbs_with_http(*arg['<pdb>'])
 

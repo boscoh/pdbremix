@@ -16,11 +16,11 @@ library to function without numpy such as when run with pypy.
 import v3
 import pdbatoms
 import math
+import lib.pyqcprot
 try:
   import numpy
   is_numpy = True
 except:
-  import lib.pyqcprot
   is_numpy = False
 
 

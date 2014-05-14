@@ -15,7 +15,7 @@ import gzip
 import util
 
 
-def expand_pdbs(pdbs):
+def expand_pdbs(*pdbs):
   """
   Returns a cleaned-up list of PDB codes given a mixed list
   of pdb codes, pdb filenames, and text files containing such.
@@ -24,7 +24,7 @@ def expand_pdbs(pdbs):
   for pdb in pdbs:
     if os.path.isfile(pdb):
       print "Reading PDB codes from", pdb
-      new_pdbs = expand_pdbs(util.words_in_file(pdb))
+      new_pdbs = expand_pdbs(*util.words_in_file(pdb))
       results.extend(new_pdbs)
     else:
       pdb = pdb.lower()
@@ -36,11 +36,11 @@ def expand_pdbs(pdbs):
   return results
 
 
-def get_pdbs_with_http(pdbs):
+def get_pdbs_with_http(*pdbs):
   """
   Fetches PDB files using HTTP from a list of pdb-codes/text-files.
   """
-  for pdb in expand_pdbs(pdbs):
+  for pdb in expand_pdbs(*pdbs):
     fname = pdb if pdb.endswith('pdb') else '%s.pdb' % pdb 
     if os.path.isfile(fname):
       print "Skip: %s exists" % fname
@@ -73,11 +73,11 @@ exit 0
 """
 
 
-def get_pdbs_with_ftp(pdbs):
+def get_pdbs_with_ftp(*pdbs):
   """
   Fetches PDB files using FTP from a list of pdb-codes/text-files.
   """
-  pdbs = expand_pdbs(pdbs)
+  pdbs = expand_pdbs(*pdbs)
   entries = ['pdb%s.ent.gz' % pdb for pdb in pdbs]
   mget_scripts = ["get %s" % entry for entry in entries]
   substitutions = {
