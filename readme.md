@@ -1,6 +1,3 @@
-title: pdbremix documentation
----
----
 # pdbremix
 
 `pdbremix` is a library for analyzing protein structures
@@ -17,21 +14,23 @@ The library works with PyPy for significant speed-ups.
 
 ## Installation
 
-Download from github [zip][zip].
+Install with `pip` is easiest:
 
-[zip]:https://github.com/boscoh/pdbremix/archive/master.zip
+	> pip install pdbremix
 
-And install:
+Otherwise download from github and install:
 
-    > python setup.py install
+	https://github.com/boscoh/pdbremix/master/tarball
 
 From here, you can access unit tests and example files.
 
-There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps these tools with extra friendlier functionality. To check which tools can be access from the path:
+There are many wonderful tools in structural biology that have less-than-stellar interfaces. 
+
+`pdbremix` wraps some of these tools with better interfaces and extra functionality. To check which tools `pdbremix` can access from the path:
 
 	> checkpdbremix
 
-If you know where the binaries are, or if you want to add exotic flags to the binaries, edit the confguration file with the `-o` flag:
+If you know where the binaries are, or if you want to add exotic flags to the binaries, edit the confguration file that is given with the `-o` flag:
 
 	> vi `checkpdbremix -o`
 
@@ -40,7 +39,7 @@ If you know where the binaries are, or if you want to add exotic flags to the bi
 
 `pdbremix` provides a bunch of tools to investigate PDB structures.
 
-### Tools in Pure Python
+### Standalone tools in Pure Python
 
 Some of them can be used straight out of the box:
 
@@ -66,31 +65,28 @@ For these algorithmic tools, you get a large speed gain if you run them  through
 Help for the tools is available with the `-h` option. 
 
 
-### Wrappers around External Tools 
+### Wrappers around external tools for PDB structures
 
-These following tools wrap external tools to solve some very common (and painful) use-cases in PDB analysis.
+These command-line tools provide a better interface to external tools for some common use cases.
 
 - `pdbshow` displays PDB structures in PYMOL with extras.
 
-	PYMOL is a powerful viewer, but it's defaults leave a little to be desired. `pdbshow` runs PYMOL with some useful added functionality:
+	Provides useful display defaults: coloring by chains, ribbons on, sticks for sidechains. 
 
-	  1. By default, shows colored chains, ribbons, and sidechains as sticks. 
-	  2. Choice of initial viewing frame, defined by a center-residue and a top-residue. The PDB will be rotated such that the center-residue is above the center-of-mass in the middle of the screen. The top-residue will be above the center-residue.
-	  3. Color by B-factor using a red-white scale, with limits defined by options.
-	  4. Solvent molecules can be removed, which is specifically for MD frames that contain too many waters.
+	Residue centering
 
-- `pdboverlay` display homologous PDB files using MAFFT, THESEUS and PYMOL.
+	Coloring by B-factor.
 
-	One of the most beautiful results of structural biology is the structural alignment of homologous proteins. `pdboverlay` performs this complex process in one easy step starting from PDB structures:
+	Removes solvent to view MD-generated files
 
-	1. Write fasta sequences from PDB.
-	2. Align sequences with MAFTT to find homologous regions.
-	3. Structurally align homologous regions with THESEUS.
-	4. Display structurally-aligned PDBs using special PYMOL script.
+- `pdboverlay` display homologous proteins using MAFFT, THESEUS and PYMOL.
 
-- `pdbinsert` fill gaps in PDB with MODELLER
+	I believe this provides the best solution. Use one of the best sequence alignment tools to get the sequence alignment. Use the smart weighted RMSD alignment of THESEUS, and display this in PYMOL using a display schemes that highlights RMSD the homology between proteins.
 
-	Gaps in PDB structures cause terrible problems in MD simulations. The standard tool to patch gaps is MODELLER, which requires a ton of boilerplate. `pdbinsert` does all the dirty work with MODELLER in one fell stroke.
+- `pdbinsert` fill gaps in a PDB file with MODELLER
+
+	Many PDB files have gaps in their structure. If you want to use them for simulation, you will have to patch these gaps. Now your answer is probably MODELLER but MODELLER is not designed for casual use. For this very common case:
+
 
 
 ## Tools to run MD Simulation
@@ -116,13 +112,7 @@ The other packages are:
 - NAMD2.8
 - GROMACS4.5
 
-The topology files make several assumptions. In all except AMBER11-GBSA, explicit waters are modelled in a box that has 10 Angstroms padding. Disulfide bonds are detected. Charged state of histidines, and charged residues are determined by package. Hydrogens are stripped then rebuilt. Multiple chains defined by chain ID's are interpreted as separate molecules.
-
-We pick the force-fields.
-
-AMBER11-GBSA is provided to do implicit solvent simulations, where there are no waters. This is a fast, dirty approach, which is quite useful.
-
-### Positional restraints
+- topology assumptions
 
 ### Running simulations
 
@@ -222,7 +212,7 @@ Vectors will be used to represent coordinates/points, velocities, displacements 
 
 #### Affine Transforms
 
-We also need a representations for affine transforms, which involve a rotation and a translation. Such a transform is represented as a `matrix` that is designed to transform a vector `v`:
+We also need a representations for affine transforms, which involve a rotation and a translation. Such a transform `matrix` is designed to transform a vector `v`:
 
 	v3.transform(matrix, v)
 
@@ -255,7 +245,7 @@ The matrix consists of 2 parts:
 
 #### Testing Vectors and Transforms
 
-Finally, we introduce functions to test similarity for vectors and transforms as floats are not exact and require tolerance for comparison:
+Finally, we introduce functions to test similarity for vectors and transforms:
  
 	is_similar_mag(a, b, small=0.0001)
 	is_similar_matrix(a, b, small=0.0001)
@@ -336,17 +326,17 @@ A residue in this case represents a collection of atoms that forms a recognisabl
 
 One key heuristic is that the type of atoms in a residue is unique. So the function:
 
-   residue.atom('CA')
+   residue.atom(‘CA’)
 
 will return an atom based on type in an atom.
 
-So in a Soup, if you know the res atom\_type's \_
+So in a Soup, if you know the res atom\_type’s \_
 
-  soup.residue\_by\_tag('A:15').name('CA')
+  soup.residue\_by\_tag(‘A:15’).name(‘CA’)
 
 Or by index:
 
-  soup.residue(4).name('CA')
+  soup.residue(4).name(‘CA’)
 
 You can loop through residues and atoms. To find all atoms surrounding a residue:
 
@@ -356,9 +346,10 @@ You can loop through residues and atoms. To find all atoms surrounding a residue
 	for atom in soup.atoms():
 	  if v3.distance(ca.pos, atom.pos) < 4:
 
-### Handling chains in PDB files
 
-- Chains are not represented explicitly. In this author's opinion, the data structure gets excessively complicated for little gain. It's easier to just deal with it on a case-by-case basis.
+
+### Handling chains in PDB files
+- Chains are not represented explicitly. In this author’s opinion, the data structure gets excessively complicated for little gain. It’s easier to just deal with it on a case-by-case basis.
 
 - dealing with chains
 
@@ -461,6 +452,16 @@ traj.py
 	- Generalized Born electrostatics
 	- Surface Area tension hydrophobic term
 
+
+
+# Todo
+
+- no mass and charge for solvent in gromacs
+- residue_by_tag
+- abstract box dimensions?
+- args in pdbfetch?
+- test_rmsd for qcp
+- pressure in constant?
 
 mpiexec -np 40 /home/bosco/bin/gromacs-4.0.7/bin/mdrun -v -s md.tpr -cpi md.cpt -append -deffnm md \>& md.mdrun.restart.log
 gromacs ligand http://www.dddc.ac.cn/embo04/practicals/9\_15.htm
