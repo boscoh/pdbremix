@@ -1,3 +1,2 @@
-include README.rst
-include requirements.txt
-recursive-include embellish *haml
+include pdbremix/data/*
+include pdbremix/lib/*

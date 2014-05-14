@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 from setuptools import setup
 
+import glob
+scripts = glob.glob('bin/*')
+
 version = open('pdbremix/_version.py').read().split()[-1][1:-1]
 
 setup(
@@ -15,10 +18,6 @@ setup(
     install_requires=[
     ],
     packages=['pdbremix',],
-    package_data={
-        "pdbremix": ['pdbremix/data/*',]
-    },
-    scripts=[
-        'bin/*'
-    ],
+    include_package_data=True,
+    scripts=scripts,
 )
