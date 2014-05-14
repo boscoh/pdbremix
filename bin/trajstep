@@ -9,13 +9,13 @@ Usage: trajstep <md>
 import sys
 import os
 from pdbremix.lib.docopt import docopt
-from pdbremix import traj
+from pdbremix import trajectory
 from pdbremix import util
 
 if __name__ == "__main__":
   arg = docopt(__doc__)
   print "# Molecular Dynamics Simulation Paramters"
-  n_frame = traj.open_trajectory(arg['<md>']).n_frame
+  n_frame = trajectory.open_trajectory(arg['<md>']).n_frame
   print " ", n_frame, "snapshots"
   config = arg['<md>'] + '.config'
   if os.path.isfile(config):

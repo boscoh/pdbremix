@@ -10,20 +10,17 @@ The library consists of:
 1. tools to analyze and view PDB structures
 2. tools to run MD simulations and analyze trajectories
 3. python interface to analyze PDB structures
-4. python interface to run molecular-dynamics simulations
-5. python interface to analyze trajectories
+4. python interface to run molecular-dynamics and analyze trajectories
 
 The library works with PyPy for significant speed-ups.
 
 ## Installation
 
-Download from github [zip][zip].
-
-[zip]:https://github.com/boscoh/pdbremix/archive/master.zip
+Download from github [zip][1].
 
 And install:
 
-    > python setup.py install
+	> python setup.py install
 
 From here, you can access unit tests and example files.
 
@@ -66,7 +63,7 @@ For these algorithmic tools, you get a large speed gain if you run them  through
 Help for the tools is available with the `-h` option. 
 
 
-### Wrappers around External Tools 
+### Wrappers around External Tools
 
 These following tools wrap external tools to solve some very common (and painful) use-cases in PDB analysis.
 
@@ -95,9 +92,19 @@ These following tools wrap external tools to solve some very common (and painful
 
 ## Tools to run MD Simulation
 
-`pdbremix` provides a simplified interface to run molecular-dynamics.
+`pdbremix` provides a simplified interface to run molecular-dynamics. Whilst this is not a replacement for understanding each of the MD packages, the use-case provided here cover a reasonable range of cases.
 
-### Making topology files
+For beginners, it is useful to see how a basic simulation is set-up from a PDB file to a trajectory, as all intermediate files are saved. It is much easier to modify a complete and working process than start from scratch.
+
+### Topology files
+
+`pdb2top` will:
+
+ - detect and parameterise disulfide bonds
+- strip hydrogens and repopulate 
+- handle multiple chains by chain ID
+- let each package determine charged/polar residue states
+- pick force-fields and water models
 
 To achieve this abstraction, `pdbremix` assumes all the files of a simulation will have a common basename. To generate these files from a PDB, run:
 
@@ -107,46 +114,53 @@ To achieve this abstraction, `pdbremix` assumes all the files of a simulation wi
 
 This will make: 
 
-1. sim.top, sim.crd - is all you need to run an AMBER simulation. 
-2. sim.pdb - is a fleshed out PDB that is populated with AMBER generated hydrogen atoms, need for positional constraints.
+1. sim.top
+2. sim.crd - is all you need to run an AMBER simulation. 
+3. sim.pdb - is a fleshed out PDB that is populated with AMBER generated hydrogen atoms, need for positional constraints.
 
-The other packages are:
+*Explicit solvent* Explicit waters are modelled in a box that has 10 Angstroms padding. The packages for explicit solvent are:
 
-- AMBER11-GBSA
-- NAMD2.8
-- GROMACS4.5
+- AMBER11 - ff99SB, TIP water
+- NAMD2.8 - CHARM22 (included in the `pdbremix/parms` directory)
+- GROMACS4.5 - AMBER99, TIP3P water
 
-The topology files make several assumptions. In all except AMBER11-GBSA, explicit waters are modelled in a box that has 10 Angstroms padding. Disulfide bonds are detected. Charged state of histidines, and charged residues are determined by package. Hydrogens are stripped then rebuilt. Multiple chains defined by chain ID's are interpreted as separate molecules.
-
-We pick the force-fields.
-
-AMBER11-GBSA is provided to do implicit solvent simulations, where there are no waters. This is a fast, dirty approach, which is quite useful.
-
-### Positional restraints
+*Implicit solvent* AMBER11-GBSA is provided to do implicit solvent simulations, where there are no waters. This is a fast, dirty approach, which is quite useful.
 
 ### Running simulations
+
+Preparing simulations is an art form, there are a lot of different approaches, typically divided into:
+
+1. equilibration step
+2. production step
+
+There many different ways to equilibrate, and most of them require some kind of positional restraint. One of the great things about `pdbremix` is is the simplification of the application of positional restraints.
+
+`pdbremix` has made it easy to apply positional restraints. Just copy the `sim.pdb` file from above, open the file in an editor, and set the B-factor of whatever atom you to restrain to 1.0. Leave the rest at 0.0. This is the approach that NAMD uses, and `pdbremix` has replicated that with AMBER and GROMACS.
+
+	> mdmin -r restraint.pdb sim min 
+
+Typically you want to run a simulation at a given temperature, so you want to start the simulation that has been heated carefully to that temperature without suffering any kind of heating artefact.
+
+	> mdtemp -r restraint.pdb min temp 300 5000
+	
+	> mdconst -r restraint.pdb min const 5000
 
 ### Trajectory analysis
 
  `pdbremix` assumes that associated files for an MD trajectory has a *common basename*. 
 
-In AMBER:
-
-1. topology: md.top
-2. coordinates: md.trj 
-3. velocities: md.vel.trj
-
-In GROMACS:
-
-1. topology: md.top and associated md.\*.itp files
-2. restart coordinates: md.gro
-3. coordinates/velocities: md.trr 
-
-In NAMD:
-
-1. topology: md.psf
-2. coordinates: md.dcd 
-3. velocities: md.vel.dcd
+- AMBER: 
+	- md.top
+	- md.trj
+	- md.vel.trj
+- GROMACS: 
+	- md.top (and md.\*itp)
+	- md.gro
+	- md.trr
+  - NAMD:
+	- md.psf
+	- md.dcd
+	- md.vel.dcd
 
 Once named properly, these tools can be used:
 
@@ -159,14 +173,20 @@ Use these tools to display trajectories:
 - `trajchim` display trajectory in CHIMERA
 - `trajpym` display trajectory in PYMOL *AMBER only*
 
-These are some package specific tools: 
+And some package specific tools: 
 
 - `traj2amb` converts NAMD/GROMACS to AMBER trajectories _without_ solvent
 - `grotrim` trim GROMACS .trr trajectory files
 
 
-
 ## Python interface to PDB structures
+
+An important part of `pdbremix` is the design of a light API to interact with PDB structures. The data structures are meant to be as small as possible that can provide most reasonable functionality, hence the inclusion of a fully-featured vector library.
+
+Some packages provide atom selecton using a domain-specific language. Whilst this may simplify things at the beginning, this makes it difficult to interact with the full power of Python. 
+
+Here we prefer to use as much idomatic Python to select atoms, and to analyze geometry. By staying in Python, this makes it easier to write code to interact with other Python libraries such as sci.py or pandas, or numpy.
+
 
 ### Vector geometry library
 
@@ -238,11 +258,11 @@ And combine them in the correct sequence:
 
 	c = v3.combine(a, b)
 
-But if you do need to mess around with a transform, then you need to know that a transform is represented by a 4x3 matrix, of which the elements are accessed by:
+If you need to access the transform directly, transforms are represented as a 4x3 matrix, which are accesed by:
 
 	matrix_elem(matrix, i, j, val=None)
 
-The matrix consists of 2 parts:
+Like any affine transform matrix, it consists of:
 
 1. 3x3 rotational component:
 
@@ -270,7 +290,7 @@ And a bunch of random geometric object generators, used for testing:
 	random_matrix()
 
 
-### Reading a PDB structure in a Soup
+### Reading a PDB into a Soup
 
 Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the `fetch` module:
 
@@ -281,8 +301,6 @@ The main object for manipulating PDB structures is the Soup object in `pdbatoms`
 
 	from pdbremix import pdbatoms
 	soup = pdbatoms.Soup("1be9.pdb")
-
-### Soup as a list of atoms
 
 A Soup is essentially a collection of atoms, which we can grab by:
 
@@ -311,161 +329,216 @@ Since `atom.pos` and `atom.vel` are vectors, these can be manipulated by functio
 	displacment = v3.vector(1,0,0)
 	translation = v3.translation(displacement)
 	atom.transform(translation)
+
+Given that a soup is essentially a list of atoms, you can transform the entire soup: 
+
 	soup.transform(translation)
 
-For more information about vectors, see above.
-
-The atoms returned by soup.atoms() is a Python list, and is meant to be searched for using Python idioms.
-
-You search through it by looping and comparing:
+To search through a bunch of atoms, you iterate through it as ... a Python list:
 
 	hydrogens = []
 	for atom in soup.atoms():
 	 if atom.elem == 'H':
 	   hydogens.append(atom)
 
-- Once you have the atoms you want, you can measure their geometric properties via the `v3` module.
+Vectors play a natural part, you just have to remember to call the `v3` library and refer to `pos` and `vel`
+
+	from pdbremix import v3
+	from pdbremix import pdbatoms
+	
+	center = pdbatoms.get_center(soup.atoms())
+	furtherest_atom = None
+	furtherest_dist = 0.0
+	for atom in soup.atoms():
+	  d = v3.distance(center, atom.pos)
+	  if d > furtherest_dist:
+	    furtherest_atom = atom
+	    furtherest_d = d
+
+- Use the Python `re` module to string analysis
+
 
 ### Searching through residues
 
-As well, Soup contains a list of residues:
-
-	residues = soup.residues()
+The Soup object is not simply a list of Atoms, it also contains a list of Residues that organize the list of Atoms. 
 
 A residue in this case represents a collection of atoms that forms a recognisable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. 
 
-One key heuristic is that the type of atoms in a residue is unique. So the function:
+This definition follow the PDB is actually quite a useful organizational definition. If we were to force the grouping of atoms in terms of molecules, then you'd be treating proteins with tens of thousands of atoms to water molecules with 3. 
 
-   residue.atom('CA')
+To access the list of residues:
 
-will return an atom based on type in an atom.
+	residues = soup.residues()
 
-So in a Soup, if you know the res atom\_type's \_
+One heuristic of residues is that each atom in a residue has a unique atom type. Then one can look up atoms by residue and atom type:
 
-  soup.residue\_by\_tag('A:15').name('CA')
+	 ca = residue.atom('CA')
 
-Or by index:
+Individual residues can be in a Soup by a list index:
 
-  soup.residue(4).name('CA')
+	first_residue = soup.residue(0)
+
+But a more useful one is by a *residue tag*:
+
+	key_residue = soup.residue_by_tag('A:15').name('CA')
 
 You can loop through residues and atoms. To find all atoms surrounding a residue:
 
 	for residue in soup.residues():
-	 if residue.has\_atom("CA"):
+	 if residue.has_atom("CA"):
 	ca = residue("CA")
 	for atom in soup.atoms():
 	  if v3.distance(ca.pos, atom.pos) < 4:
 
 ### Handling chains in PDB files
 
-- Chains are not represented explicitly. In this author's opinion, the data structure gets excessively complicated for little gain. It's easier to just deal with it on a case-by-case basis.
+The Soup object does not represent chains in its data structure. In the author's experience, this adds a lot of complexity that doesn't result in any great utility. Rather, the `chain_id` is stored in every atom, and should be the same for all atoms in a residue.
 
-- dealing with chains
+The chain id's can be fetched from a Soup:
+
+	chain_ids = soup.get_chain_ids()
+
+And a new Soup can be extracted by chain\_id:
+
+	chain_a = soup.get_chain('A')
+
+If you need to deal separately with chains, store it in a Python dictionary:
+
+	system = {}
+	for chain_id in soup.get_chain_ids():
+	  system[chain_id] = soup.get_chain(chain_id)
 
 ### Patching PDB structures
 
-- pdbtext.py
-- pdbtext parsing - cleaning structures
-- - delete extra waters
-- delete non-standard amino acids
-- look for steric clashes
-- identify chain breaks/missing amino acids
-- reduce
-- patch with modeller
-- remove extra models
-- alternate conformations
+PDB files are complicated and messy. This is because nature is complicated and messy, and PDB files are relatively simple. In order to perform analysis on them such as with `pdbatoms` and prepare them for MD simulations.
 
-- hetatms, atoms and other stuff
+There are some simple text processing steps that throw away a lot of the experimental information so that we can end up with one single, largely intact conformation to analyze. `pdbtext` provides some of these functions:
 
-- solvent\_res\_type
+- `strip_lines` - is a utility function that uses anonymous function to filter lines of texts
+- `strip_hydrogens` - strips out any ATOM lines that contain hydrogens
+- `strip_solvent` - deletes any entries that match solvents defined in `data.solvent_res_types`
+- `renumber_residues` - cleans up the numbering of residues by renumbering residues sequentially, overwriting inserts and missing numbers
+- `strip_other_nmr_models` - NMR files, and homology models often contain many alternate but similar conformations. This function takes only the first one encountered.
+- `strip_alternative_atoms` - X-ray structures sometimes include several conformations for a residue, as it flips back and forth. This function keeps only the first conformation.
+- `clean_pdb` - runs all the above 
 
-- assign new chainIds
-- adding, deleting atoms and residues
-- changing properties of atoms and residues
-- selecting residues and atoms
 
-- common manipulations - protein.py
+### Structure Analysis
+
+Now you've happily loaded a PDB structure into Soup, you might want to do some analysis.
+
+We've provided libraries to carry out some common analysis.
+
+`asa` - calculates the accessible surface-area of every atom in list of atoms, with respect to the other atoms.
+
+`volume` - calculates the volume of a list of atoms, using a standard lookup table of radii in data.radii.
+
+`rmsd` - calculates the RMSD between sets of coordinates. These can be extracted from soups, or PDB files. Two algorithms are provided, the qcp algorithm of Dogulas Theobald, or the stand SVD method using numpy.
+
+`protein` - contains a few common protein analysis
+
 - moving things around
-- saving b-Factors
-- saving pdb files
-- renumbring
 
+Finally, you want to save your results. This is simply:
 
-## Structure Analysis
+	soup.write_pdb('out.pdb')
 
-- asa.py
-- rmsd.py
-- raw calculation, in the only place that numpy is required, it uses the classic SVD decomposition in numpy to calculate the optimal superposition between two sets of points
-- volume
+However, you might also want to save any atom/residue analysis. Most people do this  by saving the values in the B-factor of a column. If you have a list of values, such as:
 
+	residue_asa = [...]
+
+You can load into a soup by:
+
+	soup.load_residue_bfactors(residue_asa)
+
+And if you have atoms, then do a list comprehension:
+
+	atom_asa_list = [...]
+	[atom.bfactor = asa 
+	 for atom, asa in zip(soup.atoms, atom_asa_list)]
 
 
 ### Making Images of Proteins
 
-pymol.py
+Apart from making PDB structures, another common and painful problem is to generate images of proteins.
 
-- frustrating to get the view you want, loading trajectories is a multiple step processing in viewers
-- viewers Pymol, Chimera, VMD have scripting languages
-- if we enforce our naming convention, can really save time
-- e.g. load trajectories using a simple command line
-- pipe in useful information and *transformations* 
-	`pdbpym -b -c B:8 -t B:7 1be9.pdb`
+`pymol` provides an interface to pymol to generate images of proteins in an automated way.
 
+The first thing that one must do is to orientate the protein to a specific frame of reference.
+
+In `pdbremix` this can be achieved easily by choosing center-res and a top-res. The routines in `pymol` orientates the structure so that the center-res is place in the middle of the screen, directly above the center-of-mass, and rotates around this axis such that the top-res is found above the center-res.
+
+	make_pdb_png(
+	    png, pdbs, bgcolor="white", 
+	     center_res=None, top_res=None,
+	    highlight_res=None, is_sticks=True,
+	     is_putty=False, 
+	     width=480, height=480)
+
+This shows a protein in ribbon conformation, with a highlight\_res.
 
 ## Python Interface to Molecular Dynamics
 
+`pdbremix` provides an extensive API to run molecular-dynamics simulations from Python. `pdbremix` abstracts the particular details of running MD under different packages. 
+
+A simulation requires a set of restart files, which is generated from an input PDB files. The restart files share a common basename and consists of a topology, a coordinates and a velocities file.
+
+Simulations require input restart files, and write output restart files. For minimization, these output restart files is the goal. With molecular dynamics, the result is a trajectory file with the output restart files describing the last frame of the trajectory. Output restart and trajectories are given standard file extensions.
+
+Simulation functions are accessed by the `simulate` module. A `force_field` parameter is used to distinguish the different packages. When reading existing restart files or trajetories, the particular package is inferred from the file extions.
+
+In `simulate`, this function is used get the restart files:
+
+	top, crds, vels = simulate.get_restart_files('sim')
+
+But first, we must create the restart files from a PDB file. This is done with:
+
+	top, crds = simulate.pdb_to_topology('AMBER11', '1be9.pdb', 'sim')
+
+This will return only the top and crds file:
+
+	top: sim.top, crds: sim.crd
+
+Now we're ready to do a minimization
+
+	> simulate.minimize('AMBER11', 'sim', 'min')
+
+One should only start a raw dynamics simulation with a well-minimized structure. Because minimization only looks for coordinate changes, it doesn't have to worry about velocities blowing up, and thus can find a sturdy local-minima conformation. In this conformation, you are guaranteed that none of the atoms will violently push each other away, letting the velocities develop on their own.
+
+In our simulations with explicit waters, these are the settings:
+- explicit waters
+- periodic box with 10 Å padding from protein
+- Langevin thermometer
+- Nose-Hoover barometer set to 1 Atm
+- Particle-Ewald-Mesh Electrostatics
+- no bond constraints on protein
+- 1 fs timestep
+
+In our simulations with implicit solvent:
+- Generalized Born electrostatics
+- Surface Area hydrophobic term
+- Langevin thermemeter
+- no bond constraints on protein
+- 1 fs timestep
+
+So we are now ready to equilibrate it with a thermometer:
+
+> simulate.langevin_thermometer('AMBER11', 'sim', 'min')
+
+Pure dynamics simulation without thermometer, constant energy - how well is it conserved?
+
+> simulate.constant_energy('AMBER11', 'sim', 'min')
+
+### PUFF - powerful steered molecular dynamics
+
 The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
 
-- Restart files for maximum flexibility
-
-- PUFF steered molecular dynamics
-
-- Reading trajectories
+### Analyzing Trajectories
 
 Combines trajectory reading with topology
 You need atomic masses and charges for calculations
 Reads as coordinates and or as pdbatoms.Polymer structure
 Common interface for AMBER, NAMD and GROMACS
 
-- `pdbrestart`
-- `pdbminimize`
-- `pdbequil`
-- `puff` runs a PUFF simulation
-- `puffshow` displays pulling residues in PUFF sim
 
-simulate.py
-force.py
-amber.py
-gromacs.py
-namd.py
-
-traj.py
-
-- coercing all necessary files under the same basename
-- making topology, coordinate, velocity files
-- choosing a reasonable robust subset of simulation parameters
-- can handle proteins
-	- only standard amino acids
-	- checks for disulfide bonds
-	- handle multiple chains
-	- ignores cystallographic waters
-	- ignores hydrogen atoms
-- explicit waters
-	- periodic cubic box
-	- 10 Å padding
-	- Langevin thermometer
-	- Nose-Hoover barometer
-	- Particle Ewald-Mesh Electrostatics
-	- no bond constraints on protein
-- implicit solvent
-	- Generalized Born electrostatics
-	- Surface Area tension hydrophobic term
-
-
-mpiexec -np 40 /home/bosco/bin/gromacs-4.0.7/bin/mdrun -v -s md.tpr -cpi md.cpt -append -deffnm md \>& md.mdrun.restart.log
-gromacs ligand http://www.dddc.ac.cn/embo04/practicals/9\_15.htm
-installing amber on mac http://amberonmac.blogspot.com.au/
-amber ff on gromacs http://www.somewhereville.com/?p=114
-ffamber http://ffamber.cnsm.csulb.edu/
-http://web.mit.edu/vmd\_v1.9.1/namd-tutorial-unix.pdf
-http://bionano.physics.illinois.edu/Tutorials/ssbTutorial.pdf
+[1]:	https://github.com/boscoh/pdbremix/archive/master.zip
