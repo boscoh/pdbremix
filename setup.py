@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-from setuptools import setup
 
+from setuptools import setup
 import glob
-scripts = glob.glob('bin/*')
 
 version = open('pdbremix/_version.py').read().split()[-1][1:-1]
 
@@ -15,9 +14,8 @@ setup(
     description='structural biology library',
     long_description='Docs at http://github.com/boscoh/pdbremix',
     license='MIT',
-    install_requires=[
-    ],
+    install_requires=[],
     packages=['pdbremix',],
     include_package_data=True,
-    scripts=scripts,
+    scripts=glob.glob('bin/*'),
 )
