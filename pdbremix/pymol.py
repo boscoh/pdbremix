@@ -32,12 +32,12 @@ import pdbtext
 import protein
 
 
-def pymol_id_from_resname(resname):
-  chain_id, res_num = protein.split_resname(resname)
+def pymol_id_from_res_tag(tag):
+  chain_id, res_num, insert = pdbatoms.split_tag(tag)
   if chain_id == " ":
     return "resi %d" % res_num
   else:
-    return "(chain %s and resi %d)" % (chain_id, res_num)
+    return "(chain %s and resi %d%s)" % (chain_id, res_num, insert)
   
     
 # Functions to transform PDB before rendering in PYMOL

@@ -262,6 +262,29 @@ class AtomList:
 
 
 
+def split_tag(tag):
+  """
+  Returns (chain_id, res_num, insert). Empty chain_id=" " and
+  empty insert="".
+  """
+  words = tag.split(":")
+  if len(words) > 2:
+    raise Exception("Too many : in res tag %s" % tag)
+  res_num = words[-1]
+  insert = ""
+  while not res_num[-1].isdigit():
+    insert += res_num[-1] 
+    res_num = res_num[:-1]
+  res_num = int(res_num)
+  if len(words) == 1:
+    chain_id = " "
+  else:
+    chain_id = words[0]
+    if len(chain_id) > 1:
+      raise Exception("chain_id in res tag %s too long" % tag)
+  return (chain_id, res_num, insert)
+
+
 class Residue:
   """
   Class to collect atoms in a residue together. Allows group
@@ -462,17 +485,21 @@ class Soup(AtomList):
           self.residue(j).dec_num()
     
   def get_i_residue(self, tag):
-    # clean up tag
-    tag = tag.strip()
-    if tag[0] == ":":
-      tag = tag[1:]
-    if not tag[0].isdigit() and tag[1].isdigit():
-      tag = tag[0] + ":" + tag[1:]
+    """
+    Returns the index of residue with tag, or -1 on failure.
+    """
     for i, residue in enumerate(self.residues()):
-      if tag.lower() == residue.tag().lower():
+      if split_tag(tag) == (residue.chain_id, residue.num, residue.insert):
         return i
-    raise Exception("Can't find residue " + tag)
+    raise -1
   
+  def residue_by_tag(self, tag):
+    i = self.get_i_residue(tag)
+    if i >= 0:
+      return self.residue(i)
+    else:
+      raise None
+
   def extract_soup(self, i, j):
     extract = Soup()
     for res in self.residues()[i:j]:

@@ -106,9 +106,9 @@ if __name__=="__main__":
     script += "hide stick\n"
   script += "remove resn XXX\n"
   if center_res:
-    script += "center %s\n" % pymol.pymol_id_from_resname(center_res)
+    script += "center %s\n" % pymol.pymol_id_from_res_tag(center_res)
   if highlight_res is not None:
-    res = pymol.pymol_id_from_resname(highlight_res)
+    res = pymol.pymol_id_from_res_tag(highlight_res)
     script += pymol.highlight_res_script % { 'res':res }
   if arg['-o']:
     script += "save %s\n" % out_file

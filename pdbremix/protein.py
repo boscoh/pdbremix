@@ -33,18 +33,10 @@ def mark_backbone_bfactor_pdb(
   mol.write_pdb(out_pdb)
 
 
-def split_resname(resname):
-  "Returns (chain_id, res_num)"
-  words = resname.split(":")
-  if len(words) == 2:
-    return (words[0], int(words[1]))
-  else:
-    return (' ', int(words[0]))
-
-  
 def find_ca_of_resname(atoms, resname):
   for atom in atoms:
-    if split_resname(resname) == (atom.chain_id, atom.res_num):
+    if pdbatoms.split_tag(resname) == \
+       (atom.chain_id, atom.res_num, atom.res_insert):
       if "CA" == atom.type:
         return atom
   raise IndexError, "Can't find atom %s" % resname
@@ -104,7 +96,7 @@ def transformed_soup_from_pdb(
     transform = get_pdb_transform(pdb, center_res, top_res)
     soup.transform(transform)
   if frame_residues:
-    resnames = [pymol_id_from_resname(r) for r in frame_residues]
+    resnames = [pymol_id_from_res_tag(r) for r in frame_residues]
     soup.frame_pymol_script = "zoom (%s)\n" % ' or '.join(resnames)
   if width: soup.width = width
   if height: soup.height = height
