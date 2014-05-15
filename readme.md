@@ -1,22 +1,23 @@
 title: pdbremix documentation
 ---
----
 # pdbremix
 
-`pdbremix` is a library for analyzing protein structures
+`pdbremix` is a library to analyze protein structures and protein simulations
 
 The library consists of:
 
 1. tools to analyze and view PDB structures
-2. tools to run MD simulations and analyze trajectories
+2. tools to run MD simulations and analyze MD trajectories
 3. python interface to analyze PDB structures
-4. python interface to run molecular-dynamics and analyze trajectories
+4. python interface for MD simulations and MD trajectories
 
 The library works with PyPy for significant speed-ups.
 
 ## Installation
 
-Download from github [zip][1].
+Download from github:
+
+&nbsp; &nbs; [\[package-zip]][1]
 
 And install:
 
@@ -24,7 +25,7 @@ And install:
 
 From here, you can access unit tests and example files.
 
-There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps these tools with extra friendlier functionality. To check which tools can be access from the path:
+There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps these tools with extra functionality. To check which tools can be access from the path:
 
 	> checkpdbremix
 
@@ -98,7 +99,7 @@ For beginners, it is useful to see how a basic simulation is set-up from a PDB f
 
 ### Topology files
 
-`pdb2top` will:
+`pdb2sim` will:
 
  - detect and parameterise disulfide bonds
 - strip hydrogens and repopulate 
@@ -110,7 +111,7 @@ To achieve this abstraction, `pdbremix` assumes all the files of a simulation wi
 
 	> pdbfetch 1be9
 	> pdbstrip 1be9.pdb
-	> pdb2top 1be9.pdb sim AMBER11
+	> pdb2sim 1be9.pdb sim AMBER11
 
 This will make: 
 
@@ -128,7 +129,7 @@ This will make:
 
 ### Running simulations
 
-Preparing simulations is an art form, there are a lot of different approaches, typically divided into:
+A typical molecular-dynamics simulation run consists of two distinct steps:
 
 1. equilibration step
 2. production step
@@ -137,13 +138,13 @@ There many different ways to equilibrate, and most of them require some kind of 
 
 `pdbremix` has made it easy to apply positional restraints. Just copy the `sim.pdb` file from above, open the file in an editor, and set the B-factor of whatever atom you to restrain to 1.0. Leave the rest at 0.0. This is the approach that NAMD uses, and `pdbremix` has replicated that with AMBER and GROMACS.
 
-	> mdmin -r restraint.pdb sim min 
+	> simmin -r restraint.pdb sim min 
 
 Typically you want to run a simulation at a given temperature, so you want to start the simulation that has been heated carefully to that temperature without suffering any kind of heating artefact.
 
-	> mdtemp -r restraint.pdb min temp 300 5000
+	> simtemp -r restraint.pdb min temp 300 5000
 	
-	> mdconst -r restraint.pdb min const 5000
+	> simconst -r restraint.pdb min const 5000
 
 ### Trajectory analysis
 
@@ -372,6 +373,8 @@ To access the list of residues:
 
 One heuristic of residues is that each atom in a residue has a unique atom type. Then one can look up atoms by residue and atom type:
 
+- residue atoms
+
 	 ca = residue.atom('CA')
 
 Individual residues can be in a Soup by a list index:
@@ -385,10 +388,10 @@ But a more useful one is by a *residue tag*:
 You can loop through residues and atoms. To find all atoms surrounding a residue:
 
 	for residue in soup.residues():
-	 if residue.has_atom("CA"):
-	ca = residue("CA")
-	for atom in soup.atoms():
-	  if v3.distance(ca.pos, atom.pos) < 4:
+	  if residue.has_atom("CA"):
+	    ca = residue("CA")
+	    for atom in soup.atoms():
+	      if v3.distance(ca.pos, atom.pos) < 4:
 
 ### Handling chains in PDB files
 
@@ -458,15 +461,17 @@ And if you have atoms, then do a list comprehension:
 	 for atom, asa in zip(soup.atoms, atom_asa_list)]
 
 
-### Making Images of Proteins
+### Making PNG of Proteins
 
 Apart from making PDB structures, another common and painful problem is to generate images of proteins.
 
 `pymol` provides an interface to pymol to generate images of proteins in an automated way.
 
-The first thing that one must do is to orientate the protein to a specific frame of reference.
+The very first thing that one must do is to orientate the protein to a specific frame of reference. This is very hard to do in PYMOL. 
 
-In `pdbremix` this can be achieved easily by choosing center-res and a top-res. The routines in `pymol` orientates the structure so that the center-res is place in the middle of the screen, directly above the center-of-mass, and rotates around this axis such that the top-res is found above the center-res.
+`pdbremix` provides a simple way to get at most frames of reference. A frame of reference is simply defined by choosing a center-res and a top-res. 
+
+The routines in `pymol` orientates the structure so that the center-res is place in the middle of the screen, directly above the center-of-mass, and rotates around this axis such that the top-res is found above the center-res.
 
 	make_pdb_png(
 	    png, pdbs, bgcolor="white", 
@@ -477,68 +482,199 @@ In `pdbremix` this can be achieved easily by choosing center-res and a top-res. 
 
 This shows a protein in ribbon conformation, with a highlight\_res.
 
+
+
 ## Python Interface to Molecular Dynamics
 
 `pdbremix` provides an extensive API to run molecular-dynamics simulations from Python. `pdbremix` abstracts the particular details of running MD under different packages. 
 
-A simulation requires a set of restart files, which is generated from an input PDB files. The restart files share a common basename and consists of a topology, a coordinates and a velocities file.
+One key abstraction in `pdbremix` is that every simulation is started with a set of restart files, all sharing a common basename. This consists of:
 
-Simulations require input restart files, and write output restart files. For minimization, these output restart files is the goal. With molecular dynamics, the result is a trajectory file with the output restart files describing the last frame of the trajectory. Output restart and trajectories are given standard file extensions.
+- topology file
+- coordinates/velocities file(s)
 
-Simulation functions are accessed by the `simulate` module. A `force_field` parameter is used to distinguish the different packages. When reading existing restart files or trajetories, the particular package is inferred from the file extions.
+Three types of simulations are provided by the `pdbremix.simulate` module:
 
-In `simulate`, this function is used get the restart files:
+1. minimization -\> restart files
+2. fixed-temperature dynamics -\> trajectory & restart files
+3. constant-energy dynamics -\> trajectory & restart files
 
-	top, crds, vels = simulate.get_restart_files('sim')
+Each of these functions take as parameters:
 
-But first, we must create the restart files from a PDB file. This is done with:
+- `force_field`: indicating the MD-package/force-field
+- `in_basename`: that point to a set of input restart files
+- optional `restraint_pdb`: PDB file that defines positional restraints
+- optional `restraint_force`: sets the strength of restraints
+
+Essentially two types of simulations are provided:
+
+1. explicit water simulations:
+	- periodic box with 10 Å padding from protein
+	- waters generated to fill in the periodic box
+	- Langevin thermometer
+	- Nose-Hoover barometer set to 1 Atm
+	- Particle-Ewald-Mesh Electrostatics
+	- no bond constraints on protein
+	- 1 fs timestep
+2. implicit-solvent simulations:
+	- Generalized Born electrostatics
+	- Surface Area hydrophobic term
+	- Langevin thermemeter
+	- no bond constraints on protein
+	- 1 fs timestep
+
+To choose which simulations, you set the `force-field` parameter to:
+
+1. implicit solvent force-fields:
+	- AMBER11-GBSA: AMBER 99 force-field with X igb surface area
+2. explicit solvent force-fields:
+	- ABMER11: using the AMBER 99 force-field and waters?
+	- NAMD2.8: using the AMBER 99 force-field and waters
+	- GROMACS4.5: using the CHARM22 force-field and TIP3P watersp
+
+### Topologies
+
+But before anything happens, you need to turn a PDB file into a set of restart files. This is achieved with:
 
 	top, crds = simulate.pdb_to_topology('AMBER11', '1be9.pdb', 'sim')
 
-This will return only the top and crds file:
+Specifically, this will produce, for each MD package:
 
-	top: sim.top, crds: sim.crd
+- AMBER:
+	- top: sim.top
+	- crds: sim.crd
+- GROMACS:
+	- top: sim.top
+	- crds: sim.gro
+- NAMD:
+	- top: sim.psf
+	- crds: sim.coor
 
-Now we're ready to do a minimization
+As well, an extra PDB file will be created `sim.pdb`. This is a PDB version of the restart version, which will contain all the created atoms in the correct sequence, and this file will be used to make the positional restraint PDB file.
 
-	> simulate.minimize('AMBER11', 'sim', 'min')
+What the `simulate.pdb_to_topology` function does is take the PDB file and delegate to each package to construct the correct topology file. This will:
+
+- set up disulfide bonds
+- detect charged/polar residue state
+- build all hydrogens
+- set up the terminii of all protein chains
+
+If the`force_field` is for explicit solvent, then the function will als:
+
+- set up a box with 10 Angstrom padding
+- fill the box with waters
+- add counterions to neutralize the system
+
+It is important that an output basename `sim` is supplied. This way, at any later point, the restart files can be obtained with:
+
+	top, crds, vels = simulate.get_restart_files('sim')
+
+### Equilibration strategies
+
+A typical molecular-dynamics typically involves two phases:
+
+1. Equilibration: a prepartion stage 
+2. Production: the actual simulation used for analayis
+
+The equilibration can be quite different for different problems, and consists of a mix of minimizations and constant-temperature simulations with different times and positional restraints.
+
+
+
+`pdbremix` provides three basic simulation functions:
+
+- minimize
+- langevin\_thermometer
+- constant\_energy
+
+which can be used the set up the sequences for a correct equiliration.
+
+Here's an example: I wanted to do some low temperature RIP simulations. The structures had to be equilibrated to 10K, and the simulations had to run in constant energy.
+
+1. Heating to 10K using Langevin for 10ps
+2. Relaxation at constant energy for 10ps
+3. Heating the relaxed conformation back to 10px
+
+I could build a function that does all this in `pdbremix` and have restart files in a directory `equil_md`.
+
+- example code for equilibration
+
+### Positional Restraints
+
+For a lot of MD simulation protocols, positional restraints are important. For example, for simulations involving proteins in explicit solvent, some people like to heat up the water first by placing positional constraints on the protien atoms. Only after the water is equilibrated, then the system is heated again with the protein free to move.
+
+NAMD has an excellent protocol for adding positional constraints. They are defined by a specialist PDB file where the B-factor column indicates a positional constraint on an atom by a value of 1.0. GROMACS and AMBERS have complicated protocols for establishing positional constraints. In `pdbremix`, a positional restraint protocol, similar to NAMD, has been implemented for GROMACS and AMBER.
+
+In the following functions, a parameter called `restraint_pdb` can be given such a restraint PDB file, in order to implement positional constraints. As well, another parameter caleed `restraint_force` can be used to set the strength of the constraint in terms of kcal/mol/angs/angs.
+
+### Minimization
 
 One should only start a raw dynamics simulation with a well-minimized structure. Because minimization only looks for coordinate changes, it doesn't have to worry about velocities blowing up, and thus can find a sturdy local-minima conformation. In this conformation, you are guaranteed that none of the atoms will violently push each other away, letting the velocities develop on their own.
 
-In our simulations with explicit waters, these are the settings:
-- explicit waters
-- periodic box with 10 Å padding from protein
-- Langevin thermometer
-- Nose-Hoover barometer set to 1 Atm
-- Particle-Ewald-Mesh Electrostatics
-- no bond constraints on protein
-- 1 fs timestep
+In `pdbremix` minimizations are performed with:
 
-In our simulations with implicit solvent:
-- Generalized Born electrostatics
-- Surface Area hydrophobic term
-- Langevin thermemeter
-- no bond constraints on protein
-- 1 fs timestep
+	> simulate.minimize('AMBER11', 'sim', 'min')
+
+
+### Langevin Thermometer
 
 So we are now ready to equilibrate it with a thermometer:
 
-> simulate.langevin_thermometer('AMBER11', 'sim', 'min')
+	> simulate.langevin_thermometer('AMBER11', 'sim', 'min')
+
+### Constant Energy
 
 Pure dynamics simulation without thermometer, constant energy - how well is it conserved?
 
-> simulate.constant_energy('AMBER11', 'sim', 'min')
+	> simulate.constant_energy('AMBER11', 'sim', 'min')
 
-### PUFF - powerful steered molecular dynamics
+
+### PUFF
 
 The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
 
-### Analyzing Trajectories
+### Reading Trajectories
 
-Combines trajectory reading with topology
-You need atomic masses and charges for calculations
-Reads as coordinates and or as pdbatoms.Polymer structure
-Common interface for AMBER, NAMD and GROMACS
+- ultimately a list of numbers TrajectoryReader
+	- describe interface
+	- self.frame
+	- self.i\_frame
+	- self.n\_frame
+	- self.load\_frame(i\_frame)
+- need topology
+- Trajetory object description from source
+- Just read in trajectory - top, trajectory
+- iterate through by load\_frame(i) and then grab the soup
+- soup elements esp. vectors are updated in place, so can safely reference
+- soup copy if you want to do anything
+- soup.write\_pdb()
 
+### Trajectory Analysis module
+
+- Automate some common functions
+- We have a strategy objet, wraps a lot of boiler-plate around trajectory analysis
+- writes a bunch of values per frame
+- averages these values per ps
+- writes to file
+- edit calculate\_results.
+	- you get the trj.soup ojbect,
+	- return a list with a fixed number of values
+	- that's it
+	- since it's an object, can track variables over time etc.
+
+### Interface to simulate and trajectory
+
+- expand\_restart\_files
+- get\_restart\_files
+- soup\_from\_restart\_files
+- write\_soup\_to\_crds\_and\_vels
+- convert\_restart\_to\_pdb
+- pdb\_to\_top\_and\_crds
+- run
+	- minimization\_parameters
+	- langevin\_thermometer\_parameters
+	- constant\_enregy\_parameters
+- merge\_simulations
+- Trajectory
+	- interface
 
 [1]:	https://github.com/boscoh/pdbremix/archive/master.zip
