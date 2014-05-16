@@ -11,6 +11,7 @@ Usage: pdboverlay [-h] [<pdb>] ...
 import os
 import shutil
 import glob 
+import sys
 
 from pdbremix import pymol
 from pdbremix.lib.docopt import docopt
@@ -194,6 +195,9 @@ if __name__ == "__main__":
     if os.path.isfile('pdboverlay/filelist.txt'):
       fnames = util.words_in_file('pdboverlay/filelist.txt')
       is_processed = True
+    else:
+      print __doc__
+      sys.exit(1)
 
   util.goto_dir('pdboverlay')
   pdbs = [os.path.basename(f) for f in fnames]

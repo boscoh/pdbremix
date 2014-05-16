@@ -17,7 +17,7 @@ The library works with PyPy for significant speed-ups.
 
 Download from github:
 
-&nbsp; &nbs; [\[package-zip]][1]
+&nbsp; &nbsp; [Zip-Package][1]
 
 And install:
 
@@ -93,18 +93,21 @@ These following tools wrap external tools to solve some very common (and painful
 
 ## Tools to run MD Simulation
 
-`pdbremix` provides a simplified interface to run molecular-dynamics. Whilst this is not a replacement for understanding each of the MD packages, the use-case provided here cover a reasonable range of cases.
+`pdbremix` provides a simplified interface to run molecular-dynamics. Whilst this is not a replacement for understanding each of the MD packages, the scenarios provided here cover a reasonable range of cases.
 
-For beginners, it is useful to see how a basic simulation is set-up from a PDB file to a trajectory, as all intermediate files are saved. It is much easier to modify a complete and working process than start from scratch.
+For beginners, it is useful to see how a basic simulation is set-up from a PDB file to a trajectory, as all intermediate files and shell scripts of the commands are are saved to file as well as full logging for all packages. It is much easier to modify a complete and working process than to start from scratch.
 
 ### Topology files
 
-`pdb2sim` will:
+The first thing you want to do is make a topology file from a PDB file. A topology file describes the physical parameters of all the atoms and the properties of their bonds. The physical paramarers include charge, mass, van der Waals repulson, bond spring constants etc.  
 
- - detect and parameterise disulfide bonds
-- strip hydrogens and repopulate 
+This is performed by `pdb2sim`, which will:
+
+- strip out crystallographic waters, alt conformations, alt models etc.
+- detect and parameterise disulfide bonds
 - handle multiple chains by chain ID
 - let each package determine charged/polar residue states
+- repopulate hydrogens consistent with charged states
 - pick force-fields and water models
 
 To achieve this abstraction, `pdbremix` assumes all the files of a simulation will have a common basename. To generate these files from a PDB, run:
@@ -115,7 +118,7 @@ To achieve this abstraction, `pdbremix` assumes all the files of a simulation wi
 
 This will make: 
 
-1. sim.top
+1. sim.top - the toplogy file
 2. sim.crd - is all you need to run an AMBER simulation. 
 3. sim.pdb - is a fleshed out PDB that is populated with AMBER generated hydrogen atoms, need for positional constraints.
 
@@ -136,19 +139,30 @@ A typical molecular-dynamics simulation run consists of two distinct steps:
 
 There many different ways to equilibrate, and most of them require some kind of positional restraint. One of the great things about `pdbremix` is is the simplification of the application of positional restraints.
 
+	sim2pdb -b md out.pdb
+
 `pdbremix` has made it easy to apply positional restraints. Just copy the `sim.pdb` file from above, open the file in an editor, and set the B-factor of whatever atom you to restrain to 1.0. Leave the rest at 0.0. This is the approach that NAMD uses, and `pdbremix` has replicated that with AMBER and GROMACS.
 
 	> simmin -r restraint.pdb sim min 
 
 Typically you want to run a simulation at a given temperature, so you want to start the simulation that has been heated carefully to that temperature without suffering any kind of heating artefact.
 
+Now you'd probably want to write dedicated scripts to run your simulations but these tools can be a useful diagnostic just to see if your setup works. 
+
 	> simtemp -r restraint.pdb min temp 300 5000
-	
+
+And the version for constant energy.
+
 	> simconst -r restraint.pdb min const 5000
+
+You can then study the trajectories with the tools in the next section.
+
 
 ### Trajectory analysis
 
- `pdbremix` assumes that associated files for an MD trajectory has a *common basename*. 
+Trajectory analysis is probably best done with dedicated scripts, but here's some scripts for some quick analysis. I found particular useful ones are scripts that opens a trajectory in a viewer. 
+
+Before you can use this scripts you have to make sure the trajectory files share a common basename, for:
 
 - AMBER: 
 	- md.top
@@ -170,13 +184,13 @@ Once named properly, these tools can be used:
 
 Use these tools to display trajectories: 
 
-- `trajvmd` display trajectory in VMD *recommended*
+- `trajvmd` display trajectory in VMD **\*recommended\***
 - `trajchim` display trajectory in CHIMERA
-- `trajpym` display trajectory in PYMOL *AMBER only*
+- `trajpym` display trajectory in PYMOL **\*AMBER only\***
 
 And some package specific tools: 
 
-- `traj2amb` converts NAMD/GROMACS to AMBER trajectories _without_ solvent
+- `traj2amb` converts NAMD/GROMACS to AMBER trajectories **\*without\*** solvent
 - `grotrim` trim GROMACS .trr trajectory files
 
 
