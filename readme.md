@@ -72,7 +72,7 @@ These following tools wrap external tools to solve some very common (and painful
 
 	PYMOL is a powerful viewer, but it's defaults leave a little to be desired. `pdbshow` runs PYMOL with some useful added functionality:
 
-	  1. By default, shows colored chains, ribbons, and sidechains as sticks. 
+	  1. By default: colored chains, ribbons, and sidechains as sticks. 
 	  2. Choice of initial viewing frame, defined by a center-residue and a top-residue. The PDB will be rotated such that the center-residue is above the center-of-mass in the middle of the screen. The top-residue will be above the center-residue.
 	  3. Color by B-factor using a red-white scale, with limits defined by options.
 	  4. Solvent molecules can be removed, which is specifically for MD frames that contain too many waters.
@@ -97,63 +97,67 @@ These following tools wrap external tools to solve some very common (and painful
 
 For beginners, it is useful to see how a basic simulation is set-up from a PDB file to a trajectory, as all intermediate files and shell scripts of the commands are are saved to file as well as full logging for all packages. It is much easier to modify a complete and working process than to start from scratch.
 
-### Topology files
+### Preparing Simulations from PDB
 
-The first thing you want to do is make a topology file from a PDB file. A topology file describes the physical parameters of all the atoms and the properties of their bonds. The physical paramarers include charge, mass, van der Waals repulson, bond spring constants etc.  
-
-This is performed by `pdb2sim`, which will:
-
-- strip out crystallographic waters, alt conformations, alt models etc.
-- detect and parameterise disulfide bonds
-- handle multiple chains by chain ID
-- let each package determine charged/polar residue states
-- repopulate hydrogens consistent with charged states
-- pick force-fields and water models
-
-To achieve this abstraction, `pdbremix` assumes all the files of a simulation will have a common basename. To generate these files from a PDB, run:
+First let's grab a PDB file from the website::
 
 	> pdbfetch 1be9
-	> pdbstrip 1be9.pdb
-	> pdb2sim 1be9.pdb sim AMBER11
 
-This will make: 
+Then we can clean it up into a single conformation ready for MD:
+
+	> pdbstrip 1be9.pdb
+
+Hopefully everything is good:
+
+	> pdbcheck 1be9.pdb
+
+Then we generate a topology file from the PDB file:
+
+	> pdb2sim 1be9.pdb sim AMBER11-GBSA
+
+This will detect multiple chains, disulfide-bonds, fit hydrogen atoms to AMBER, and guess polar residue charged states. Masses, charges and bond spring parameters are generated from the AMBER99 force-field. The restart is a set of restart files with a common basename:
 
 1. sim.top - the toplogy file
-2. sim.crd - is all you need to run an AMBER simulation. 
-3. sim.pdb - is a fleshed out PDB that is populated with AMBER generated hydrogen atoms, need for positional constraints.
+2. sim.crd - the coordinates
 
-*Explicit solvent* Explicit waters are modelled in a box that has 10 Angstroms padding. The packages for explicit solvent are:
+Now there are several choice of packages/force-fields:
 
-- AMBER11 - ff99SB, TIP water
-- NAMD2.8 - CHARM22 (included in the `pdbremix/parms` directory)
-- GROMACS4.5 - AMBER99, TIP3P water
+1. AMBER11-GBSA
+2. AMBER11
+3. NAMD2.8
+4. GROMACS4.5
 
-*Implicit solvent* AMBER11-GBSA is provided to do implicit solvent simulations, where there are no waters. This is a fast, dirty approach, which is quite useful.
+The first one builds a topology file for implicit solvent. The rest builds explict solvent. For explicit solvent, `pdb2sim` also creates a box with 10 &Angs; padding, and fills the box with waters and coutnerions.
+
+### Positional constraints
+
+Positional constraints are very important in setting up MD simulations. `pdbremix` simplifies the application of positional restraints by using the B-factor column of PDB files to denote positional constaints, which is what NAMD does. If you have a set of restart files, then run:
+
+	> sim2pdb -b sim sim.restraint.pdb
+
+which will generate a PDB file where all backbone atoms have been set to B-factor=-1. This will be used to apply positional restraints. Another option is:
+
+	> sim2pdb -a sim sim.restraint.pdb
+
+Of course you can edit your own B-factors in the PDB file.
 
 ### Running simulations
 
-A typical molecular-dynamics simulation run consists of two distinct steps:
+Typically you want to run a simulation at a given temperature, so you want to start the simulation that has been heated carefully to that temperature without suffering any kind of heating artefact. 
 
-1. equilibration step
-2. production step
+`pdbremix` several wrappers to run MD simulations. The MD package is detected by the extensions of the restart files. A robust set of simulation parameters are chosen for you: no bond constraints on protein and a 1 fs time-step. In explicit solvent: also periodic boundary conditions and PME electrostatics. The simulation wrappers are run (with the optional `-r` restraint flag:
 
-There many different ways to equilibrate, and most of them require some kind of positional restraint. One of the great things about `pdbremix` is is the simplification of the application of positional restraints.
+1. Tinimize your structure from `sim` restart files to `min`, using restraints defined in `sim.restraint.pdb`:
 
-	sim2pdb -b md out.pdb
+		> simmin -r sim.restraint.pdb sim min
 
-`pdbremix` has made it easy to apply positional restraints. Just copy the `sim.pdb` file from above, open the file in an editor, and set the B-factor of whatever atom you to restrain to 1.0. Leave the rest at 0.0. This is the approach that NAMD uses, and `pdbremix` has replicated that with AMBER and GROMACS.
+2. MD simulation with a Langevin thermometer at 300K for 5000 fs:
 
-	> simmin -r restraint.pdb sim min 
+		> simtemp -r restraint.pdb min temp 300 5000
 
-Typically you want to run a simulation at a given temperature, so you want to start the simulation that has been heated carefully to that temperature without suffering any kind of heating artefact.
+3. For constant energy for 5000 fs:
 
-Now you'd probably want to write dedicated scripts to run your simulations but these tools can be a useful diagnostic just to see if your setup works. 
-
-	> simtemp -r restraint.pdb min temp 300 5000
-
-And the version for constant energy.
-
-	> simconst -r restraint.pdb min const 5000
+		> simconst -r restraint.pdb min const 5000
 
 You can then study the trajectories with the tools in the next section.
 
@@ -162,7 +166,7 @@ You can then study the trajectories with the tools in the next section.
 
 Trajectory analysis is probably best done with dedicated scripts, but here's some scripts for some quick analysis. I found particular useful ones are scripts that opens a trajectory in a viewer. 
 
-Before you can use this scripts you have to make sure the trajectory files share a common basename, for:
+Before you can use this scripts you have to make sure the trajectory files share a common basename:
 
 - AMBER: 
 	- md.top
@@ -179,7 +183,7 @@ Before you can use this scripts you have to make sure the trajectory files share
 
 Once named properly, these tools can be used:
 
-- `trajstep` extracts basic parameters of atrajctory
+- `trajstep` extracts basic parameters of a trajectory
 - `trajvar` calculates energy and RMSD of trajectory
 
 Use these tools to display trajectories: 
@@ -591,8 +595,6 @@ A typical molecular-dynamics typically involves two phases:
 2. Production: the actual simulation used for analayis
 
 The equilibration can be quite different for different problems, and consists of a mix of minimizations and constant-temperature simulations with different times and positional restraints.
-
-
 
 `pdbremix` provides three basic simulation functions:
 

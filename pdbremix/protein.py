@@ -25,14 +25,6 @@ def strip_solvent_pdb(pdb):
   return new_pdb
 
 
-def mark_backbone_bfactor_pdb(
-    in_pdb, out_pdb, backbone_atoms=data.backbone_atoms, k=1.0):
-  mol = pdbatoms.AtomList(in_pdb)
-  for atom in mol.atoms():
-    atom.bfactor = k if atom.type in backbone_atoms else 0.0
-  mol.write_pdb(out_pdb)
-
-
 def find_ca_of_resname(atoms, resname):
   for atom in atoms:
     if pdbatoms.split_tag(resname) == \
