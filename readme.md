@@ -188,9 +188,9 @@ Once named properly, these tools can be used:
 
 Use these tools to display trajectories: 
 
-- `trajvmd` display trajectory in VMD **\*recommended\***
+- `trajvmd` display trajectory in VMD *\*recommended\**
 - `trajchim` display trajectory in CHIMERA
-- `trajpym` display trajectory in PYMOL **\*AMBER only\***
+- `trajpym` display trajectory in PYMOL *\*AMBER only\**
 
 And some package specific tools: 
 
