@@ -6,7 +6,7 @@ Calculates the accessible surface-area a PDB file.
 Algorithm adapted from Rose lab's chasa.py implementation of
 Shrake & Rupley (19743) JMB:351. (c) 2007 Bosco Ho.
 
-Usage: asa.py [-n <n_sphere>] <in_pdb> [<out_pdb>]
+Usage: asa.py [-h -n <n_sphere>] <in_pdb> [<out_pdb>]
 
   <out_pdb>   PDB file in which the atomic ASA values are written 
               to the b-factor column.

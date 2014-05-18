@@ -4,7 +4,7 @@
 __doc__ = """
 Fetch PDB files from http://rcsb.org.
 
-Usage: pdbfetch.py [-f] <pdb> ...
+Usage: pdbfetch.py [-h -f] <pdb> ...
 """
 
 

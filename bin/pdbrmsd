@@ -3,7 +3,7 @@
 __doc__ = """
 Calculates RMSD between 2 PDB structures
 
-Usage: pdbrmsd [-o <transform_pdb1>] <pdb1> <pdb2> [<segments1>] [<segments2>]
+Usage: pdbrmsd [-h -o <transform_pdb1>] <pdb1> <pdb2> [<segments1>] [<segments2>]
 
 Options:
   -o <transform_pdb1>  PDB with the optimal superposition of pdb1 to pdb2,

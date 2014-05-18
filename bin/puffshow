@@ -4,7 +4,7 @@
 """
 Shows pulled residues in a PUFF simulation in PYMOL.
 
-Usage: puffshow [options] <puff-config> 
+Usage: puffshow [-h -b] <puff-config> 
   
   -b <bgcolor>
 """

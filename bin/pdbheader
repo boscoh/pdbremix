@@ -3,7 +3,7 @@
 __doc__ = """
 Generates short summary of PDB files.
 
-Usage: pdbheader <pdb> ...
+Usage: pdbheader [-h] <pdb> ...
 """
 
 from pdbremix.lib.docopt import docopt

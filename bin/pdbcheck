@@ -4,7 +4,7 @@
 __doc__ = """
 Checks PDB for structural integrity for MD simulations.
 
-Usage: pdbcheck <pdb> ...
+Usage: pdbcheck [-h] <pdb> ...
 """
 
 import os
@@ -43,7 +43,7 @@ def check_clash_in_pdb(pdb):
         if v3.distance(ca1_pos, ca2_pos) > 9:
           continue
       if clash_in_residues(r1, r2):
-        print "       steric clash:", r1.name(), r2.name()
+        print "       steric clash:", r1.tag(), r2.tag()
             
 
 def strip_digits(s):
@@ -76,7 +76,7 @@ def incomplete(res):
   
 
 def incomplete_residues(p):
-  pair = lambda res: (res.name(), res.type)
+  pair = lambda res: (res.tag(), res.type)
   return [pair(r) for r in p.residues() if incomplete(r)]
 
 
@@ -89,7 +89,7 @@ def check_missing_atoms_in_residue(pdb):
 
 def check_nonstandard_residues(pdb):
   for res in get_structure(pdb).residues():
-    res_id = res.name()
+    res_id = res.tag()
     res_type = res.type
     if res_type not in template_res:
       if res_type not in data.solvent_res_types:
@@ -110,7 +110,7 @@ def check_disulfide_bonds(pdb):
         d = v3.distance(p1, p2)
         if d < 4:
           print "       disulfide bond: %s - %s" % \
-              (residues[i].name(), residues[j].name())
+              (residues[i].tag(), residues[j].tag())
 
 
 def check_peptide_bonds(pdb):
@@ -127,7 +127,7 @@ def check_peptide_bonds(pdb):
         n = r2.atom("N").pos
         is_bonded = v3.distance(c, n) < 2
         if not is_bonded:
-          print "       chain break: %s-C -> %s-N" %  (r1.name(), r2.name())
+          print "       chain break: %s-C -> %s-N" %  (r1.tag(), r2.tag())
           is_all_good = False
 
 

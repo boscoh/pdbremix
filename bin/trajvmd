@@ -3,7 +3,7 @@
 __doc__ = """
 Display AMBER, GROMACS, NAMD trajectories in VMD.
 
-usage: trajvmd <md>
+usage: trajvmd [-h] <md>
 """
 
 

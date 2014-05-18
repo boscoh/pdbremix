@@ -3,7 +3,7 @@
 __doc__ = """
 Converts NAMD and GROMACS trajectories to AMBER
 
-Usage: traj2amb <md> 
+Usage: traj2amb [-h] <md> 
 """
 
 import glob

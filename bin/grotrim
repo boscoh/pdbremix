@@ -3,7 +3,7 @@
 __doc__ = """
 Strips frames of a GROMACS .trr trajectory file.
 
-usage: grotrim <in_md> <n_frame>
+usage: grotrim [-h] <in_md> <n_frame>
 
 <in_md>   basename of GROMACS trajectory files .gro and .trr 
 <n_frame>  write out every n_frame

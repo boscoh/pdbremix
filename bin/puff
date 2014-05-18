@@ -4,8 +4,9 @@
 __doc__ = """
 Runs PUFF forced MD simulations from a PUFF configuration files
 
-Usage: puff [-r] <puff_config>
+Usage: puff [-hr] <puff_config>
 
+-r  report
 <puff_config> is essentially a PYTHON dictionary:
   { 
     'in_pdb'             : 'pdb/hairpin.pdb', 

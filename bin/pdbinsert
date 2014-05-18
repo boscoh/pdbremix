@@ -3,7 +3,7 @@
 __doc__ = """
 Inserts loops into PDB using Modeller
 
-Usage: pdbinsert [-m <n_model>] <pdb> <name> [<resname> <seq>] ...
+Usage: pdbinsert [-h -m <n_model>] <pdb> <name> [<resname> <seq>] ...
 
 Args:
   -m <n_model>  number of models [default: 5]

@@ -3,7 +3,7 @@
 __doc__ = """
 Calculates RMSD, CA-RMSD, KIN & TOTAL-KIN of trajectory
 
-Usage: trajvar [options] <md> ...
+Usage: trajvar [-h -r <refpdb>] <md> ...
 
 Options:
 -r <refpdb>  Reference PDB for RMSD calculations, if not given,

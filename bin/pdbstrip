@@ -3,7 +3,7 @@
 __doc__ = """
 Strips PDB file into a single conformation for MD simulations.
 
-Usage: pdbstrip [-ysano] <pdb> [<out_pdb>]
+Usage: pdbstrip [-hysano] <pdb> [<out_pdb>]
 
 -y   strip hydrogens
 -s   strip solvent

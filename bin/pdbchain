@@ -4,7 +4,7 @@
 __doc__ = """
 Gets the chain and chain_ids of a PDB file.
 
-Usage: pdbchain <pdb> [<chain_id> ...]
+Usage: pdbchain [-h] <pdb> [<chain_id> ...]
 """
 
 

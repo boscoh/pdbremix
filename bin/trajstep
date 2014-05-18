@@ -3,7 +3,7 @@
 __doc__ = """
 Displays parameters of an MD trajectory.
 
-Usage: trajstep <md>
+Usage: trajstep [-h] <md>
 """
 
 import sys

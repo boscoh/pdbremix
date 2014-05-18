@@ -7,7 +7,7 @@ Displays an AMBER MD trajectory using PYMOL
 
 Defaults to cartoon w/stick sidechains and no hydrogens
 
-Usage: trajpymol [-fdeb <bgcolor>] <md> [<res>]
+Usage: trajpymol [-hfdeb <bgcolor>] <md> [<res>]
 
 Options:
   -f   show all atoms, including hydrogens

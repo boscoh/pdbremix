@@ -4,15 +4,14 @@
 __doc__ = """
 Calculates the volume of the atoms in a PDB file.
 
-Copyright (c) 2007 Bosco Ho.  
-
-Usage: pdbvol [-s <spacing>] <pdb> ...
+Usage: pdbvol [-h -s <spacing>] <pdb> ...
 
 -s <spacing>   the spacing in the grid used to calculate the 
                volume grid (default=0.5). The smaller value,
                the more accurate, but slower.
 """
 
+# copyright 2007
 
 from pdbremix.lib.docopt import docopt
 from pdbremix import pdbatoms
