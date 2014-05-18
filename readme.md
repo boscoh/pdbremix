@@ -65,7 +65,7 @@ For these tools, you get an impressive speed-up if use use `pypy`:
 	> pdbstrip 1be9.pdb
 	> pypy `which pdbvol` 1be9.pdb
 
-Help for the tools is available with the `-h` option. 
+As usual, detailed help is available with the `-h` flag. 
 
 
 ### Wrappers around External Tools
@@ -443,6 +443,19 @@ You can loop through residues and atoms. To find all atoms surrounding a residue
 	    for atom in soup.atoms():
 	      if v3.distance(ca.pos, atom.pos) < 4:
 
+To help with searching, a number of useful default lists are provided in a data module:
+
+	from pdbremix import data
+	
+	data.res_name_to_char - a dictionary to convert 3 letter amino acid   
+	                        names to char
+	data.res_char_to_name - the reverse of the above
+	data.backbone_atoms - common backbone names for PDB and MD packages
+	data.radii - dictionary of atomic radii for various elements
+	data.solvent_res_types - some common solvent residue names in PDB   
+	                         MD packages
+
+
 ### Handling chains in PDB files
 
 The Soup object does not represent chains in its data structure. In the author's experience, this adds a lot of complexity that doesn't result in any great utility. Rather, the `chain_id` is stored in every atom, and should be the same for all atoms in a residue.
@@ -465,15 +478,18 @@ If you need to deal separately with chains, store it in a Python dictionary:
 
 PDB files are complicated and messy. This is because nature is complicated and messy, and PDB files have a simple structure. To prepare PDB files for MD simulations, the PDB files might have to be heavily edited to form a single unique conformations. 
 
-Much of this can be done with some straightforward text processing that throw away experimental information. `pdbtext` provides some of these functions:
+Much of this can be done with some straightforward text processing that throw away experimental information. `pdbtext` provides some of text trasnformation functions:
 
-- `strip_lines` - is a utility function that uses anonymous function to filter lines of texts
-- `strip_hydrogens` - strips out any ATOM lines that contain hydrogens
+- `strip_lines(pdb_txt, tag_func)` - is a utility function that uses anonymous function to filter lines of texts. lines that `tag_func` return as True will be skipped.
+- `strip_hydrogens(pdb_txt)` - strips out any ATOM lines that contain hydrogens
 - `strip_solvent` - deletes any entries that match solvents defined in `data.solvent_res_types`
-- `renumber_residues` - cleans up the numbering of residues by renumbering residues sequentially, overwriting inserts and missing numbers
-- `strip_other_nmr_models` - NMR files, and homology models often contain many alternate but similar conformations. This function takes only the first one encountered.
-- `strip_alternative_atoms` - X-ray structures sometimes include several conformations for a residue, as it flips back and forth. This function keeps only the first conformation.
-- `clean_pdb` - runs all the above 
+- `renumber_residues(pdb_txt) ` - cleans up the numbering of residues by renumbering residues sequentially, overwriting inserts and missing numbers
+- `strip_other_nmr_models(pdb_txt) ` - NMR files, and homology models often contain many alternate but similar conformations. This function takes only the first one encountered.
+- `strip_alternative_atoms(pdb_txt) ` - X-ray structures sometimes include several conformations for a residue, as it flips back and forth. This function keeps only the first conformation.
+
+All these functions are run with:
+
+- `clean_pdb (in_pdb, out_pdb)` - runs all the above
 
 
 ### Structure Analysis
@@ -485,50 +501,47 @@ Now you've happily loaded a PDB structure into Soup, you might want to do some m
 	from pdbremix import asa
 	asa.calculate_asa(atoms, probe, n_sphere_point=960)
 
+which assigns the asa to to each `atom.asa`
+
 `volume` - calculates the volume of a list of atoms, using a standard lookup table of radii in data.radii.
 
 	from pdbremix import volume
-	volume.volume(atoms, grid_spacing, pdb="")
+	volume = volume.volume(atoms, 0.5)
 
-`rmsd` - calculates the RMSD between sets of coordinates. These can be extracted from soups, or PDB files. Two algorithms are provided, the qcp algorithm of Dogulas Theobald, or the stand SVD method using numpy.
+`rmsd` - calculates the RMSD between sets of coordinates. Two algorithms are provided, the standard SVD method when numpy is available, and the qcp algorithm of Dogulas Theobald otherwise:
+
+	from pdbremix import rmsd
 
 If you've extracted the positions in a list, you can calculate directly using:
  
-	calc_rmsd_rot(crds1, crds2)
+	rmsd, transform12 = rmsd.calc_rmsd_rot(crds1, crds2)
 
-If you have two soups, and you want to compare by `atom_types` or you want to define `segments`:
+Or for PDB structures:
 
-	rmsd_of_soups(
-	    soup1, soup2, segments1=[], segments2=[], 
+	rmsd, transform12 = rmsd_of_pdbs(
+	    pdbs1, pdbs2, segments1=[], segments2=[], 
 	    atom_types=['CA'], transform_pdb1=None)
 
-Or by PDB structures:
+To use, you set up segments like this:
 
-	rmsd_of_pdbs(
-	    pdb1, pdb2, segments1=[], segments2=[], 
-	    atom_types=['CA'], transform_pdb1=None)
+	segments1 = [('A:1', 'A:2'), ('B:1', 'B:10')]
+	semgents2 = [('A:5', 'A:7'), ('B:2', 'B:11')]
+	rmsd, transform12 = rmsd_of_pdbs(pdbs1, pdbs2, segements1, segments2)
+
 
 ### Making PNG of Proteins
 
-Apart from making PDB structures, another common and painful problem is to generate images of proteins.
+Another common problem is generating a lot of images of proteins. `pdbremix` provides a conveninent interface to use PYMOL as a image generator library:
 
-`pymol` provides an interface to pymol to generate images of proteins in an automated way.
-
-The very first thing that one must do is to orientate the protein to a specific frame of reference. This is very hard to do in PYMOL. 
-
-`pdbremix` provides a simple way to get at most frames of reference. A frame of reference is simply defined by choosing a center-res and a top-res. 
-
-The routines in `pymol` orientates the structure so that the center-res is place in the middle of the screen, directly above the center-of-mass, and rotates around this axis such that the top-res is found above the center-res.
-
-	make_pdb_png(
+	from pdbremix import pymol
+	pymol.make_pdb_png(
 	    png, pdbs, bgcolor="white", 
 	    center_res=None, top_res=None,
 	    highlight_res=None, is_sticks=True,
 	    is_putty=False, 
 	    width=480, height=480)
 
-This shows a protein in ribbon conformation, with a highlight\_res.
-
+This makes a `png` from a bunch of `pdbs`. The frame of viewing is defined by `center_res` and `top_res`. The default coloring is by chain, with ribbons, and sidechains as ribbons. However, if `is_putty` is false, it shows a B-factor colored worm view and the png size is determined by `width` and `height`.
 
 
 ## Python Interface to Molecular Dynamics
@@ -577,7 +590,7 @@ The `force_field` of AMBER11-GBSA is implicit-solvent whilst all the others are 
 
 ### Restart files: topologies and coordinates
 
-But before anything happens, you need to turn a PDB file into a set of restart files. This is carried out with the `simulate.pdb_to_topology` function, which will take a PDB file and given the `force_field`, using the tools in each MD package:
+But before anything happens, you need to turn a PDB file into a set of restart files. This is carried out with the `simulate.pdb_to_top_and_crds ` function, which will take a PDB file and given the `force_field`, using the tools in each MD package:
 
 - setup disulfide bonds
 - detect charged/polar residue state
@@ -684,7 +697,44 @@ I could build a function that does all this in `pdbremix` and have restart files
 
 ### PUFF approach to steered molecular dynamics
 
-The library was originally written to do PUFF steered-molecular dynamics simulation that uses a pulsed force application. This method does not require the underlying MD package to support the method and can be carried out by manipulating restart files. The utilities to do this are:
+The `pdbremix` libraries a particular powerful method of carrying out steered molecular dynamics simulations. This is the PUFF method (ref).
+
+The idea is very simple. Steered molecular dynamics works by applying artificial forces to a system. This is normally implemented within a MD package, and requires quite a detailed setup.
+
+However, If you run a simulation for a very short period of time, say 100 fs. Then by directly changing the velocities of the restart files, you are effectively applying forces to the system.
+
+Since `pdbremix` possesses routines to read/write restart files into Soup objects, this can be easily done. The `simulate` module provides a function `pulse` which implements this, and the function takes as a paramter, the `pulse_fn` that performs the velocity changes to a soup.
+
+The `force` module provides various functions that builds `pulse_fn` to carry out different types of forces:
+
+1. Applies a Random Gas Force to the ith residue of a soup:
+
+		make_atd_fn(i_residue, heating_temperature, backbone_atoms)
+  
+2. Applies a pushing force that is set to target velocity between two domains
+
+		 make_puff_fn(
+		    domain1, domain2, target_val, dt=0.1, temperature=None, 
+		    is_backbone_only=False, is_first_domain_only=False, 
+		    force_fname='md.puff.out')
+
+3. Applies a pushing force that is a set acceleration:
+
+		make_puff_acc_fn(
+		    domain1, domain2, target_val, dt=0.1, temperature=None, 
+		    is_backbone_only=False, is_first_domain_only=False, 
+		    force_fname='md.puff.out')
+
+4. Applies a random rotational velocity to the chi angles of the residue:
+
+		make_rip_fn(i_res, heating_temperature)
+
+To use here's an example:
+
+	 top, crds, vels = simulate.get_restart_files(md)
+	 n = len(simulate.soup_from_restart_files(top, crds, vels).residues())
+	 pulse_fn = force.make_puff_fn([0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
+	 simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
 
 
 ### Reading Trajectories

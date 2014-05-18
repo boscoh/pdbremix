@@ -263,7 +263,7 @@ def get_restart_files(basename):
   return top, crds, vels
 
 
-def soup_from_restart_files(top, crds, vels):
+def soup_from_restart_files(top, crds, vels, skip_solvent=False):
   """Reads a Soup from restart files."""
   return soup_from_top_and_crd_or_rst(top, crds)
 

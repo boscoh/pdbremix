@@ -91,17 +91,18 @@ def get_restart_files(basename):
   raise util.FileException("Couldn't find restart files for " + basename)
   
 
-def soup_from_restart_files(top, crds, vels, skip_solvent=True):
+def soup_from_restart_files(basename, skip_solvent=True):
   """
   Reads a Soup from the restart files.
   """
-  if crds.endswith('.gro'):
-    return gromacs.soup_from_restart_files(
-        top, crds, vels, skip_solvent)
-  elif top.endswith('.top'):
-    return amber.soup_from_restart_files(top, crds, vels)
-  elif top.endswith('.psf'):
-    return namd.soup_from_restart_files(top, crds, vels)
+  for module in [amber, gromacs, namd]:
+    try:
+      top, crds, vels = module.get_restart_files(basename)
+      return module.soup_from_restart_files(
+          top, crds, vels, skip_solvent)
+    except util.FileException:
+      pass
+  raise util.FileException("Couldn't find restart files for " + basename)
 
 
 def write_soup_to_crds_and_vels(force_field, soup, basename):
@@ -362,8 +363,6 @@ def pulse(
   pulse_parms['topology'] = os.path.abspath(pulse_parms['topology'])
   in_basename = pulse_parms['input_md_name']
   pulse_parms['input_md_name'] = os.path.abspath(in_basename)
-  pulse_in_top, pulse_in_crds, pulse_in_vels = \
-    get_restart_files(pulse_parms['input_md_name'])
 
   # Now loop through pulses
   timer = util.Timer()
@@ -377,8 +376,7 @@ def pulse(
 
     pulse_parms['n_step_dynamics'] = n_step
 
-    soup = soup_from_restart_files(
-        pulse_in_top, pulse_in_crds, pulse_in_vels)
+    soup = soup_from_restart_files(pulse_parms['input_md_name'])
 
     # Apply forces by modifying the velocities directly 
     pulse_fn(soup)
@@ -392,8 +390,6 @@ def pulse(
 
     # Setup new restart files based on just-finished pulse
     pulse_parms['input_md_name'] = os.path.abspath(basename)
-    pulse_in_top, pulse_in_crds, pulse_in_vels = \
-      get_restart_files(basename)
 
   os.chdir(save_dir)
 

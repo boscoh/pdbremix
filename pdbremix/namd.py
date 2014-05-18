@@ -172,7 +172,7 @@ def get_restart_files(basename):
   return psf, coor, vel
 
 
-def soup_from_restart_files(psf, in_coor, in_vel=''):
+def soup_from_restart_files(psf, in_coor, in_vel='', skip_solvent=False):
   """
   Reads a Soup from restart files.
   """

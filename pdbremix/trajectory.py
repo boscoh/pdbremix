@@ -119,13 +119,14 @@ class TrajectoryAnalyzer(object):
 
   def __init__(self, trj, n_frame_per_ps, ref_pdb):
     self.trj = trj
+    self.soup = self.trj.soup
     self.n_frame_per_ps = n_frame_per_ps
     
     # for reference frame
     if ref_pdb:
       self.ref_soup = pdbatoms.Soup(ref_pdb)
     else:
-      self.ref_soup = self.trj.soup.copy()
+      self.ref_soup = self.soup.copy()
 
     # output files
     fname = trj.basename + '.' + self.var_name + '.per_frame'
@@ -187,7 +188,7 @@ class CaRmsdAnalyzer(TrajectoryAnalyzer):
   """
   var_name = 'rmsd'
   def calculate_results(self):
-    return [rmsd.rmsd_of_soups(self.ref_soup, self.trj.soup)]
+    return [rmsd.rmsd_of_soups(self.ref_soup, self.soup)]
 
 
 class KineticEnergyAnalyzer(TrajectoryAnalyzer):
@@ -197,7 +198,7 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
   var_name = 'kin'
   def calculate_results(self):
     results = []
-    for residue in self.trj.soup.residues():
+    for residue in self.soup.residues():
       if residue.type not in data.solvent_res_types:
         atoms = residue.atoms()
         energy = force.kinetic_energy(atoms)/float(len(atoms))
