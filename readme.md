@@ -19,7 +19,7 @@ The library works with PyPy for significant speed-ups.
 
 Download from github: 
 
-&nbsp; &nbsp; [{ZIP-PACKAGE}][1]
+&nbsp; &nbsp;  [\<https://github.com/boscoh/pdbremix/archive/master.zip\>][1]
 
 And install:
 
