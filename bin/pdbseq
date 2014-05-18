@@ -3,7 +3,7 @@
 __doc__ = """
 Shows the sequences of chains in PDB files
 
-Usage: pdbseq <pdb> ...
+Usage: pdbseq [-h] <pdb> ...
 """
 
 
