@@ -59,17 +59,17 @@ def split_pdb_into_models(pdb, target_pdb):
   lines = open(pdb).readlines()
 
   parts = []
-  parts.append('')
+  parts.append([])
   for line in lines:
     if line.startswith('END'):
-      parts.append('')
+      parts.append([])
       continue
     if not line.startswith(('ATOM', 'HETATM')):
       continue
     if not line.strip:
       continue
     line = fix_common_res_types(line)
-    parts[-1] += line
+    parts[-1].append(line)
 
   models = []
   for part in parts:

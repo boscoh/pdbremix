@@ -8,9 +8,11 @@ Usage: pdbcheck [-h] <pdb> ...
 """
 
 import os
+
 from pdbremix import pdbatoms
 from pdbremix import data
 from pdbremix import v3
+from pdbremix import pdbtext
 from pdbremix.lib.docopt import docopt
 
 
@@ -131,18 +133,60 @@ def check_peptide_bonds(pdb):
           is_all_good = False
 
 
+def check_alternate_conformations(pdb):
+  conforms = {}
+  res_names = []
+  for line in open(pdb):
+    if line.startswith(('ATOM', 'HETATM')):
+      a = pdbatoms.AtomFromPdbLine(line)
+      if a.alt_conform != " ":
+        res_name =  "%s:%s-%s" % (a.chain_id, a.res_num, a.type)
+        if res_name not in conforms:
+          conforms[res_name] = []
+        conforms[res_name].append(a.alt_conform)
+        res_names.append(res_name)
+  for res_name in res_names:
+    print "       %s %s" % (res_name, '/'.join(conforms[res_name])) 
+
+
+def check_multiple_models(pdb):  
+  parts = []
+  parts.append([])
+  for line in open(pdb):
+    if line.startswith('END'):
+      parts.append([])
+      continue
+    if not line.startswith(('ATOM', 'HETATM')):
+      continue
+    if not line.strip:
+      continue
+    parts[-1].append(line)
+  if not parts[-1]:
+    parts.pop(-1)
+  if len(parts) > 1:
+    print "       %d models" % len(parts)
+    print "** following only applies to Model 1 **"
+
+
 def check_pdb(pdb):
   print ">>", pdb
-  print "  1. Steric Clashes"
+  if not os.path.isfile(pdb):
+    print "Couldn't find", pdb
+    return
+  print "  1: Multiple Models"
+  check_multiple_models(pdb)
+  print "  2. Steric Clashes"
   check_clash_in_pdb(pdb)
-  print "  2. Chain Breaks"
+  print "  3. Chain Breaks"
   check_peptide_bonds(pdb)
-  print "  3. Disulfide Bonds"
+  print "  4. Disulfide Bonds"
   check_disulfide_bonds(pdb)
-  print "  4. Incomplete Amino Acids"
+  print "  5. Incomplete Amino Acids"
   check_missing_atoms_in_residue(pdb)
-  print "  5. Nonstandard Residues"
+  print "  6. Nonstandard Residues"
   check_nonstandard_residues(pdb)
+  print "  7. Alternate Conformations"
+  check_alternate_conformations(pdb)
 
 
 if __name__ == '__main__':
