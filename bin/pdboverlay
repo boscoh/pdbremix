@@ -2,9 +2,17 @@
 
 
 __doc__ = """
-Displays homologous PDB structure using MAFFT, THESEUS and PYMOL
+Aligns and displays homologous proteins and multiple models of
+PDB structures using MAFFT, THESEUS and PYMOL
 
-Usage: pdboverlay [-h] [<pdb>] ...
+Usage: pdboverlay [-hs] [<pdb>] ...
+
+Options:
+-s    only take 1st model conformation
+
+Intermediate files are saved in the 'pdboverlay' directory.
+If restarted with no parameters, or parameters the same as
+in 'pdboverlay', will load results from 'pdboverlay'.
 """
 
 
@@ -19,6 +27,68 @@ from pdbremix import pdbatoms
 from pdbremix import data
 from pdbremix import v3
 from pdbremix import util
+
+
+from pdbremix import data
+
+
+res_type_cognates = {
+  "HIS": ["HID", "HIE", "HIP", "HSE"],
+  "LYS": ["LYP"],
+  "CYS": ["CYM", "CYX", "CYN"],
+}
+res_replace = {}
+for res, cognates in res_type_cognates.items():
+  for cognate in cognates:
+    res_replace[cognate] = res
+
+
+def fix_common_res_types(line):
+  res_type = line[17:21].strip().upper()
+  if res_type not in data.res_name_to_char:
+    if res_type[:3] in data.res_name_to_char:
+      res_type = res_type[:3]
+      line = line[:17] + res_type + ' ' + line[21:]
+    elif res_type in res_replace:
+      res_type = res_replace[res_type]
+      line = line[:17] + res_type + ' ' + line[21:]
+  return line
+
+
+def split_pdb_into_models(pdb, target_pdb):
+  lines = open(pdb).readlines()
+
+  parts = []
+  parts.append('')
+  for line in lines:
+    if line.startswith('END'):
+      parts.append('')
+      continue
+    if not line.startswith(('ATOM', 'HETATM')):
+      continue
+    if not line.strip:
+      continue
+    line = fix_common_res_types(line)
+    parts[-1] += line
+
+  models = []
+  for part in parts:
+    txt = ''.join(part)
+    if txt.strip():
+      models.append(txt)
+
+  target_pdbs = []
+  if len(models) == 1:
+    open(target_pdb, 'w').write(models[0])
+    shutil.copy(pdb, target_pdb)
+    target_pdbs = [target_pdb]
+  else:
+    for i_model, model in enumerate(models):
+      fname = target_pdb.replace('.pdb', '-%d.pdb' % (i_model+1))
+      open(fname, 'w').write(models[i_model])
+      target_pdbs.append(fname)
+
+  return target_pdbs
 
 
 def align_pdbs(pdbs):
@@ -200,22 +270,37 @@ if __name__ == "__main__":
       sys.exit(1)
 
   util.goto_dir('pdboverlay')
-  pdbs = [os.path.basename(f) for f in fnames]
 
-  if not is_processed:
-    numbered_pdbs = ['%d.pdb' % i for i in range(len(fnames))]
-    for f, temp_f in zip(fnames, numbered_pdbs):
-      shutil.copy(f, temp_f)
-    align_pdbs(numbered_pdbs)
-    make_rmsd_bfactor_pdbs('theseus.aln', pdbs)
-    rescaled_pdbs, max_bfactor = \
-        pymol.rescale_positive_bfactors_of_pdbs(pdbs, 0, 15)
-    for pdb, rescaled_pdb in zip(pdbs, rescaled_pdbs):
-      os.remove(pdb)
-      os.rename(rescaled_pdb, pdb)
+  if is_processed:
+    pdbs = [os.path.basename(f) for f in fnames]
+  else:
+    pdbs = []
+    numbered_pdbs = []
+    i_pdb = 0
+    for in_pdb in fnames:
+      base_pdb = os.path.split(in_pdb)[-1]
+      target_pdbs = split_pdb_into_models(in_pdb, base_pdb)
+      for target_pdb in target_pdbs:
+        pdbs.append(target_pdb)
+        numbered_pdb = '%d.pdb' % i_pdb
+        numbered_pdbs.append(numbered_pdb)
+        os.rename(target_pdb, numbered_pdb)
+        i_pdb += 1
+        if arg['-s']:
+          break
+    if len(numbered_pdbs) == 1:
+      os.rename(numbered_pdbs[0], pdbs[0])
+    else:
+      align_pdbs(numbered_pdbs)
+      make_rmsd_bfactor_pdbs('theseus.aln', pdbs)
+      rescaled_pdbs, max_bfactor = \
+          pymol.rescale_positive_bfactors_of_pdbs(pdbs, 0, 15)
+      for pdb, rescaled_pdb in zip(pdbs, rescaled_pdbs):
+        os.remove(pdb)
+        os.rename(rescaled_pdb, pdb)
+    open('overlay.pml', 'w').write(pymol_script(pdbs))
     open('filelist.txt', 'w').write(' '.join(fnames))
 
   if not arg['-h']:
-    open('overlay.pml', 'w').write(pymol_script(pdbs))
     pymol.run_pymol_script('overlay.pml')
   
