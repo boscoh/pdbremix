@@ -930,6 +930,53 @@ class DcdReader:
              (self.dcd, self.n_frame, self.n_atom)
 
 
+class SoupTrajectory:
+  """
+  Class to interact with an CHARMM/NAMD DCD trajctory using soup.
+  
+  Attributes:
+    basename (str) - basename used to guess all required files
+    psf (str) - topology file of trajectory
+    dcd (str) - coordinate trajectory file
+    vel_dcd (str) - velocity trajectory file
+    coor_dcd_reader (DcdReader) - the reader of the coordinates
+    vel_dcd_reader (DcdReader) - the reader of the velocitiies
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+    soup (Soup) - Soup object holding current coordinates/velocities
+
+  Methods:
+    __init__ - load coordinate and velocity trajectories and build soup
+    load_frame - loads new frame into soup
+  """  
+
+  def __init__(self, soup, dcd, vel_dcd=''):
+    self.soup = soup
+    self.dcd = dcd
+    self.coor_dcd_reader = DcdReader(self.dcd)
+    self.vel_dcd = vel_dcd
+    if vel_dcd:
+      self.vel_dcd_reader = DcdReader(self.vel_dcd)
+    else:
+      self.vel_dcd_reader = None
+    self.n_frame = self.coor_dcd_reader.n_frame
+    self.i_frame = 0
+    self.load_frame(0)
+    
+  def load_frame(self, i_frame):
+    x, y, z = self.coor_dcd_reader[i_frame]
+    atoms = self.soup.atoms()
+    for i in range(len(atoms)):
+      v3.set_vector(atoms[i].pos, x[i], y[i], z[i])
+
+    if self.vel_dcd_reader is not None:
+      x, y, z = self.vel_dcd_reader[i_frame]
+      for i in range(len(atoms)):
+          v3.set_vector(atoms[i].vel, x[i], y[i], z[i])
+
+    self.i_frame = self.coor_dcd_reader.i_frame
+
+
 class Trajectory:
   """
   Class to interact with an CHARMM/NAMD DCD trajctory using soup.
@@ -955,28 +1002,15 @@ class Trajectory:
     self.psf = basename + '.psf'
     self.soup = soup_from_psf(self.psf)
     self.dcd = basename + '.dcd'    
-    self.coor_dcd_reader = DcdReader(self.dcd)
-    self.vel_dcd = basename + '.vel.dcd'
-    if os.path.isfile(self.vel_dcd):
-      self.vel_dcd_reader = DcdReader(self.vel_dcd)
-    else:
-      self.vel_dcd_reader = None
-    self.n_frame = self.coor_dcd_reader.n_frame
+    self.vel_dcd = basename + '.vel.dcd'    
+    self.soup_trj = SoupTrajectory(self.soup, self.dcd, self.vel_dcd)
+    self.n_frame = self.soup_trj.n_frame
     self.i_frame = 0
     self.load_frame(0)
     
   def load_frame(self, i_frame):
-    x, y, z = self.coor_dcd_reader[i_frame]
-    atoms = self.soup.atoms()
-    for i in range(len(atoms)):
-      v3.set_vector(atoms[i].pos, x[i], y[i], z[i])
-
-    if self.vel_dcd_reader is not None:
-      x, y, z = self.vel_dcd_reader[i_frame]
-      for i in range(len(atoms)):
-          v3.set_vector(atoms[i].vel, x[i], y[i], z[i])
-
-    self.i_frame = self.coor_dcd_reader.i_frame
+    self.soup_trj.load_frame(i_frame)
+    self.i_frame = self.soup_trj.i_frame
 
 
 def merge_trajectories(psf, dcds, out_dcd):
@@ -1011,7 +1045,7 @@ def merge_simulations(basename, pulses):
   Splices together a bunch of simulations, all with the same
   basename, into one large simulation in the current directory.
   """
-  for ext in ['.psf', '.coor', '.vel']:
+  for ext in ['.psf', '.coor', '.vel', '.xsc']:
     fname = '%s%s' % (basename, ext)
     shutil.copy('%s/%s' % (pulses[-1], fname), fname)
   trajs = [os.path.join(pulse, basename + '.dcd') for pulse in pulses]

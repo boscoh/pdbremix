@@ -135,7 +135,14 @@ def soup_from_topology(topology):
       soup.insert_atom(-1, atom)
   protein.find_chains(soup)
   convert_to_pdb_atom_names(soup)
+  if topology['IFBOX'] > 0:
+    # create dummy dimension to ensure box dimension recognized
+    soup.box_dimension_str = "1.000000 1.0000000 1.000000"
   return soup
+
+
+def soup_from_top(top):
+  return soup_from_topology(read_top(top))
 
 
 def load_crd_or_rst_into_soup(soup, crd_or_rst):
@@ -236,8 +243,7 @@ def write_soup_to_rst(soup, rst):
 
   # write box dimensions
   if hasattr(soup, 'box_dimension_str'):
-    if soup.box_dimension_str:
-      f.write(soup.box_dimension_str.rstrip() + "\n")
+    f.write(soup.box_dimension_str.rstrip() + "\n")
     
   f.close()
   
@@ -582,9 +588,7 @@ def make_sander_input_file(parms):
   # requires a bit of heavy lifting to figure out.
   soup = soup_from_top_and_crd_or_rst(
       parms['topology'], parms['input_crds'])
-  has_periodic_box = \
-      hasattr(soup, 'box_dimension_str') and \
-      soup.box_dimension_str
+  has_periodic_box = hasattr(soup, 'box_dimension_str')
   if has_periodic_box:
     script += explicit_water_script
   else:
@@ -719,14 +723,12 @@ class TrjReader:
   """
   Class to read AMBER .trj and .trj.gz files.
 
-  Since the .trj files do not tell us how many atoms are in each frame, this
-  must be read from the corresponding .top file. Hence initialization always
-  requires a .top file as well. 
+  .trj files do not tell us how many atoms are in each frame, this
+  must be entered. box dimensions are auto-detected.
 
   Attributes:
     top (str) - name of .top file
     trj (str) - name of .trj file
-    topology (dict) - topology properties
     file (file) - file object to trajectory
     pos_start_frame (int) - position of the beginning of frames
     size_frame (int) - the size of the frame in bytes
@@ -744,17 +746,9 @@ class TrjReader:
     __repr__ - string representation
   """
   
-  def __init__(self, top, trj):
-    self.top = top
+  def __init__(self, n_atom, trj):
+    self.n_atom = n_atom
     self.trj = trj
-
-    self.topology = read_top(top)
-
-    if '.vel.trj' in trj:
-      # box information is not stored in velocitiy .trj files
-      self.is_box_dims = False
-    else:
-      self.is_box_dims = self.topology['IFBOX'] > 0
 
     # Since .trj is a text format, it can be readily gzip'd,
     # so opening .trj.gz is a useful option to have.
@@ -766,26 +760,38 @@ class TrjReader:
     # only 1-line header, frames starts after this line
     self.pos_start_frame = len(self.file.readline())
 
-    self.n_atom = self.topology['NATOM']
-    if self.n_atom == 0:
-      raise Exception("No atoms found in .top file")
-
-    # calculate the size of each frame
-    n_line = (3 * self.n_atom) / 10
-    if (3 * self.n_atom) % 10 > 0: 
-      n_line += 1
-    if self.is_box_dims:
-      n_line += 1
-    self.size_frame = 0
-    for i in range(0, n_line):
-      self.size_frame += len(self.file.readline())
-      
-    # calculate n_frame from end of file
+    # get the size of all frames
     self.file.seek(0, 2)
     pos_eof = self.file.tell()
-    self.n_frame = int((pos_eof - self.pos_start_frame) / self.size_frame)
+    size_all_frames = pos_eof - self.pos_start_frame
+
+    # auto-detect n_frame
+    self.is_box_dims = False
+    self.size_frame = self.calc_size_frame(self.n_atom)
+    n_frame = size_all_frames / float(self.size_frame)
+    # check if n_frame is exact
+    if n_frame % 1.0 > 0.0:
+      # n_frame is not exact, check for box dimensions
+      self.size_frame = self.calc_size_frame(self.n_atom, True)
+      n_frame = size_all_frames / float(self.size_frame)
+      if n_frame % 1.0 != 0.0:
+        raise Exception('frames don\'t fit n_atom for ' + self.trj)
+      self.is_box_dims = True
+    self.n_frame = int(n_frame)
 
     self.load_frame(0)
+
+  def calc_size_frame(self, n_crd, is_box_dims=False):
+    self.file.seek(self.pos_start_frame)
+    n_line = (3 * n_crd) / 10
+    if (3 * n_crd) % 10 > 0: 
+      n_line += 1
+    if is_box_dims:
+      n_line += 1
+    size_frame = 0
+    for i in range(0, n_line):
+      size_frame += len(self.file.readline())
+    return size_frame
 
   def load_frame(self, i):
     """
@@ -803,6 +809,8 @@ class TrjReader:
     s = self.file.read(self.size_frame).replace('\n', '')
     pieces = [s[i:i+8] for i in xrange(0, len(s), 8)]
     vals = map(float, pieces)
+
+    # account for box dimensions
     if self.is_box_dims:
       # drop the box dimension values
       vals = vals[:-3]
@@ -847,62 +855,67 @@ class TrjReader:
              (self.trj, self.n_frame, self.n_atom)
     
 
+class SoupTrajectory:
+  """
+  Class to provide common frame API with AMBER trajectories.
+  """
+  def __init__(self, soup, trj, vel_trj=''):
+    self.trj = trj
+    self.vel_trj = vel_trj
+    self.soup = soup
+    self.n_atom = len(soup.atoms())
+
+    self.trj_reader = TrjReader(self.n_atom, self.trj)
+    if self.vel_trj:
+      self.vel_trj_reader = TrjReader(self.n_atom, self.vel_trj)
+    else:
+      self.vel_trj_reader = None
+
+    self.n_frame = self.trj_reader.n_frame
+
+  def load_frame(self, i):
+    # Load coordinates of soup with coordinates from self.trj_reader
+    crds = self.trj_reader[i]
+    vels = self.vel_trj_reader[i] if self.vel_trj_reader else None
+    atoms = self.soup.atoms()
+    for i in range(self.n_atom):
+      atom = atoms[i]
+      k = 3*i
+      v3.set_vector(atom.pos, crds[k], crds[k+1], crds[k+2])
+      if vels:
+        v3.set_vector(atom.vel, vels[k], vels[k+1], vels[k+2])
+    self.i_frame = self.trj_reader.i_frame
+
+ 
 class Trajectory:
   """
   Class to interact with an AMBER trajctory using soup.
   
   Attributes:
-    basename (str) - basename used to guess all required files
-    top (str) - topology file of trajectory
-    trj (str) - coordinate trajectory file
-    vel_trj (str) - velocity trajectory file
-    trj_reader (TrjReader) - the reader of the coordinates
-    vel_trj_reader (TrjReader) - the reader of the velocities
+    basename (str) - basename used to guess required files
     n_frame (int) - number of frames in trajectory
     i_frame (int) - index of current frame
     soup (Soup) - Soup object holding current coordinates/velocities
-
   Methods:
-    __init__ - load coordinate and velocity trajectories and build soup
     load_frame - loads new frame into soup
   """
 
   def __init__(self, basename):
     self.basename = basename
     self.top = basename + '.top'
-    
+    self.soup = soup_from_top(self.top)
     self.trj = basename + '.trj'
-    self.trj_reader = TrjReader(self.top, self.trj)
-
-    self.vel_trj = basename + '.vel.trj'
+    self.vel_trj = ''
     if os.path.isfile(self.vel_trj):
-      self.vel_trj_reader = TrjReader(self.top, self.vel_trj)
-    else:
-      self.vel_trj_reader = None
-
-    # Create a soup object from self.top and the first frame of trj_reader
-    self.soup = soup_from_topology(self.trj_reader.topology)
-    self.trj_reader.save_to_crd(self.basename+'temp.crd')
-    load_crd_or_rst_into_soup(self.soup, self.basename+'temp.crd')
-    util.clean_fname(self.basename+'temp.crd')
-
-    self.n_frame = self.trj_reader.n_frame
+      self.vel_trj = basename + '.vel.trj'
+    self.soup_trj = SoupTrajectory(self.soup, self.trj, self.vel_trj)
+    self.n_frame = self.soup_trj.n_frame
+    self.i_frame = 0
     self.load_frame(0)
 
   def load_frame(self, i):
-    # Load coordinates of soup with coordinates from self.trj_reader
-    coords = self.trj_reader[i]
-    for j, a in enumerate(self.soup.atoms()):
-      k = 3*j
-      v3.set_vector(a.pos, coords[k], coords[k+1], coords[k+2])
-    self.i_frame = self.trj_reader.i_frame
-
-    # Load velocities of soup with coordinates from self.vel_trj_reader
-    if self.vel_trj_reader is not None:
-      vels = self.vel_trj_reader[i]
-      for j, a in enumerate(self.soup.atoms()):
-        k = 3*j
-        v3.set_vector(a.vel, vels[k], vels[k+1], vels[k+2])
+    self.soup_trj.load_frame(i)
+    self.i_frame = self.soup_trj.i_frame
 
 
 def merge_trajectories(top, trajs, out_traj):

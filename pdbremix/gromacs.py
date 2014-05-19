@@ -862,6 +862,50 @@ class TrrReader:
     return self.frame
 
 
+class SoupTrajectory():
+  """
+  Class to interact with an GROMACS trajctory using soup.
+  
+  Attributes:
+    soup (Soup) - Soup object holding current coordinates/velocities
+    trr (str) - coordinate/velocity trajectory file
+    trr_reader (TrrReader) - the reader of the frames
+    n_frame (int) - number of frames in trajectory
+    i_frame (int) - index of current frame
+
+  Methods:
+    __init__ - load coordinate and velocity trajectories and build soup
+    load_frame - loads new frame into soup
+  """
+
+  def __init__(self, soup, trr):
+    self.soup = soup
+    self.trr = trr
+    self.trr_reader = TrrReader(self.trr)
+    self.n_frame = self.trr_reader.n_frame
+    self.atoms = self.soup.atoms()
+    self.load_frame(0)
+
+  def __repr__(self):
+    return "< Gromacs Trajectory object with %d frames of %d atoms >" % \
+             (self.trj, self.n_frame, self.n_atom)
+
+  def load_frame(self, i_frame):
+    box, positions, velocities, forces = self.trr_reader[i_frame]
+    for i, atom in enumerate(self.atoms):
+      v3.set_vector(
+          atom.pos,
+          positions[i][0]*10,
+          positions[i][1]*10,
+          positions[i][2]*10)
+      v3.set_vector(
+          atom.vel,
+          velocities[i][0]*10,
+          velocities[i][1]*10,
+          velocities[i][2]*10)
+    self.i_frame = self.trr_reader.i_frame
+
+
 class Trajectory(object):
   """
   Class to interact with an GROMACS trajctory using soup.
@@ -885,31 +929,16 @@ class Trajectory(object):
     self.basename = basename
     self.top = basename + '.top'
     self.gro = basename + '.gro'
-    self.trr = basename + '.trr'
-    self.trr_reader = TrrReader(self.trr)
-    self.n_frame = self.trr_reader.n_frame
     self.soup = soup_from_top_gro(self.top, self.gro)
-    self.atoms = self.soup.atoms()
+    self.trr = basename + '.trr'
+    self.soup_trj = SoupTrajectory(self.soup, self.trr)
+    self.n_frame = self.soup_trj.n_frame
+    self.i_frame = None
     self.load_frame(0)
 
-  def __repr__(self):
-    return "< Gromacs Trajectory object with %d frames of %d atoms >" % \
-             (self.trj, self.n_frame, self.n_atom)
-
-  def load_frame(self, i_frame):
-    box, positions, velocities, forces = self.trr_reader[i_frame]
-    for i, atom in enumerate(self.atoms):
-      v3.set_vector(
-          atom.pos,
-          positions[i][0]*10,
-          positions[i][1]*10,
-          positions[i][2]*10)
-      v3.set_vector(
-          atom.vel,
-          velocities[i][0]*10,
-          velocities[i][1]*10,
-          velocities[i][2]*10)
-    self.i_frame = self.trr_reader.i_frame
+  def load_frame(self, i):
+    self.soup_trj.load_frame(i)
+    self.i_frame = self.soup_trj.i_frame
 
 
 def merge_simulations(basename, pulses):
