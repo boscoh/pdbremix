@@ -1,0 +1,21 @@
+!!! 5
+%head
+  %meta{content:'initial-scale=1.0', name:'viewport'}
+  %link{rel:'stylesheet', href:'{{ page.include_dir }}/supplescroll.css'}
+  %link{rel:'stylesheet', href:'{{ page.include_dir }}/light.css'}
+  - if page.title:
+    %title {{ page.title }}
+%body
+  #table-of-contents.touchscroll
+  #main-text.touchscroll
+    .relative_position
+      {{ page.content }}
+      .timestamp
+        <i><a href='http://github.com/boscoh/supplescroll'>supplescroll</a></i>:lucid theme
+  #figure-list.touchscroll
+
+%script{type:'text/javascript', src:'{{ page.include_dir }}/jquery-2.0.3.js'}
+%script{type:'text/javascript', src:'{{ page.include_dir }}/jquery.scrollTo.js'}
+%script{type:'text/javascript', src:'{{ page.include_dir }}/supplescroll.js'}
+%script{type:'text/javascript', src:'{{ page.include_dir }}/page.js'}
+

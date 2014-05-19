@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<head>
+  <meta content='initial-scale=1.0' name='viewport' />
+  <link href='supplescroll.inc/supplescroll.css' rel='stylesheet' />
+  <link href='supplescroll.inc/light.css' rel='stylesheet' />
+  
+    <title>pdbremix documentation</title>
+  
+</head>
+<body>
+  <div id='table-of-contents' class='touchscroll'></div>
+  <div id='main-text' class='touchscroll'>
+    <div class='relative_position'>
+      <h1>pdbremix</h1>
+<p><code>pdbremix</code> is a library to analyze protein structures and protein simulations</p>
+<p>The library consists of:</p>
+<ol>
+<li>tools to analyze and view PDB structures</li>
+<li>tools to run MD simulations and analyze MD trajectories</li>
+<li>python interface to analyze PDB structures</li>
+<li>python interface for MD simulations and MD trajectories</li>
+</ol>
+<p>The library works with PyPy for significant speed-ups.</p>
+<h2>Installation</h2>
+<p>Download from github: </p>
+<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">\&lt;https://github.com/boscoh/pdbremix/archive/master.zip></a></p>
+<p>And install:</p>
+<div class="codehilite"><pre>&gt; python setup.py install
+</pre></div>
+
+
+<p>From here, you can access unit tests and example files.</p>
+<p>There are many wonderful tools in structural biology that have less-than-stellar interfaces. <code>pdbremix</code> wraps these tools to make them easier to use.</p>
+<p>To check which tools can be accessed from the path:</p>
+<div class="codehilite"><pre>&gt; checkpdbremix
+</pre></div>
+
+
+<p>Use the <code>-o</code> flag to get the config file for binaries to override (perhaps with exotic flags):</p>
+<div class="codehilite"><pre>&gt; vi `checkpdbremix -o`
+</pre></div>
+
+
+<h2>Tools to analyze PDB structures</h2>
+<p><code>pdbremix</code> is a library to analyze PDB structures and MD trajectories. As such, it provides a platform to build command-line tools for PDB files as well as to carry out useful pre-processing of PDB files for external tools.</p>
+<h3>Tools in Pure Python</h3>
+<p>Some of the tools can be used straight out of the box:</p>
+<ul>
+<li><code>pdbfetch</code> fetches PDB files from the RCSB website</li>
+<li><code>pdbheader</code> displays summary of PDB files</li>
+<li><code>pdbseq</code> displays sequences in a PDB</li>
+<li><code>pdbchain</code> extracts chains from a PDB</li>
+<li><code>pdbcheck</code> checks for common defects in a PDB</li>
+<li><code>pdbstrip</code> cleans up PDB for MD simulations</li>
+</ul>
+<p>The following tools implement standard algorithms:</p>
+<ul>
+<li><code>pdbvol</code> calculates volume of a PDB</li>
+<li><code>pdbasa</code> calculates accessible surface-area of a PDB</li>
+<li><code>pdbrmsd</code> calculates RMSD between PDB files</li>
+</ul>
+<p>For these tools, you get an impressive speed-up if use use <code>pypy</code>:</p>
+<div class="codehilite"><pre>&gt; pdbfetch 1be9
+&gt; pdbstrip 1be9.pdb
+&gt; pypy `which pdbvol` 1be9.pdb
+</pre></div>
+
+
+<p>As usual, detailed help is available with the <code>-h</code> flag. </p>
+<h3>Wrappers around External Tools</h3>
+<p>These following tools wrap external tools to solve some very common (and painful) use-cases in PDB analysis.</p>
+<ul>
+<li>
+<p><code>pdbshow</code> displays PDB structures in PYMOL with extras.</p>
+<p>PYMOL is a powerful viewer, but it's defaults leave a little to be desired. <code>pdbshow</code> runs PYMOL with useful defaults and added functionality:</p>
+<ul>
+<li>By default, shows colored chains, ribbons, and sidechains as sticks. </li>
+<li>Define initial viewing frame by a center-residue and a top-residue. Structure is rotated to place the center-residue above the center-of-mass in the middle, and the top-residue above the center-residue.</li>
+<li>Color by B-factor using a red-white scale, with limits.</li>
+<li>Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.<br />
+    <br></li>
+</ul>
+</li>
+<li>
+<p><code>pdboverlay</code> display homologous PDB files using MAFFT, THESEUS and PYMOL.</p>
+<p>One of the most beautiful results of structural biology is the structural alignment of homologous proteins. <code>pdboverlay</code> performs this complex process in one easy step starting from PDB structures:</p>
+<ul>
+<li>Write fasta sequences from PDB.</li>
+<li>Align sequences with MAFTT to find homologous regions.</li>
+<li>Structurally align homologous regions with THESEUS.</li>
+<li>Display structurally-aligned PDBs using special PYMOL script.<br />
+    <br></li>
+<li><code>pdbinsert</code> fill gaps in PDB with MODELLER</li>
+</ul>
+<p>Gaps in PDB structures cause terrible problems in MD simulations. The standard tool to patch gaps is MODELLER, which requires a ton of boilerplate. <code>pdbinsert</code> does all the dirty work with MODELLER in one fell stroke.</p>
+</li>
+</ul>
+<h2>Tools to run MD Simulation</h2>
+<p><code>pdbremix</code> provides a simplified cross-package interface to run a useful subset of molecular-dynamics simulations. Of course, this is in not a replacement for the full functionality of these packages.</p>
+<p>For beginners, it is particularly useful to see how a simulation is set-up from a PDB file to a trajectory, as the shell scripts and log files of all intermediate steps are saved to file. It is easier to modify a working process than to generate one from scratch.</p>
+<h3>Preparing Simulations from PDB</h3>
+<p>First let's grab a PDB file from the website:</p>
+<div class="codehilite"><pre>&gt; pdbfetch 1be9
+</pre></div>
+
+
+<p>Then we can clean do some standard cleanup so that the structure exists in a unique single conformation:</p>
+<div class="codehilite"><pre>&gt; pdbstrip 1be9.pdb
+</pre></div>
+
+
+<p>This next tool interrogates the structure for features that may affect MD simulation, highlighting steric clashes, chain-breaks (missing amino acids), disulfide bonds, incomplete and nonstandard amino acids:</p>
+<div class="codehilite"><pre>&gt; pdbcheck 1be9.pdb
+</pre></div>
+
+
+<p>Then we generate a topology file from the PDB file:</p>
+<div class="codehilite"><pre>&gt; pdb2sim 1be9.pdb sim AMBER11-GBSA
+</pre></div>
+
+
+<p>This will detect multiple chains, disulfide-bonds, fit hydrogen atoms to AMBER, and guess polar residue charged states. Masses, charges and bond spring parameters are generated from the AMBER99 force-field. <code>pdb2sim</code> will write a set of restart files with a common basename <code>sim</code>:</p>
+<div class="codehilite"><pre>sim.top - the toplogy file
+sim.crd - the coordinates file
+</pre></div>
+
+
+<p>The current choice of force-fields:</p>
+<ol>
+<li>AMBER11-GBSA</li>
+<li>AMBER11</li>
+<li>NAMD2.8</li>
+<li>GROMACS4.5</li>
+</ol>
+<p>For AMBER11-GBSA, <code>pdb2sim</code> builds a topology file for implicit solvent. For the other choices, explicit solvent is used, where <code>pdb2sim</code> creates a box with 10 &Aring; padding, and fills the box with waters and counterions.</p>
+<h3>Positional constraints</h3>
+<p>Positional constraints are very important in setting up MD simulations. <code>pdbremix</code> simplifies the application of positional restraints by using the B-factor column of PDB files to denote positional constaints, which is what NAMD does. </p>
+<p>To generate a PDB file for positional restraints from a set of restart files:</p>
+<div class="codehilite"><pre>&gt; sim2pdb -b sim sim.restraint.pdb
+</pre></div>
+
+
+<p>which will generate a PDB file where all backbone atoms have been selected. You can directly edit the B-factors in the PDB file. Another option <code>-a</code> is for all protein atoms:</p>
+<div class="codehilite"><pre>&gt; sim2pdb -a sim sim.restraint.pdb
+</pre></div>
+
+
+<h3>Running simulations</h3>
+<p><code>pdbremix</code> provide several tools to run MD simulations where the chosen package is detected by the extensions of the restart files. </p>
+<p>For all packages, a robust set of simulation parameters are used, including a 1 fs time-step, and no bond-constraints on protein atoms. In explicit solvent, periodic boundary conditions are applied with PME electrostatics.</p>
+<p>The output restart files and trajectories are written to a common basename, and an optional <code>-r</code> flag to load positional restraints:</p>
+<ol>
+<li>
+<p>Minimize your structure from <code>sim</code> restart files to <code>min</code>, using restraints defined in <code>sim.restraint.pdb</code>:</p>
+<div class="codehilite"><pre>&gt; simmin -r sim.restraint.pdb sim min
+</pre></div>
+
+
+</li>
+<li>
+<p>MD simulation with a Langevin thermometer at 300K for 5000 fs:</p>
+<div class="codehilite"><pre>&gt; simtemp -r restraint.pdb min temp 300 5000
+</pre></div>
+
+
+</li>
+<li>
+<p>For constant energy for 5000 fs:</p>
+<div class="codehilite"><pre>&gt; simconst -r restraint.pdb min const 5000
+</pre></div>
+
+
+</li>
+</ol>
+<p>This allows you to run equilibration protocols from the command-line. For instance, a prequilibration at 300K, intially a 10 ps heating of the solvent, followed by 10 ps of the system:</p>
+<div class="codehilite"><pre>&gt; sim2pdb -b restraint.pdb sim
+&gt; simmin -r restraint.pdb sim min
+&gt; simtemp -r restraint.pdb min heat1 10000 300
+&gt; simtemp heat1 heat2 10000 300
+</pre></div>
+
+
+<h3>Trajectory analysis</h3>
+<p><code>pdbremix</code> provides a tool to calculate RMSD and kinetic energy for trajectories, convenience tools for viewing trajectories in viewers, and some translation tools. To use these tools, the trajectory files must have the following naming structure:</p>
+<ul>
+<li>AMBER: <ul>
+<li>md.top</li>
+<li>md.trj</li>
+<li>md.vel.trj</li>
+</ul>
+</li>
+<li>GROMACS: <ul>
+<li>md.top (and md.*itp)</li>
+<li>md.gro</li>
+<li>md.trr</li>
+</ul>
+</li>
+<li>NAMD: <ul>
+<li>md.psf</li>
+<li>md.dcd</li>
+<li>md.vel.dcd</li>
+</ul>
+</li>
+</ul>
+<p>These are trajectory analysis tools:</p>
+<ul>
+<li><code>trajstep</code> displays basic parameters of a trajectory</li>
+<li><code>trajvar</code> calculates energy and RMSD of trajectory</li>
+</ul>
+<p>As opening trajectories in standard viewers are a pain, use these tools to open them:</p>
+<ul>
+<li><code>trajvmd</code> display trajectory in VMD <em>*recommended*</em></li>
+<li><code>trajchim</code> display trajectory in CHIMERA</li>
+<li><code>trajpym</code> display trajectory in PYMOL <em>*AMBER only*</em></li>
+</ul>
+<p>And some package specific tools: </p>
+<ul>
+<li><code>traj2amb</code> converts NAMD/GROMACS to AMBER trajectories <em>*without*</em> solvent</li>
+<li><code>grotrim</code> trim GROMACS .trr trajectory files</li>
+</ul>
+<h2>Python interface to PDB structures</h2>
+<p>An important part of <code>pdbremix</code> is the design of a light API to interact with PDB structures. The data structures are designed to be easy to use with idomatic Python to do things such as select atoms. </p>
+<p>Other packages sometimes include a domain-specific language for atom selection, but ultimately this limits the ability for those libraries to interact with the Python ecosystem such as scipy, pandas, or numpy.</p>
+<h3>Vector geometry library</h3>
+<p>As in any structural biology library, <code>pdbremix</code> proivdes a full-featured vector geometry library <code>v3</code>:</p>
+<div class="codehilite"><pre>from pdbremix import v3
+</pre></div>
+
+
+<p><code>v3</code> was designed to be function-based, which allows the library to switch between a pure Python version and a numpy-dependent version. </p>
+<p>If you want just the python version:</p>
+<div class="codehilite"><pre>import pdbremix.v3array as v3
+</pre></div>
+
+
+<p>Or the numpy version: </p>
+<div class="codehilite"><pre>import pdbremix.v3numpy as v3
+</pre></div>
+
+
+<p>Vectors are created and copied by the <code>vector</code> function:</p>
+<div class="codehilite"><pre>v = v3.vector() # the zero vector
+z = v3.vector(1,2,3)
+w = v3.vector(z) # a copy
+</pre></div>
+
+
+<p>Vectors are represented as arrays as they are subclassed from Python arrays or numpy arrays, and components are accessed as:</p>
+<div class="codehilite"><pre>print v[0], v[1], v[2]
+</pre></div>
+
+
+<p>All vectors functions return by value, with the one exception of <code>set_vector</code>, which changes components in place:</p>
+<div class="codehilite"><pre>v3.set_vector(v, 2, 2, 2)
+</pre></div>
+
+
+<p>Here are a set of common vector operations:</p>
+<div class="codehilite"><pre>mag(v)
+scale(v, s)
+dot(v1, v2)
+cross(v1, v2)
+norm(v)
+parallel(v, axis)
+perpendicular(v, axis)
+</pre></div>
+
+
+<p>Vectors will be used to represent coordinates/points, velocities, displacements, etc. Functions are provided to measure their geometric properties:</p>
+<div class="codehilite"><pre>distance(p1, p2)
+vec_angle(a, b)
+vec_dihedral(a, axis, c)
+dihedral(p1, p2, p3, p4)
+
+normalize_angle(angle)
+degrees(radians)
+radians(degrees)
+
+get_center(crds)
+get_width(crds)
+</pre></div>
+
+
+<h4>Affine Transforms</h4>
+<p>We also need a representations for affine transforms, which involve a rotation and a translation. Such a transform is represented as a <code>matrix</code> that is designed to transform a vector <code>v</code>:</p>
+<div class="codehilite"><pre>v3.transform(matrix, v)
+</pre></div>
+
+
+<p>Most of the time, you would build a transform from these basic generating functions:</p>
+<div class="codehilite"><pre>v3.identity()
+v3.rotation(axis, theta)
+v3.rotation_at_center(axis, theta, center)
+v3.translation(t)
+v3.left_inverse(m)
+</pre></div>
+
+
+<p>And combine them in the correct sequence:</p>
+<div class="codehilite"><pre>c = v3.combine(a, b)
+</pre></div>
+
+
+<p>If you need to access the transform directly, transforms are represented as a 4x3 matrix, which are accesed by:</p>
+<div class="codehilite"><pre>matrix_elem(matrix, i, j, val=None)
+</pre></div>
+
+
+<p>Like any affine transform matrix, it consists of:</p>
+<ol>
+<li>
+<p>3x3 rotational component:</p>
+<div class="codehilite"><pre>matrix_elem(m, i, j) for i=0..3, j=0..3
+</pre></div>
+
+
+</li>
+<li>
+<p>3x1 translational component:</p>
+<div class="codehilite"><pre>matrix_elem(m, 3, i) for i=0..3
+</pre></div>
+
+
+</li>
+</ol>
+<h4>Testing Vectors and Transforms</h4>
+<p>As vectors are built of floats, comparison functions are needed to test for equality within limits:</p>
+<div class="codehilite"><pre>is_similar_mag(a, b, small=0.0001)
+is_similar_matrix(a, b, small=0.0001)
+is_similar_vector(a, b, small=0.0001)
+</pre></div>
+
+
+<p>These functions provide random generators, useful for testing:</p>
+<div class="codehilite"><pre>random_mag() # random positive float from [0, 90]()
+random_real() # random float from [-90, 90]() 
+random_vector()
+random_rotation()
+random_matrix()
+</pre></div>
+
+
+<h3>Reading a PDB into a Soup</h3>
+<p>Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the <code>fetch</code> module:</p>
+<div class="codehilite"><pre>from pdbremix import fetch
+fetch.get_pdbs_with_http([&#39;1be9&#39;])
+</pre></div>
+
+
+<p>The main object for manipulating PDB structures is the Soup object in <code>pdbatoms</code>. We can read a Soup from a PDB file:</p>
+<div class="codehilite"><pre>from pdbremix import pdbatoms
+soup = pdbatoms.Soup(&quot;1be9.pdb&quot;)
+</pre></div>
+
+
+<p>A Soup is essentially a collection of atoms, which we can grab by:</p>
+<div class="codehilite"><pre>atoms = soup.atoms()
+</pre></div>
+
+
+<p>We can transform the soup using affine transforms from <code>v3</code>:</p>
+<div class="codehilite"><pre>displacment = v3.vector(1,0,0)
+translation = v3.translation(displacement)
+soup.transform(translation)
+</pre></div>
+
+
+<p>An atom has attributes:</p>
+<div class="codehilite"><pre>  - pos (v3.vector)
+  - vel (v3.vector)
+  - mass (float)
+  - charge (float)
+  - type (str)
+  - element (str)
+  - num (int)
+  - chain_id (str)
+  - res_type (str)
+  - res_num (str)
+  - res_insert (str)
+  - bfactor (float)
+  - occupancy (float)
+  - alt_conform (str)
+  - is_hetatm (bool)
+</pre></div>
+
+
+<p><code>atom.pos</code> and <code>atom.vel</code> are vectors defined from <code>v3</code> library. </p>
+<p>Atom can be indivdually transformed:</p>
+<div class="codehilite"><pre>atom.transform(translation)
+</pre></div>
+
+
+<p>To search through a bunch of atoms, you iterate through it as ... a Python list:</p>
+<div class="codehilite"><pre>hydrogens = []
+for atom in soup.atoms():
+ if atom.elem == &#39;H&#39;:
+   hydogens.append(atom)
+</pre></div>
+
+
+<p>Or we can leverage better Python idioms such as the <code>re</code> module:</p>
+<div class="codehilite"><pre>import re
+backbone_atoms = filter(
+  lambda a: re.match(r&#39;(C|O|N|H|CA)&#39;, a.type),
+  soup.atoms())
+</pre></div>
+
+
+<p>You can search with geometric parameters:</p>
+<div class="codehilite"><pre>from pdbremix import v3
+from pdbremix import pdbatoms
+
+center = pdbatoms.get_center(soup.atoms())
+furtherest_atom = None
+furtherest_dist = 0.0
+for atom in soup.atoms():
+  d = v3.distance(center, atom.pos)
+  if d &gt; furtherest_dist:
+    furtherest_atom = atom
+    furtherest_d = d
+</pre></div>
+
+
+<p>After, doing all this analysis, you'd probably want to save your results to a PDB file, whether to start a simulation, viewing, or interface with other programs:</p>
+<div class="codehilite"><pre>soup.write_pdb(&#39;out.pdb&#39;)
+</pre></div>
+
+
+<p>A very common strategy for saving results in PDB files, is to write residue/atom values in the B-factor column. To set the B-fcators by residue, say in:</p>
+<div class="codehilite"><pre>residue_asa = [...]
+</pre></div>
+
+
+<p>You can load into a soup by:</p>
+<div class="codehilite"><pre>soup.load_residue_bfactors(residue_asa)
+soup.write_pdb(&#39;bfactor.pdb&#39;)
+</pre></div>
+
+
+<h3>Searching through residues</h3>
+<p>The Soup object is not just a list of Atoms, it also contains a list of Residues that organize the list of Atoms. </p>
+<p>Following the PDB, a residue represents a collection of atoms that forms a recognisable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. This is actually quite a useful organizational definition. If we were to force the grouping of atoms in terms of molecules, then you'd be treating proteins with tens of thousands of atoms to a water molecules with 3. </p>
+<p>To access the list of residues:</p>
+<div class="codehilite"><pre>residues = soup.residues()
+</pre></div>
+
+
+<p>Individual residues can be in a Soup by a list index:</p>
+<div class="codehilite"><pre>first_residue = soup.residue(0)
+</pre></div>
+
+
+<p>or by a <em>*residue tag*</em>:</p>
+<div class="codehilite"><pre>key_residue = soup.residue_by_tag(&#39;A:15&#39;).name(&#39;CA&#39;)
+</pre></div>
+
+
+<p>Each residue contains a group of atoms:</p>
+<div class="codehilite"><pre>residue = soup.residue(0)
+atoms = residue.atoms()
+</pre></div>
+
+
+<p>Each atom in a residue should have a unique atom type:</p>
+<div class="codehilite"><pre>ca = residue.atom(&quot;CA&quot;)
+</pre></div>
+
+
+<p>You can loop through residues and atoms. To find all atoms surrounding a residue:</p>
+<div class="codehilite"><pre>for residue in soup.residues():
+  if residue.has_atom(&quot;CA&quot;):
+    ca = residue(&quot;CA&quot;)
+    for atom in soup.atoms():
+      if v3.distance(ca.pos, atom.pos) &lt; 4:
+</pre></div>
+
+
+<p>To help with searching, a number of useful default lists are provided in a data module:</p>
+<div class="codehilite"><pre>from pdbremix import data
+
+data.res_name_to_char - a dictionary to convert 3 letter amino acid   
+                        names to char
+data.res_char_to_name - the reverse of the above
+data.backbone_atoms - common backbone names for PDB and MD packages
+data.radii - dictionary of atomic radii for various elements
+data.solvent_res_types - some common solvent residue names in PDB   
+                         MD packages
+</pre></div>
+
+
+<h3>Handling chains in PDB files</h3>
+<p>The Soup object does not represent chains in its data structure. In the author's experience, this adds a lot of complexity that doesn't result in any great utility. Rather, the <code>chain_id</code> is stored in every atom, and should be the same for all atoms in a residue.</p>
+<p>The chain id's can be fetched from a Soup:</p>
+<div class="codehilite"><pre>chain_ids = soup.get_chain_ids()
+</pre></div>
+
+
+<p>And a new Soup can be extracted by chain_id:</p>
+<div class="codehilite"><pre>chain_a = soup.get_chain(&#39;A&#39;)
+</pre></div>
+
+
+<p>If you need to deal separately with chains, store it in a Python dictionary:</p>
+<div class="codehilite"><pre>system = {}
+for chain_id in soup.get_chain_ids():
+  system[chain_id] = soup.get_chain(chain_id)
+</pre></div>
+
+
+<h3>Patching PDB structures</h3>
+<p>PDB files are complicated and messy. This is because nature is complicated and messy, and PDB files have a simple structure. To prepare PDB files for MD simulations, the PDB files might have to be heavily edited to form a single unique conformations. </p>
+<p>Much of this can be done with some straightforward text processing that throw away experimental information. <code>pdbtext</code> provides some of text trasnformation functions:</p>
+<ul>
+<li><code>strip_lines(pdb_txt, tag_func)</code> - is a utility function that uses anonymous function to filter lines of texts. lines that <code>tag_func</code> return as True will be skipped.</li>
+<li><code>strip_hydrogens(pdb_txt)</code> - strips out any ATOM lines that contain hydrogens</li>
+<li><code>strip_solvent</code> - deletes any entries that match solvents defined in <code>data.solvent_res_types</code></li>
+<li><code>renumber_residues(pdb_txt)</code> - cleans up the numbering of residues by renumbering residues sequentially, overwriting inserts and missing numbers</li>
+<li><code>strip_other_nmr_models(pdb_txt)</code> - NMR files, and homology models often contain many alternate but similar conformations. This function takes only the first one encountered.</li>
+<li><code>strip_alternative_atoms(pdb_txt)</code> - X-ray structures sometimes include several conformations for a residue, as it flips back and forth. This function keeps only the first conformation.</li>
+</ul>
+<p>All these functions are run with:</p>
+<ul>
+<li><code>clean_pdb (in_pdb, out_pdb)</code> - runs all the above</li>
+</ul>
+<h3>Structure Analysis</h3>
+<p>Now you've happily loaded a PDB structure into Soup, you might want to do some more involved geometric analysis, with these libraries:</p>
+<p><code>asa</code> - calculates the accessible surface-area of every atom in list of atoms, with respect to the other atoms.</p>
+<div class="codehilite"><pre>from pdbremix import asa
+asa.calculate_asa(atoms, probe, n_sphere_point=960)
+</pre></div>
+
+
+<p>which assigns the asa to to each <code>atom.asa</code></p>
+<p><code>volume</code> - calculates the volume of a list of atoms, using a standard lookup table of radii in data.radii.</p>
+<div class="codehilite"><pre>from pdbremix import volume
+volume = volume.volume(atoms, 0.5)
+</pre></div>
+
+
+<p><code>rmsd</code> - calculates the RMSD between sets of coordinates. Two algorithms are provided, the standard SVD method when numpy is available, and the qcp algorithm of Dogulas Theobald otherwise:</p>
+<div class="codehilite"><pre>from pdbremix import rmsd
+</pre></div>
+
+
+<p>If you've extracted the positions in a list, you can calculate directly using:</p>
+<div class="codehilite"><pre>rmsd, transform12 = rmsd.calc_rmsd_rot(crds1, crds2)
+</pre></div>
+
+
+<p>Or for PDB structures:</p>
+<div class="codehilite"><pre>rmsd, transform12 = rmsd_of_pdbs(
+    pdbs1, pdbs2, segments1=[], segments2=[], 
+    atom_types=[&#39;CA&#39;], transform_pdb1=None)
+</pre></div>
+
+
+<p>To use, you set up segments like this:</p>
+<div class="codehilite"><pre>segments1 = [(&#39;A:1&#39;, &#39;A:2&#39;), (&#39;B:1&#39;, &#39;B:10&#39;)]
+semgents2 = [(&#39;A:5&#39;, &#39;A:7&#39;), (&#39;B:2&#39;, &#39;B:11&#39;)]
+rmsd, transform12 = rmsd_of_pdbs(pdbs1, pdbs2, segements1, segments2)
+</pre></div>
+
+
+<h3>Making PNG of Proteins</h3>
+<p>Another common problem is generating a lot of images of proteins. <code>pdbremix</code> provides a conveninent interface to use PYMOL as a image generator library:</p>
+<div class="codehilite"><pre>from pdbremix import pymol
+pymol.make_pdb_png(
+    png, pdbs, bgcolor=&quot;white&quot;, 
+    center_res=None, top_res=None,
+    highlight_res=None, is_sticks=True,
+    is_putty=False, 
+    width=480, height=480)
+</pre></div>
+
+
+<p>This makes a <code>png</code> from a bunch of <code>pdbs</code>. The frame of viewing is defined by <code>center_res</code> and <code>top_res</code>. The default coloring is by chain, with ribbons, and sidechains as ribbons. However, if <code>is_putty</code> is false, it shows a B-factor colored worm view and the png size is determined by <code>width</code> and <code>height</code>.</p>
+<h2>Python Interface to Molecular Dynamics</h2>
+<p><code>pdbremix</code> provides an extensive API to run molecular-dynamics simulations from Python. <code>pdbremix</code> abstracts the particular details of running MD under different packages. </p>
+<p>One key abstraction in <code>pdbremix</code> is that every simulation is started with a set of restart files that share a common basename, e.g. for AMBER:</p>
+<div class="codehilite"><pre>- sim.top: topology file
+- sim.crd: coordinates/velocities file(s)
+</pre></div>
+
+
+<p>At any later point, the restart files can be obtained by the basename:</p>
+<div class="codehilite"><pre>top, crds, vels = simulate.get_restart_files(&#39;sim&#39;)
+</pre></div>
+
+
+<p>The <code>vels</code> parameter is needed for some MD packages, and is a dummy variable for other packages.</p>
+<p>This <code>simulate.py</code> module provides a suite of functions to build restart files and run minimizations, fixed-temperature dynamics and constant-energy dynamics, and simplified the process of setting up positional restraints.</p>
+<p>A key parameter used in these functions is <code>force_field</code> which describes the external MD-package for <code>pdbremix</code> to use:</p>
+<ul>
+<li>AMBER11-GBSA: AMBER 99 force-field with X igb surface area</li>
+<li>ABMER11: using the AMBER 99 force-field and waters?</li>
+<li>NAMD2.8: using the AMBER 99 force-field and waters</li>
+<li>GROMACS4.5: using the CHARM22 force-field and TIP3P waters</li>
+</ul>
+<p><code>pdbremix</code>provides a restricted set of MD simulations with proteins that is reasonably consistent across packages. They can be essentially classed into two types:</p>
+<ol>
+<li>explicit water simulations:<ul>
+<li>periodic box with 10 Å padding from protein</li>
+<li>waters generated to fill in the periodic box</li>
+<li>Langevin thermometer</li>
+<li>Nose-Hoover barometer set to 1 Atm</li>
+<li>Particle-Ewald-Mesh Electrostatics</li>
+<li>no bond constraints on protein</li>
+<li>1 fs timestep</li>
+</ul>
+</li>
+<li>implicit-solvent simulations:<ul>
+<li>Generalized Born electrostatics</li>
+<li>Surface Area hydrophobic term</li>
+<li>Langevin thermemeter</li>
+<li>no bond constraints on protein</li>
+<li>1 fs timestep</li>
+</ul>
+</li>
+</ol>
+<p>The <code>force_field</code> of AMBER11-GBSA is implicit-solvent whilst all the others are explicit solvent.</p>
+<h3>Restart files: topologies and coordinates</h3>
+<p>But before anything happens, you need to turn a PDB file into a set of restart files. This is carried out with the <code>simulate.pdb_to_top_and_crds</code> function, which will take a PDB file and given the <code>force_field</code>, using the tools in each MD package:</p>
+<ul>
+<li>setup disulfide bonds</li>
+<li>detect charged/polar residue state</li>
+<li>build all hydrogens</li>
+<li>setup the terminii of protein chains</li>
+</ul>
+<p>If the<code>force_field</code> is for explicit solvent, then the function will also:</p>
+<ul>
+<li>set up a box with 10 Angstrom padding</li>
+<li>fill the box with waters</li>
+<li>add counterions to neutralize the system</li>
+</ul>
+<p>Here's an example:</p>
+<div class="codehilite"><pre>top, crds = simulate.pdb_to_top_and_crds(&#39;AMBER11&#39;, &#39;1be9.pdb&#39;, &#39;sim&#39;)
+</pre></div>
+
+
+<p>This will produce the restart files for AMBER:</p>
+<div class="codehilite"><pre>- top: sim.top
+- crds: sim.crd
+</pre></div>
+
+
+<p>For GROMACS4.5, this would be:</p>
+<div class="codehilite"><pre>- top: sim.top
+- crds: sim.gro
+</pre></div>
+
+
+<p>And for NAMD2.8:</p>
+<div class="codehilite"><pre>- top: sim.psf
+- crds: sim.coor
+</pre></div>
+
+
+<h3>Positional Restraints</h3>
+<p>For a lot of MD simulation protocols, positional restraints are required. In NAMD, these are really easy to implement, simply take a PDB of the simulation, and set the Bfactors to 1 of the atoms to restrain. It's messier for AMBER and GROMACS.</p>
+<p><code>pdbremix</code> has abstracted positional restraints for all  3 packages to follow the NAMD methodology. You can use create such a PDB file like this:</p>
+<div class="codehilite"><pre>top, crds, vels = simulate.get_restart_files(&#39;sim.pdb&#39;)
+soup = simulate.soup_from_restart_files(top, crds, vels)
+for atom in soup.atoms():
+  if atom.type = &#39;CA&#39;:
+    atom.bfactor = 1.0
+  else:
+    atom.bfactor = 0.0
+soup.write_pdb(&#39;sim.rsetraint.pdb&#39;)
+</pre></div>
+
+
+<p>This <code>sim.restraint.pdb</code> can now be used for the parameter <code>restraint_pdb</code> in the following simulation functions.</p>
+<h3>Overview of MD strategies</h3>
+<p>A typical molecular-dynamics typically involves two phases:</p>
+<ol>
+<li>Equilibration: a prepartion stage </li>
+<li>Production: used for analysis</li>
+</ol>
+<p>The equilibration can vary quite a bit for different problems. It typically consists of a mix of minimizations and constant-temperature simulations with different times and positional restraints. <code>pdbremix</code> provides three basic simulation functions:</p>
+<div class="codehilite"><pre>1. simulate.minimize
+2. simulate.langevin_thermometer
+3. simulate.constant_energy
+</pre></div>
+
+
+<p>which can be used the set up for different sequences for  equilibration, and then, for the production run.</p>
+<h3>Minimization</h3>
+<p>One should only start a dynamics simulation with a well-minimized structure. For various reasons, the intial conformation of the PDB may place parts of the protein in a tightly compressed conformation that will burst open once a dynamics simulation starts. A minimization can find the nearest conformation where all the atoms are relaxed, and not liable to blow up. This is a better starting point for dynamics simulations.</p>
+<p>In <code>pdbremix</code> minimizations are performed with:</p>
+<div class="codehilite"><pre>&gt; simulate.minimize(&#39;AMBER11&#39;, &#39;sim&#39;, &#39;min&#39;)
+</pre></div>
+
+
+<p>with optional positional restraints.</p>
+<h3>Langevin Thermometer</h3>
+<p>The most common way to run MD simulations is to hold the system artifically at a fixed temperature. <code>pdbremix</code> provides a Langevin thermometer that maintains the average velocities of the system to the target temperature by applying a stochastic force. A Gamma value of 5 is used for the stochastic force. Langevin thermometers are better than Anderson thermometers as they avoid getting trapped in certain local minima for the cost of stochasticity. This simulation is run:</p>
+<div class="codehilite"><pre>&gt; simulate.langevin_thermometer(&#39;AMBER11&#39;, &#39;sim&#39;, &#39;min&#39;, 20000, 300)
+</pre></div>
+
+
+<h3>Constant Energy</h3>
+<p>Nevertheless, sometimes you want to see the system without the imposition of a thermometer. If the system has been pre-equilibrated to a given temperature, then you can run it a constant energy for a while. </p>
+<div class="codehilite"><pre>&gt; simulate.constant_energy(&#39;AMBER11&#39;, &#39;sim&#39;, &#39;min&#39;)
+</pre></div>
+
+
+<p>Unfortunately, due to the nature of numerical simulations, the integrity of the system will degrade over the length of the simulation, and the energy of the system will fluctuate.</p>
+<h3>Examples of Equilibration Strategies</h3>
+<p>Here's an example: I wanted to do some low temperature RIP simulations. The structures had to be equilibrated to 10K, and the simulations had to run in constant energy.</p>
+<ol>
+<li>Heating to 10K using Langevin for 10ps</li>
+<li>Relaxation at constant energy for 10ps</li>
+<li>Heating the relaxed conformation back to 10px</li>
+</ol>
+<p>I could build a function that does all this in <code>pdbremix</code> and have restart files in a directory <code>equil_md</code>.</p>
+<div class="codehilite"><pre>simulate.minimize(&#39;sim&#39;, &#39;min&#39;) 
+simulate.langevin_thermometer(&#39;min&#39;, &#39;heat1&#39;, 1000, 10)
+simulate.constant_energy(&#39;heat1&#39;, &#39;const2&#39;, 1000)
+simulate.langevin_thermometer(&#39;const1&#39;, &#39;heat3&#39;, 1000)
+</pre></div>
+
+
+<h3>PUFF approach to steered molecular dynamics</h3>
+<p>The <code>pdbremix</code> libraries a particular powerful method of carrying out steered molecular dynamics simulations. This is the PUFF method (ref).</p>
+<p>The idea is very simple. Steered molecular dynamics works by applying artificial forces to a system. This is normally implemented within a MD package, and requires quite a detailed setup.</p>
+<p>However, If you run a simulation for a very short period of time, say 100 fs. Then by directly changing the velocities of the restart files, you are effectively applying forces to the system.</p>
+<p>Since <code>pdbremix</code> possesses routines to read/write restart files into Soup objects, this can be easily done. The <code>simulate</code> module provides a function <code>pulse</code> which implements this, and the function takes as a paramter, the <code>pulse_fn</code> that performs the velocity changes to a soup.</p>
+<p>The <code>force</code> module provides various functions that builds <code>pulse_fn</code> to carry out different types of forces:</p>
+<ol>
+<li>
+<p>Applies a Random Gas Force to the ith residue of a soup:</p>
+<div class="codehilite"><pre>make_atd_fn(i_residue, heating_temperature, backbone_atoms)
+</pre></div>
+
+
+</li>
+<li>
+<p>Applies a pushing force that is set to target velocity between two domains</p>
+<div class="codehilite"><pre> make_puff_fn(
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
+    is_backbone_only=False, is_first_domain_only=False, 
+    force_fname=&#39;md.puff.out&#39;)
+</pre></div>
+
+
+</li>
+<li>
+<p>Applies a pushing force that is a set acceleration:</p>
+<div class="codehilite"><pre>make_puff_acc_fn(
+    domain1, domain2, target_val, dt=0.1, temperature=None, 
+    is_backbone_only=False, is_first_domain_only=False, 
+    force_fname=&#39;md.puff.out&#39;)
+</pre></div>
+
+
+</li>
+<li>
+<p>Applies a random rotational velocity to the chi angles of the residue:</p>
+<div class="codehilite"><pre>make_rip_fn(i_res, heating_temperature)
+</pre></div>
+
+
+</li>
+</ol>
+<p>To use here's an example:</p>
+<div class="codehilite"><pre> top, crds, vels = simulate.get_restart_files(md)
+ n = len(simulate.soup_from_restart_files(top, crds, vels).residues())
+ pulse_fn = force.make_puff_fn([0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
+ simulate.pulse(ff, md, &#39;md&#39;, 2000, pulse_fn, 100)
+</pre></div>
+
+
+<h3>Reading Trajectories</h3>
+<p>Reading a trajectory in <code>pdbremix</code> is simply plugging in a Soup read from topology files to a frame reader. This is achieved from a Trajectory class defined for each package with a common interface. This interace is:</p>
+<div class="codehilite"><pre>class TrajectoryReader
+  Attributes:
+    soup
+    i_frame
+    self.n_frame
+  Method:
+    load_frame(i_frame)
+</pre></div>
+
+
+<p>You an access it through the factory function:</p>
+<div class="codehilite"><pre>import simulate.trajectory
+trj = simulate.trajectory.open_trajectory(&#39;md&#39;)
+</pre></div>
+
+
+<p>which will look for the topology and trajectories with the same base name.</p>
+<p>To run through the frames, simply:</p>
+<div class="codehilite"><pre>trj.load_frame(52)
+</pre></div>
+
+
+<p>and then access the soup:</p>
+<div class="codehilite"><pre>atom = trj.soup.residue(0).atom(&quot;CA&quot;)
+trj.soup.write_pdb(&#39;frame.pdb&#39;)
+</pre></div>
+
+
+<p>As the <code>pos</code> and <code>vel</code> vectors of each atom are updated in place, you can safely reference atoms and residues in other variables, and their values will update as you <code>load_frame</code>:</p>
+<div class="codehilite"><pre>hydrogens = filter(lambda a: a.elem==&quot;H&quot;, trj.soup.atoms())
+for i in range(len(trj.n_frame)):
+  trj.load_frame(-1)
+  print [h.pos for h in hydrogens]
+</pre></div>
+
+
+<p>To save a frame of a trajectory, simply copy the soup:</p>
+<div class="codehilite"><pre>trj.load_frame(0)
+first_frame_soup  = trj.soup.copy()
+</pre></div>
+
+
+<p>For convenience, there is a TrajectoryAnalysis class that simplifies the processing of trajectory analysis. To use, simply subclass TrajectoryAnalysis and set the name of the variable:</p>
+<div class="codehilite"><pre>class MyTraj(trajectory.TrajectoryAnalyzer):
+  var_name = &quot;velocity&quot;
+</pre></div>
+
+
+<p>Then override:</p>
+<div class="codehilite"><pre>def calulate_results(self):
+  pos = pdbatoms.get_center([a for a in self.trj.soup.atoms()])
+  return [pos]
+</pre></div>
+
+
+<p>The return list should be a list of values that will be written to the output file. Then run:</p>
+<div class="codehilite"><pre>analyze_trajectory(&#39;md&#39;, analyzer_classes=[MyTraj])
+</pre></div>
+
+
+<p>which will produce the file <code>md.velocity.per_frame</code> and <code>md.velocity.per_ps</code>, which are simply text files where each line is a list of values as returned by <code>calculate_results</code>.</p>
+      <div class='timestamp'>
+        <i><a href='http://github.com/boscoh/supplescroll'>supplescroll</a></i>:lucid theme
+      </div>
+    </div>
+  </div>
+  <div id='figure-list' class='touchscroll'></div>
+</body>
+<script src='supplescroll.inc/jquery-2.0.3.js' type='text/javascript'></script>
+<script src='supplescroll.inc/jquery.scrollTo.js' type='text/javascript'></script>
+<script src='supplescroll.inc/supplescroll.js' type='text/javascript'></script>
+<script src='supplescroll.inc/page.js' type='text/javascript'></script>

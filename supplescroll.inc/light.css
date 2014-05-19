@@ -1,0 +1,190 @@
+body {
+  background-color: white;
+  font-family: 'Helvetica Neue', Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.5em;
+  letter-spacing: 0.05em;
+  color: #333;
+}
+
+blockquote {
+  border-left: 5px solid #888;
+  margin-left: 0;
+  padding-left: 2em;
+  color: #888;
+}
+
+a, a:link, a:visited {
+  text-decoration: none;
+  color: #99B;
+}
+
+h1, h2, h3, h3, h4, h5, h6, h7 {
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #666;
+  margin: 0;
+  padding-top: 4em;
+  padding-bottom: 0em;
+  font-weight: normal;
+  letter-spacing: 0.3em;
+  line-height: 1.2em;
+}
+
+h1 {
+  font-size: 30px;
+  padding-top: 120px;
+  padding-bottom: 10px;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+code {
+  padding: 1px 4px;
+}
+
+pre {
+  padding: 5px 20px;
+}
+
+code, pre {
+  overflow: auto;
+  background-color: #F9F9F9;
+  border: 1px solid #DDD;
+  border-radius: 5px;
+  color: #888;
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+#table-of-contents, #main-text, #figure-list {
+  position: absolute;
+  height: 100%;
+  overflow: auto;
+}
+
+#table-of-contents {
+  width: 250px;
+  border-right: 1px solid #CCC;
+  padding-top: 180px;
+}
+
+#main-text {
+  width: 450px;
+  padding-left: 50px;
+  padding-right: 100px;
+}
+
+#figure-list {
+  border-left: 1px solid #CCC;
+}
+
+#table-of-contents {
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 1.5em;
+}
+#table-of-contents .toc h1, #table-of-contents .toc h2 {
+  text-transform: uppercase;
+  padding-top: 4px;
+}
+#table-of-contents .toc h3, #table-of-contents .toc h4, #table-of-contents .toc h5,
+#table-of-contents .toc h6, #table-of-contents .toc h7 {
+  font-style: italic;
+}
+#table-of-contents .toc a {
+  text-decoration: none;
+  display: block;
+}
+#table-of-contents .toc a:link, #table-of-contents .toc a:visited {
+  color: #333;
+}
+#table-of-contents .toc a.active {
+  background-color: #EEF;
+}
+
+#main-text a.figlink.active {
+  padding: 4px 0px;
+  background-color: #EEF;
+}
+#main-text a.figlink.active:link, #main-text a.figlink.active:visited {
+  color: #99C;
+  text-decoration: underline;
+}
+#main-text .timestamp {
+  margin-top: 6em;
+  text-align: right;
+  border-top: 1px solid #CCC;
+}
+#main-text .fig-in-text {
+  font-size: 12px;
+  text-transform: uppercase;
+  line-height: 1.2em;
+  a, a: link, a:visited, color: #99A;
+  background-color: #EEF;
+  color: #333;
+  padding: 10px 10px;
+}
+#main-text .fig-in-text code, #main-text .fig-in-text pre {
+  font-size: 12px;
+  text-transform: none;
+}
+#main-text .fig-in-text img {
+  padding-top: 10px;
+  display: block;
+}
+#main-text .fig-in-text pre, #main-text .fig-in-text code {
+  border: 1px solid #BBC;
+  background-color: #E3E3FF;
+  color: #666;
+}
+#main-text .fig-in-text img {
+  width: 100%;
+}
+
+#figure-list .fig-in-figlist {
+  font-size: 12px;
+  text-transform: uppercase;
+  line-height: 1.2em;
+  a, a: link, a:visited, color: #99A;
+  padding: 20px 10px;
+}
+#figure-list .fig-in-figlist code, #figure-list .fig-in-figlist pre {
+  font-size: 12px;
+  text-transform: none;
+}
+#figure-list .fig-in-figlist img {
+  padding-top: 10px;
+  display: block;
+}
+#figure-list .fig-in-figlist.active {
+  background-color: #EEF;
+  color: #333;
+}
+#figure-list .fig-in-figlist.active pre, #figure-list .fig-in-figlist.active code {
+  border: 1px solid #BBC;
+  background-color: #E3E3FF;
+  color: #666;
+}
+
+@media (max-width: 1200px) {
+  #main-text {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  h1 {
+    font-size: 25px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 20px;
+    padding-top: 70px;
+  }
+  .fig-in-text {
+    display: block;
+  }
+}

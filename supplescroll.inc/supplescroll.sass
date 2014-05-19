@@ -1,0 +1,93 @@
+/* BLOCKBOUNCE STYLE to prevent bounce effect on page
+html,
+body
+  -webkit-text-size-adjust: 100%;
+  height: 100%
+  width: 100%
+  overflow: hidden
+  margin: 0
+  padding: 0
+
+/* this class escapes the no-bounce block on OSX
+.touchscroll
+  overflow: scroll
+  /* inertial scrolling on OSX
+  -webkit-overflow-scrolling: touch
+
+$highlight-color: #CECEF6
+
+.page-filler
+  height: 100%
+
+.relative_position
+  position: relative
+
+.toc
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  h7 
+    font-size: 1em
+    padding: 0
+    margin: 0
+    font-weight: normal
+    letter-spacing: 0.1em
+    line-height: 1.2em
+    text-transform: none
+  h1
+    text-transform: uppercase
+    padding-top: 0.5em
+  h2
+    padding-top: 0.5em
+  h3
+    padding-left: 0.5em
+  h4
+    padding-left: 1.0em
+  h5
+    padding-left: 1.5em
+  h6
+    padding-left: 2.0em
+  h7
+    padding-left: 2.5em
+  a,
+  a:visited
+    display: block
+    padding: 3px 10px
+    text-decoration: none
+    color: #333
+  a.active
+    background-color: $highlight-color
+
+a.figlink
+  text-decoration: none
+  &.active
+    background-color: $highlight-color
+    &:link,
+    &:visited
+      color: #339
+
+.fig-in-text
+  display: none
+  padding: 20px 20px 10px 20px
+  img
+    display: block
+    padding-top: 10px
+    padding-bottom: 10px
+    width: 100%
+
+.fig-in-figlist
+  padding: 20px 20px 10px 20px
+  .active
+    background-color: $highlight-color
+    color: #339
+  a
+    text-decoration: none
+  img
+    display: block
+    padding-top: 10px
+    padding-bottom: 10px
+  
+

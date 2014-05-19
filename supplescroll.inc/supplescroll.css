@@ -1,0 +1,99 @@
+html, body {
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+.touchscroll {
+  overflow: scroll;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page-filler {
+  height: 100%;
+}
+
+.relative_position {
+  position: relative;
+}
+
+.toc h1, .toc h2, .toc h3, .toc h4, .toc h5, .toc h6, .toc h7 {
+  font-size: 1em;
+  padding: 0;
+  margin: 0;
+  font-weight: normal;
+  letter-spacing: 0.1em;
+  line-height: 1.2em;
+  text-transform: none;
+}
+.toc h1 {
+  text-transform: uppercase;
+  padding-top: 0.5em;
+}
+.toc h2 {
+  padding-top: 0.5em;
+}
+.toc h3 {
+  padding-left: 0.5em;
+}
+.toc h4 {
+  padding-left: 1em;
+}
+.toc h5 {
+  padding-left: 1.5em;
+}
+.toc h6 {
+  padding-left: 2em;
+}
+.toc h7 {
+  padding-left: 2.5em;
+}
+.toc a, .toc a:visited {
+  display: block;
+  padding: 3px 10px;
+  text-decoration: none;
+  color: #333;
+}
+.toc a.active {
+  background-color: #CECEF6;
+}
+
+a.figlink {
+  text-decoration: none;
+}
+a.figlink.active {
+  background-color: #CECEF6;
+}
+a.figlink.active:link, a.figlink.active:visited {
+  color: #339;
+}
+
+.fig-in-text {
+  display: none;
+  padding: 20px 20px 10px 20px;
+}
+.fig-in-text img {
+  display: block;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  width: 100%;
+}
+
+.fig-in-figlist {
+  padding: 20px 20px 10px 20px;
+}
+.fig-in-figlist .active {
+  background-color: #CECEF6;
+  color: #339;
+}
+.fig-in-figlist a {
+  text-decoration: none;
+}
+.fig-in-figlist img {
+  display: block;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
