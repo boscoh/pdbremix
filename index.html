@@ -23,7 +23,7 @@
 <p>The library works with PyPy for significant speed-ups.</p>
 <h2>Installation</h2>
 <p>Download from github: </p>
-<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">\&lt;https://github.com/boscoh/pdbremix/archive/master.zip></a></p>
+<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">[zip-package]</a></p>
 <p>And install:</p>
 <div class="codehilite"><pre>&gt; python setup.py install
 </pre></div>
@@ -77,8 +77,8 @@
 <li>By default, shows colored chains, ribbons, and sidechains as sticks. </li>
 <li>Define initial viewing frame by a center-residue and a top-residue. Structure is rotated to place the center-residue above the center-of-mass in the middle, and the top-residue above the center-residue.</li>
 <li>Color by B-factor using a red-white scale, with limits.</li>
-<li>Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.<br />
-    <br></li>
+<li>Worm mode to show B-factor by variable width</li>
+<li>Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.  </li>
 </ul>
 </li>
 <li>
@@ -88,10 +88,11 @@
 <li>Write fasta sequences from PDB.</li>
 <li>Align sequences with MAFTT to find homologous regions.</li>
 <li>Structurally align homologous regions with THESEUS.</li>
-<li>Display structurally-aligned PDBs using special PYMOL script.<br />
-    <br></li>
-<li><code>pdbinsert</code> fill gaps in PDB with MODELLER</li>
+<li>Display structurally-aligned PDBs using special PYMOL script.  </li>
 </ul>
+</li>
+<li>
+<p><code>pdbinsert</code> fill gaps in PDB with MODELLER</p>
 <p>Gaps in PDB structures cause terrible problems in MD simulations. The standard tool to patch gaps is MODELLER, which requires a ton of boilerplate. <code>pdbinsert</code> does all the dirty work with MODELLER in one fell stroke.</p>
 </li>
 </ul>
@@ -343,7 +344,7 @@ random_matrix()
 <h3>Reading a PDB into a Soup</h3>
 <p>Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the <code>fetch</code> module:</p>
 <div class="codehilite"><pre>from pdbremix import fetch
-fetch.get_pdbs_with_http([&#39;1be9&#39;])
+fetch.get_pdbs_with_http(&#39;1be9&#39;)
 </pre></div>
 
 
