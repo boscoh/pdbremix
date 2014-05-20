@@ -104,19 +104,25 @@ radii = {
 
 two_char_elements = [e for e in radii.keys() if len(e) == 2]
 
+
+def strip_numbers(s):
+  result = ""
+  for c in s:
+    if not c.isdigit() and c != " ":
+      result += c
+  return result
+
+
 def guess_element(res_type, atom_type):
   """
   Returns the element type using a dirty heuristic guess.
   """
+  atom_type = strip_numbers(atom_type)
   if res_type in res_name_to_char:
     return atom_type[0]
-  element = ""
-  for c in atom_type:
-    if not c.isdigit() and c != " ":
-      element += c
-  if len(element) == 2 and element in two_char_elements:
-    return element
-  return element[0]  
+  if len(atom_type) == 2 and atom_type in two_char_elements:
+    return atom_type
+  return atom_type[0]  
 
 
 chi_topology = {
