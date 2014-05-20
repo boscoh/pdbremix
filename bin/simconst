@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Runs an MD constant-energy dynamics from a set of restart files.
+
+Usage: simconst [-h -r<restraint_pdb>] <force_field> <in_md> <n_step> [<out_md>]
+
+Args:
+-h                  This help message.
+-r <restraint_pdb>  Restraint PDB determined by B-factor > 1.0
+<force_field>       The MD-package.
+
+MD-packages:
+ - AMBER11-GBSA
+ - AMBER11
+ - NAMD2.8
+ - GROMACS4.5
+"""
+
+from pdbremix import simulate
+from pdbremix.lib.docopt import docopt
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  force_field = arg['<force_field>']
+  in_md = arg['<in_md>']
+  out_md = arg['<out_md>']
+  n_step = int(arg['<n_step>'])
+  if arg['-r']:
+    restraint_pdb = arg['-r']
+  else:
+    restraint_pdb = ""
+  top, crds, vels = simulate.get_restart_files(in_md)
+  simulate.constant_energy(
+      force_field, top, crds, vels, n_step, out_md, 
+      restraint_pdb=restraint_pdb)

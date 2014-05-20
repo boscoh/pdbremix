@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Generates MD-simulation restart files from a PDB
+
+Usage: pdb2sim [-h] <force_field> <pdb> [<sim>]
+
+<force_field>   The MD-package:
+                 - AMBER11-GBSA
+                 - AMBER11
+                 - NAMD2.8
+                 - GROMACS4.5
+"""
+
+import os
+import shutil
+import time
+import random
+
+from pdbremix import util
+from pdbremix import simulate
+from pdbremix import force
+from pdbremix.lib.docopt import docopt
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  force_field = arg['<force_field>']
+  pdb = arg['<pdb>']
+  if arg['<sim>']:
+    basename = arg['<sim>']
+  else:
+    basename = 'sim'
+  top, crds = simulate.pdb_to_top_and_crds(force_field, pdb, basename)

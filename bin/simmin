@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Runs an MD minimization from a set of restart files.
+
+Usage: simmin [-h -r <restraint_pdb> -n <n_step] <force_field> [<in_md>] [<out_md>]
+
+Args:
+-r <restraint_pdb>  Restraint PDB determined by B-factor > 1.0
+-n <n_step>         Number of minimization steps
+<force_field>       The MD-package.
+
+MD-packages:
+ - AMBER11-GBSA
+ - AMBER11
+ - NAMD2.8
+ - GROMACS4.5
+"""
+
+from pdbremix import simulate
+from pdbremix.lib.docopt import docopt
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  force_field = arg['<force_field>']
+  in_md = arg['<in_md>']
+  out_md = arg['<out_md>']
+  n_step = arg['-n']
+  if arg['-r']:
+    restraint_pdb = arg['-r']
+  else:
+    restraint_pdb = ""
+  top, crds, vels = simulate.get_restart_files(in_md)
+  simulate.minimize(force_field, top, crds, out_md, restraint_pdb)

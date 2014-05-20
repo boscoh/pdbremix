@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Generates a PDB from an MD-simulation restart files.
+
+Usage: sim2pdb [-h (-a|-b)] <md>
+
+Options:
+-a   set B-factor of all atoms to 1.0
+-b   set B-factor of backbone atoms to 1.0
+"""
+
+import os
+import shutil
+import time
+import random
+
+from pdbremix import util
+from pdbremix import simulate
+from pdbremix import force
+from pdbremix import data
+from pdbremix.lib.docopt import docopt
+
+
+def relpath(path):
+  if path == '':
+    return ''
+  dirpath, basename = os.path.split(path)
+  dirpath = os.path.relpath(dirpath, os.getcwd())
+  if dirpath == '' or dirpath == '.':
+    return basename
+  return os.path.join(dirpath, basename)
+
+
+if __name__ == "__main__":
+  arg = docopt(__doc__)
+  md = arg['<md>']
+  pdb = md + '.pdb'
+
+  top, crds, vels = simulate.get_restart_files(md)
+  top = relpath(top)
+  crds = relpath(crds)
+  vels = relpath(vels)
+  print "restart-files:", top, crds, vels 
+
+  if arg['-b']:
+    soup = simulate.soup_from_restart_files(top, crds, vels)
+    for atom in soup.atoms():
+      if (atom.type in data.backbone_atoms):
+        print atom.type
+        atom.bfactor = 1.0
+      else:
+        atom.bfactor = 0.0
+    soup.write_pdb(pdb)
+    print "Backbone atoms B-factor set to 1.0"
+
+  elif arg['-a']:
+    soup = simulate.soup_from_restart_files(top, crds, vels)
+    for atom in soup.atoms():
+      if atom.res_type not in data.solvent_res_types:
+        atom.bfactor = 1.0 
+      else:
+        atom.bfactor = 0.0
+    soup.write_pdb(pdb)
+    print "Non-solvent atoms B-factor set to 1.0"
+
+  else:
+    simulate.convert_restart_to_pdb(md, pdb)
+
+  print pdb
+  
