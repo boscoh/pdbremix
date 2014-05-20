@@ -146,10 +146,10 @@ def check_alternate_conformations(pdb):
         res_name =  "%s:%s-%s" % (a.chain_id, a.res_num, a.type)
         if res_name not in conforms:
           conforms[res_name] = []
+          res_names.append(res_name)
         conforms[res_name].append(a.alt_conform)
-        res_names.append(res_name)
   for res_name in res_names:
-    print "       %s %s" % (res_name, '/'.join(conforms[res_name])) 
+    print "       Conformations of %s: %s" % (res_name, '/'.join(conforms[res_name])) 
 
 
 def check_multiple_models(pdb):  
@@ -167,7 +167,7 @@ def check_multiple_models(pdb):
   if not parts[-1]:
     parts.pop(-1)
   if len(parts) > 1:
-    print "       %d models" % len(parts)
+    print "       number of models: %d" % len(parts)
     print "** following only applies to Model 1 **"
 
 
