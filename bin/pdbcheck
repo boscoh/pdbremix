@@ -29,10 +29,8 @@ def clash_in_residues(r1, r2):
       d = v3.distance(a1.pos, a2.pos)
       for a in [a1, a2]:
         if a.element == "H":
-          d += 0.8
+          d += 0.5
       if d < 2:
-        print a1.res_type, a1.type, a1.element
-        print a2.res_type, a2.type, a2.element
         return True
   return False
 
