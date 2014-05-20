@@ -27,6 +27,9 @@ def clash_in_residues(r1, r2):
   for a1 in r1.atoms():
     for a2 in r2.atoms():
       d = v3.distance(a1.pos, a2.pos)
+      for a in [a1, a2]:
+        if a.element == "H":
+          d += 0.5
       if d < 2:
         return True
   return False
