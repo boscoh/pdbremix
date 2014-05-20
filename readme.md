@@ -19,7 +19,7 @@ The library works with PyPy for significant speed-ups.
 
 Download from github: 
 
-&nbsp; &nbsp;  [\<https://github.com/boscoh/pdbremix/archive/master.zip\>][1]
+&nbsp; &nbsp;  [\[zip-package\]](https://github.com/boscoh/pdbremix/archive/master.zip)
 
 And install:
 
@@ -79,8 +79,8 @@ These following tools wrap external tools to solve some very common (and painful
 	  - By default, shows colored chains, ribbons, and sidechains as sticks. 
 	  - Define initial viewing frame by a center-residue and a top-residue. Structure is rotated to place the center-residue above the center-of-mass in the middle, and the top-residue above the center-residue.
 	  - Color by B-factor using a red-white scale, with limits.
+	- Worm mode to show B-factor by variable width
 	  - Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.  
-		<br>
 
 - `pdboverlay` display homologous PDB files using MAFFT, THESEUS and PYMOL.
 
@@ -90,7 +90,7 @@ These following tools wrap external tools to solve some very common (and painful
 	- Align sequences with MAFTT to find homologous regions.
 	- Structurally align homologous regions with THESEUS.
 	- Display structurally-aligned PDBs using special PYMOL script.  
-		<br>
+
 - `pdbinsert` fill gaps in PDB with MODELLER
 
 	Gaps in PDB structures cause terrible problems in MD simulations. The standard tool to patch gaps is MODELLER, which requires a ton of boilerplate. `pdbinsert` does all the dirty work with MODELLER in one fell stroke.
@@ -325,7 +325,7 @@ These functions provide random generators, useful for testing:
 Here, we look at how to manipulate PDB structure. First, let's grab a PDB structure from the website using the `fetch` module:
 
 	from pdbremix import fetch
-	fetch.get_pdbs_with_http(['1be9'])
+	fetch.get_pdbs_with_http('1be9')
 
 The main object for manipulating PDB structures is the Soup object in `pdbatoms`. We can read a Soup from a PDB file:
 
