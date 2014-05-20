@@ -123,16 +123,9 @@ def AtomFromPdbLine(line):
     atom.is_hetatm = False
   atom.num = int(line[6:11])
   atom.type = line[12:16].strip(" ")
-  element = ''
-  for c in line[12:15]:
-    if not c.isdigit() and c != " ":
-      element += c
-  if element[:2] in data.two_char_elements:
-    atom.element = element[:2]
-  else:
-    atom.element = element[0]
   atom.alt_conform = line[16]
   atom.res_type = line[17:21].strip()
+  atom.element = data.guess_element(atom.res_type, atom.type)
   atom.chain_id = line[21]
   atom.res_num = int(line[22:26])
   atom.res_insert = line[26]
