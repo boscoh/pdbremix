@@ -1,0 +1,183 @@
+body {
+  background-image: url(paper.png);
+  background-repeat: repeat;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+#table-of-contents {
+  display: none;
+  position: absolute;
+  background-color: #EEE;
+  width: 200px;
+  padding-top: 160px;
+  overflow: auto;
+  height: 100%;
+}
+
+#main-text {
+  position: absolute;
+  background-color: white;
+  width: 420px;
+  padding: 0px 120px 0px 30px;
+  height: 100%;
+  overflow: auto;
+}
+
+#figure-list {
+  position: absolute;
+  display: none;
+  height: 100%;
+  overflow: auto;
+  background-color: #EEE;
+}
+
+#table-of-contents, #figure-list {
+  background-image: url(crossword.png);
+  background-repeat: repeat;
+}
+
+body {
+  font-family: 'Helvetica Neue', sans-serif;
+  letter-spacing: 0.05em;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5em;
+}
+
+h1, h2, h3, h4, h5, h6, h7 {
+  font-family: "Helvetica Neue", sans-serif;
+  color: #333;
+  letter-spacing: 0.1em;
+  font-weight: 300;
+  line-height: 1em;
+  padding-top: 3em;
+  padding-bottom: 0;
+}
+
+h1 {
+  font-size: 45px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-top: 100px;
+  padding-bottom: 0em;
+}
+
+h2 {
+  font-size: 23px;
+  letter-spacing: 0.1em;
+}
+
+h3, h4, h5, h6, h7 {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+ul {
+  list-style-type: square;
+}
+
+blockquote {
+  border-left: 5px solid #DDD;
+  margin-left: 0;
+  padding-left: 2em;
+  color: #888;
+}
+
+code {
+  padding: 1px 4px;
+}
+
+pre {
+  overflow: auto;
+  padding: 5px 20px;
+}
+
+code, pre {
+  background-color: #F9F9F9;
+  border: 1px solid #DDD;
+  border-radius: 5px;
+  color: #333;
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+#table-of-contents {
+  font-size: 12px;
+  line-height: 1.2em;
+}
+
+.toc a, .toc a:visited {
+  color: #555;
+  border-left: 3px solid transparent;
+  padding-left: 10px;
+  padding-right: 20px;
+}
+.toc a.active, .toc a:visited.active {
+  background-color: #EEF;
+  border-left: 3px solid #AAE;
+}
+
+#main-text a.figlink.active {
+  background-color: #EEF;
+}
+#main-text .fig-in-text {
+  background-color: #DDF;
+  padding: 5px 10px;
+}
+#main-text .fig-in-text pre, #main-text .fig-in-text code {
+  border: 1px solid #BBE;
+  background-color: #DDDDF9;
+}
+#main-text .fig-in-text img {
+  width: 100%;
+}
+#main-text .timestamp {
+  margin-top: 6em;
+  text-align: right;
+  border-top: 1px solid #CCC;
+  font-size: 12px;
+}
+
+#figure-list {
+  font-size: 12px;
+  line-height: 1.2em;
+}
+#figure-list .fig-in-figlist {
+  border-right: 3px solid transparent;
+}
+#figure-list .fig-in-figlist.active {
+  border-right: 3px solid #AAE;
+  background-color: #EEF;
+}
+#figure-list .fig-in-figlist.active pre, #figure-list .fig-in-figlist.active code {
+  border: 1px solid #AAE;
+  background-color: #E3E3FF;
+}
+
+@media screen and (max-width: 1200px) {
+  #main-text, .fig-in-figlist {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  h1 {
+    padding-top: 2em;
+    font-size: 30px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  h3, h4, h5, h6, h7 {
+    font-size: 14px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  h1 {
+    font-size: 22px;
+  }
+  .fig-in-text {
+    display: block;
+  }
+}

@@ -19,11 +19,11 @@ An interactive version of this `readme.md` is [here][1].
 
 Download from the github repo:
 
-&nbsp; &nbsp;  [[github/pdbremix/zip]][2]
+&nbsp; &nbsp;  [github/pdbremix/zip][2]
 
 Or browse the repo:
 
-&nbsp; &nbsp; [[github/pdbremix]][3]
+&nbsp; &nbsp; [github/pdbremix][3]
 
 And then install:
 
@@ -84,7 +84,7 @@ These following tools wrap external tools to solve some very common (and painful
 	  - By default, shows colored chains, ribbons, and sidechains as sticks. 
 	  - Define initial viewing frame by a center-residue and a top-residue. Structure is rotated to place the center-residue above the center-of-mass in the middle, and the top-residue above the center-residue.
 	  - Color by B-factor using a red-white scale, with limits.
-	- Worm mode to show B-factor by variable width
+	- Worm mode to show B-factor by variable width.
 	  - Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.  
 
 - `pdboverlay` display homologous PDB files using MAFFT, THESEUS and PYMOL.
@@ -739,7 +739,7 @@ And this is how you'd use the `pulse_fn`:
 
 	 pulse_fn = simulate.force.make_puff_fn(
 	    [0], [n-1], 10.0, 0.1, 300)
-	 simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
+	 simulate.pulse(ff, 'prev/md', 'md', 2000, pulse_fn, 100)
 
 
 ### Reading Trajectories

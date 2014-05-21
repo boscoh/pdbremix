@@ -23,9 +23,9 @@
 <p>An interactive version of this <code>readme.md</code> is <a href="http://boscoh.github.io/pdbremix">here</a>.</p>
 <h2>Installation</h2>
 <p>Download from the github repo:</p>
-<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">[github/pdbremix/zip]</a></p>
+<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">github/pdbremix/zip</a></p>
 <p>Or browse the repo:</p>
-<p>&nbsp; &nbsp; <a href="https://github.com/boscoh/pdbremix">[github/pdbremix]</a></p>
+<p>&nbsp; &nbsp; <a href="https://github.com/boscoh/pdbremix">github/pdbremix</a></p>
 <p>And then install:</p>
 <div class="codehilite"><pre>&gt; python setup.py install
 </pre></div>
@@ -79,7 +79,7 @@
 <li>By default, shows colored chains, ribbons, and sidechains as sticks. </li>
 <li>Define initial viewing frame by a center-residue and a top-residue. Structure is rotated to place the center-residue above the center-of-mass in the middle, and the top-residue above the center-residue.</li>
 <li>Color by B-factor using a red-white scale, with limits.</li>
-<li>Worm mode to show B-factor by variable width</li>
+<li>Worm mode to show B-factor by variable width.</li>
 <li>Solvent molecules can be removed, specifically for MD frames that contain too many waters, which will choke PYMOL.  </li>
 </ul>
 </li>
@@ -775,7 +775,7 @@ soup.write_pdb(&#39;sim.rsetraint.pdb&#39;)
 <p>And this is how you'd use the <code>pulse_fn</code>:</p>
 <div class="codehilite"><pre> pulse_fn = simulate.force.make_puff_fn(
     [0], [n-1], 10.0, 0.1, 300)
- simulate.pulse(ff, md, &#39;md&#39;, 2000, pulse_fn, 100)
+ simulate.pulse(ff, &#39;prev/md&#39;, &#39;md&#39;, 2000, pulse_fn, 100)
 </pre></div>
 
 
