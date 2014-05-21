@@ -201,7 +201,6 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
     for residue in self.soup.residues():
       if residue.type not in data.solvent_res_types:
         atoms = residue.atoms()
-        print atoms[0].vel
         energy = force.kinetic_energy(atoms)/float(len(atoms))
         results.append(energy)
     return results
