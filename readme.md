@@ -13,17 +13,17 @@ The library consists of:
 3. python interface to analyze PDB structures
 4. python interface for MD simulations and MD trajectories
 
-An interactive version of this `readme.md` is [here][1].
+An interactive version of this `readme.md` is [here](http://boscoh.github.io/pdbremix).
 
 ## Installation
 
 Download from the github repo:
 
-&nbsp; &nbsp;  [github/pdbremix/zip][2]
+&nbsp; &nbsp;  [github/pdbremix/zip](https://github.com/boscoh/pdbremix/archive/master.zip)
 
 Or browse the repo:
 
-&nbsp; &nbsp; [github/pdbremix][3]
+&nbsp; &nbsp; [github/pdbremix](https://github.com/boscoh/pdbremix)
 
 And then install:
 
@@ -799,6 +799,3 @@ The return list should be a list of values that will be written to the output fi
 
 which will produce the file `md.velocity.per_frame` and `md.velocity.per_ps`, which are simply text files where each line is a list of values as returned by `calculate_results`.
 
-[1]:	http://boscoh.github.io/pdbremix
-[2]:	https://github.com/boscoh/pdbremix/archive/master.zip
-[3]:	https://github.com/boscoh/pdbremix
