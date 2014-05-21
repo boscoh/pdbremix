@@ -19,11 +19,11 @@ An interactive version of this `readme.md` is [here][1].
 
 Download from the github repo:
 
-&nbsp; &nbsp;  [[github/pdbremix/zip]][2]
+&nbsp; &nbsp;  [github/pdbremix/zip][2]
 
 Or browse the repo:
 
-&nbsp; &nbsp; [[github/pdbremix]][3]
+&nbsp; &nbsp; [github/pdbremix][3]
 
 And then install:
 
