@@ -11,14 +11,41 @@ from pdbremix import trajectory
 from pdbremix import fetch
 from pdbremix import asa
 from pdbremix import data
+from pdbremix import rmsd
 
 
 
 # setup
 
 util.goto_dir('pdb')
-fetch.get_pdbs_with_http('1be9', '1ry4')
+fetch.get_pdbs_with_http('1be9', '1rzx')
 soup = pdbatoms.Soup('1be9.pdb')
+soup2 = pdbatoms.Soup('1rzx.pdb')
+
+
+
+# test RMSD
+
+def split_pairs(indices):
+  for i in range(0, len(indices), 2):
+    yield indices[i:i+2]
+
+def get_crds(res_tags, soup):
+  crds = []
+  i_residues = [soup.get_i_residue(r) for r in res_tags]
+  for j, k in split_pairs(i_residues):
+    for i in range(j, k+1):
+      crds.append(soup.residue(i).atom('CA').pos)
+  center = v3.get_center(crds)
+  crds = [c-center for c in crds]    
+  return crds
+
+res_tags1 = "A:311 A:318 A:322 A:329 A:335 A:391".split()
+res_tags2 = "A:158 A:165 A:171 A:178 A:194 A:250".split()
+rmsd, rot = rmsd.pyqcprot_rmsd_rot(
+    get_crds(res_tags1, soup), get_crds(res_tags2, soup2))
+print "RMSD:"
+print rmsd
 
 
 
@@ -174,8 +201,6 @@ for bridge in bridges:
   asa1 = sum(a.asa for a in res1.atoms())
   asa2 = sum(a.asa for a in res2.atoms())
   print bridge, asa1 + asa2
-
-
 
 
 

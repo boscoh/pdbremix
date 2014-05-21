@@ -66,9 +66,6 @@ class RotateLoop:
       move_atoms.extend(soup.residue(k).atoms())
     rot_vel = force.weighted_rotational_velocity(
         move_atoms, axis, anchor1)
-    # make it bounce
-    if self.last_rot_vel*rot_vel < 0.0:
-      self.rot_vel = -self.rot_vel
     force.add_rotational_velocity(
         move_atoms, self.rot_vel - rot_vel, axis, anchor1)
 
@@ -77,7 +74,7 @@ def test_user_defined_pulse(params):
   util.goto_dir(params['sim_dir'])
   util.goto_dir('user_pulse')
   print "> Pulse with user-defined pulse_fn"
-  rotate_loop = RotateLoop(39, 44, -0.7)
+  rotate_loop = RotateLoop(39, 44, 0.2)
   pulse_fn = lambda soup: rotate_loop.apply(soup)
   print "> Pulse with terminii push"
   simulate.pulse(
