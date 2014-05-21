@@ -905,9 +905,9 @@ class Trajectory:
     self.top = basename + '.top'
     self.soup = soup_from_top(self.top)
     self.trj = basename + '.trj'
-    self.vel_trj = ''
-    if os.path.isfile(self.vel_trj):
-      self.vel_trj = basename + '.vel.trj'
+    self.vel_trj = basename + '.vel.trj'
+    if not os.path.isfile(self.vel_trj):
+      self.vel_trj = ''
     self.soup_trj = SoupTrajectory(self.soup, self.trj, self.vel_trj)
     self.n_frame = self.soup_trj.n_frame
     self.i_frame = 0

@@ -99,10 +99,19 @@ class Atom:
          self.bfactor)
     return s
                
+  def res_tag(self):
+    tag = ""
+    if self.chain_id != " " and self.chain_id != "":
+      tag += self.chain_id + ":"
+    tag += str(self.res_num)
+    if self.res_insert:
+      tag += self.res_insert
+    return tag  
+
   def __str__(self):
     x, y, z = self.pos
-    return "%s%s-%s (% .1f % .1f % .1f)" %  \
-        (self.res_type, self.res_num, self.type, x, y, z)
+    return "%s:%s-%s" %  \
+        (self.res_tag(), self.res_type, self.type)
 
   def transform(self, matrix):
     """

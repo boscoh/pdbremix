@@ -1003,6 +1003,8 @@ class Trajectory:
     self.soup = soup_from_psf(self.psf)
     self.dcd = basename + '.dcd'    
     self.vel_dcd = basename + '.vel.dcd'    
+    if not os.path.isfile(self.vel_dcd):
+      self.vel_dcd = ''
     self.soup_trj = SoupTrajectory(self.soup, self.dcd, self.vel_dcd)
     self.n_frame = self.soup_trj.n_frame
     self.i_frame = 0
