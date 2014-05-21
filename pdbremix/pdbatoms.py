@@ -154,6 +154,8 @@ def AtomFromPdbLine(line):
     atom.bfactor = 0.0
   return atom
   
+
+# The following functions is for handling lists of atoms
   
 def cmp_atom(a1, a2):
   """
@@ -199,70 +201,29 @@ def get_width(atoms, center):
   return 2*max_diff
 
 
-class AtomList:
+def read_pdb(fname):
   """
-  Basic class to hold a list of atoms, with useful methods.
-  Useful for molecule files as well.
+  Reads a PDB into a list of Atoms.
   """
-  def __init__(self, pdb=""):
-    self.id = ''
-    self._atoms = []
-    if pdb:
-      self.read_pdb(pdb)
-
-  def copy(self):
-    return copy.deepcopy(self)
-
-  def n_atom(self):
-    return len(self._atoms)
-
-  def atoms(self):
-    return self._atoms
-
-  def atom(self, i):
-    return _atoms[i]
-    
-  def clear(self):
-    for atom in self._atoms:
-      del atom
-    del self._atoms[:]
-
-  def transform(self, matrix):
-    for atom in self._atoms:
-      atom.transform(matrix)
-
-  def insert_atom(self, atom):
-    self._atoms.append(atom)
-    
-  def erase_atom(self, atom_type):
-    for atom in self._atoms:
-      if atom.type == atom_type:
-        self._atoms.remove(atom)
-        del atom
-        return
-
-  def read_pdb(self, fname):
-    self.clear()
-    for line in open(fname, 'r').readlines():
-      if line.startswith(("ATOM", "HETATM")):
-        atom = AtomFromPdbLine(line);
-        if len(self._atoms) == 1:
-          self.id = atom.chain_id
-        self.insert_atom(atom)
-      if line.startswith("ENDMDL"):
-        return
-
-  def write_pdb(self, pdb):
-    with open(pdb, 'w') as f:
-      for atom in sorted(self._atoms, cmp=cmp_atom):
-        f.write(atom.pdb_str() + '\n')
-
-  def set_id(self, new_id):
-    self.id = new_id
-    for a in self.atoms():
-      a.chain_id = new_id
+  atoms = []
+  for line in open(fname, 'r'):
+    if line.startswith(("ENDMDL", "END")):
+      break
+    if line.startswith(("ATOM", "HETATM")):
+      atoms.append(AtomFromPdbLine(line))
+  return atoms
 
 
+def write_pdb(atoms, pdb):
+  """
+  Writes a list of atoms to a PDB file.
+  """
+  with open(pdb, 'w') as f:
+    for atom in sorted(atoms, cmp=cmp_atom):
+      f.write(atom.pdb_str() + '\n')
+
+
+# Introducing the Residue structure for organizing atoms
 
 def split_tag(tag):
   """
@@ -391,7 +352,7 @@ class Residue:
       a.res_type = res_type
 
 
-class Soup(AtomList):
+class Soup():
   """
   The major class that holds a list of atoms and references them
   to a list of residues.
@@ -404,13 +365,22 @@ class Soup(AtomList):
   """
 
   def __init__(self, fname=""):
-    AtomList.__init__(self)
     self._residues = []
+    self._atoms = []
     if fname:
       self.read_pdb(fname)
 
   def copy(self):
     return copy.deepcopy(self)
+
+  def n_atom(self):
+    return len(self._atoms)
+
+  def atoms(self):
+    return self._atoms
+
+  def atom(self, i):
+    return _atoms[i]
 
   def residue(self, i):
     return self._residues[i]
@@ -424,14 +394,23 @@ class Soup(AtomList):
     
   def erase_atom(self, i, atom_type):
     atom = self.residue(i).atom(atom_type)
-    self._atoms.remove(atom)
     self.residue(i).erase_atom(atom_type)
-    del atom
+    for _atom in self._atoms:
+      if _atom == atom:
+        self._atoms.remove(atom)
+        del atom
+        break
     
   def clear(self):
     del self._residues[:]
-    AtomList.clear(self)
+    for atom in self._atoms:
+      del atom
+    del self._atoms[:]
     
+  def transform(self, matrix):
+    for atom in self._atoms:
+      atom.transform(matrix)
+
   def n_residue(self):
     return len(self._residues)
     
