@@ -926,7 +926,8 @@ def merge_trajectories(top, trajs, out_traj):
   """
   # Get pos_start_frame and size_frame by opening one of the 
   # trajectories via trj_reader
-  trj_reader = TrjReader(top, trajs[0])
+  topology = read_top(top)
+  trj_reader = TrjReader(topology['NATOM'], trajs[0])
   pos_start_frame = trj_reader.pos_start_frame  
   size_frame = trj_reader.size_frame
   del trj_reader

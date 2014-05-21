@@ -541,7 +541,7 @@ class Soup(AtomList):
           res_num = atom.res_num
           res_insert = atom.res_insert
         self.insert_atom(-1, atom)
-      if line.startswith("ENDMDL"):
+      if line.startswith(("END", "ENDMDL")):
         return
 
   def write_pdb(self, pdb):
