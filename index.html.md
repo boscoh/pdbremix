@@ -1,6 +1,6 @@
 include_dir: supplescroll.inc
 target: index.html
-template: /usr/local/Cellar/python/2.7.3/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/supplescroll-0.9.1-py2.7.egg/supplescroll/themes/light/light.haml
+template: /usr/local/Cellar/python/2.7.3/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/supplescroll-0.9.1-py2.7.egg/supplescroll/themes/lucid/lucid.haml
 title: pdbremix documentation
 ---
 ---
@@ -16,19 +16,23 @@ The library consists of:
 3. python interface to analyze PDB structures
 4. python interface for MD simulations and MD trajectories
 
-The library works with PyPy for significant speed-ups.
+An interactive version of this `readme.md` is [here][1].
 
 ## Installation
 
-Download from github: 
+Download from the github repo:
 
-&nbsp; &nbsp;  [\[zip-package\]](https://github.com/boscoh/pdbremix/archive/master.zip)
+&nbsp; &nbsp;  [[github/pdbremix/zip]][2]
 
-And install:
+Or browse the repo:
+
+&nbsp; &nbsp; [[github/pdbremix]][3]
+
+And then install:
 
 	> python setup.py install
 
-From here, you can access unit tests and example files.
+From here, you can access unit tests and example scripts.
 
 There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps these tools to make them easier to use.
 
@@ -36,7 +40,7 @@ To check which tools can be accessed from the path:
 
 	> checkpdbremix
 
-Use the `-o` flag to get the config file for binaries to override (perhaps with exotic flags):
+Use the `-o` flag to get the binary config file to override (with exotic flags):
 
 	> vi `checkpdbremix -o`
 
@@ -44,6 +48,9 @@ Use the `-o` flag to get the config file for binaries to override (perhaps with 
 ## Tools to analyze PDB structures
 
 `pdbremix` is a library to analyze PDB structures and MD trajectories. As such, it provides a platform to build command-line tools for PDB files as well as to carry out useful pre-processing of PDB files for external tools.
+
+For all tools, detailed help is available with the `-h` flag, and many of the scripts work with `pypy` for significant speed-ups.
+
 
 ### Tools in Pure Python
 
@@ -67,8 +74,6 @@ For these tools, you get an impressive speed-up if use use `pypy`:
 	> pdbfetch 1be9
 	> pdbstrip 1be9.pdb
 	> pypy `which pdbvol` 1be9.pdb
-
-As usual, detailed help is available with the `-h` flag. 
 
 
 ### Wrappers around External Tools
@@ -410,6 +415,16 @@ You can load into a soup by:
 	soup.load_residue_bfactors(residue_asa)
 	soup.write_pdb('bfactor.pdb')
 
+You can extract fragments:
+
+	fragment1 = soup.extract_soup(0, 5)
+	fragment2 = soup.extract_soup(5, 10)
+
+And stitch them back together again:
+
+	soup = pdbatoms.Soup()
+	soup.insert_soup(0, fragment2)
+	soup.insert_soup(0, fragment1)
 
 ### Searching through residues
 
@@ -458,6 +473,13 @@ To help with searching, a number of useful default lists are provided in a data 
 	data.solvent_res_types - some common solvent residue names in PDB   
 	                         MD packages
 
+Atoms in a residue can be changed together:
+
+	set_chain_id
+	set_type
+	change_atom_type
+	has_atom
+	copy
 
 ### Handling chains in PDB files
 
@@ -682,22 +704,6 @@ Nevertheless, sometimes you want to see the system without the imposition of a t
 
 Unfortunately, due to the nature of numerical simulations, the integrity of the system will degrade over the length of the simulation, and the energy of the system will fluctuate.
 
-### Examples of Equilibration Strategies
-
-Here's an example: I wanted to do some low temperature RIP simulations. The structures had to be equilibrated to 10K, and the simulations had to run in constant energy.
-
-1. Heating to 10K using Langevin for 10ps
-2. Relaxation at constant energy for 10ps
-3. Heating the relaxed conformation back to 10px
-
-I could build a function that does all this in `pdbremix` and have restart files in a directory `equil_md`.
-
-	simulate.minimize('sim', 'min') 
-	simulate.langevin_thermometer('min', 'heat1', 1000, 10)
-	simulate.constant_energy('heat1', 'const2', 1000)
-	simulate.langevin_thermometer('const1', 'heat3', 1000)
-
-
 ### PUFF approach to steered molecular dynamics
 
 The `pdbremix` libraries a particular powerful method of carrying out steered molecular dynamics simulations. This is the PUFF method (ref).
@@ -732,11 +738,10 @@ The `force` module provides various functions that builds `pulse_fn` to carry ou
 
 		make_rip_fn(i_res, heating_temperature)
 
-To use here's an example:
+And this is how you'd use the `pulse_fn`:
 
-	 top, crds, vels = simulate.get_restart_files(md)
-	 n = len(simulate.soup_from_restart_files(top, crds, vels).residues())
-	 pulse_fn = force.make_puff_fn([0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
+	 pulse_fn = simulate.force.make_puff_fn(
+	    [0], [n-1], 10.0, 0.1, 300)
 	 simulate.pulse(ff, md, 'md', 2000, pulse_fn, 100)
 
 
@@ -744,7 +749,7 @@ To use here's an example:
 
 Reading a trajectory in `pdbremix` is simply plugging in a Soup read from topology files to a frame reader. This is achieved from a Trajectory class defined for each package with a common interface. This interace is:
 
-	class TrajectoryReader
+	class Trajectory
 	  Attributes:
 	    soup
 	    i_frame
@@ -797,4 +802,6 @@ The return list should be a list of values that will be written to the output fi
 
 which will produce the file `md.velocity.per_frame` and `md.velocity.per_ps`, which are simply text files where each line is a list of values as returned by `calculate_results`.
 
-[1]:	https://github.com/boscoh/pdbremix/archive/master.zip
+[1]:	http://boscoh.github.io/pdbremix
+[2]:	https://github.com/boscoh/pdbremix/archive/master.zip
+[3]:	https://github.com/boscoh/pdbremix

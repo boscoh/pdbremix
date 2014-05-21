@@ -2,7 +2,7 @@
 <head>
   <meta content='initial-scale=1.0' name='viewport' />
   <link href='supplescroll.inc/supplescroll.css' rel='stylesheet' />
-  <link href='supplescroll.inc/light.css' rel='stylesheet' />
+  <link href='supplescroll.inc/lucid.css' rel='stylesheet' />
   
     <title>pdbremix documentation</title>
   
@@ -20,29 +20,32 @@
 <li>python interface to analyze PDB structures</li>
 <li>python interface for MD simulations and MD trajectories</li>
 </ol>
-<p>The library works with PyPy for significant speed-ups.</p>
+<p>An interactive version of this <code>readme.md</code> is <a href="http://boscoh.github.io/pdbremix">here</a>.</p>
 <h2>Installation</h2>
-<p>Download from github: </p>
-<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">[zip-package]</a></p>
-<p>And install:</p>
+<p>Download from the github repo:</p>
+<p>&nbsp; &nbsp;  <a href="https://github.com/boscoh/pdbremix/archive/master.zip">[github/pdbremix/zip]</a></p>
+<p>Or browse the repo:</p>
+<p>&nbsp; &nbsp; <a href="https://github.com/boscoh/pdbremix">[github/pdbremix]</a></p>
+<p>And then install:</p>
 <div class="codehilite"><pre>&gt; python setup.py install
 </pre></div>
 
 
-<p>From here, you can access unit tests and example files.</p>
+<p>From here, you can access unit tests and example scripts.</p>
 <p>There are many wonderful tools in structural biology that have less-than-stellar interfaces. <code>pdbremix</code> wraps these tools to make them easier to use.</p>
 <p>To check which tools can be accessed from the path:</p>
 <div class="codehilite"><pre>&gt; checkpdbremix
 </pre></div>
 
 
-<p>Use the <code>-o</code> flag to get the config file for binaries to override (perhaps with exotic flags):</p>
+<p>Use the <code>-o</code> flag to get the binary config file to override (with exotic flags):</p>
 <div class="codehilite"><pre>&gt; vi `checkpdbremix -o`
 </pre></div>
 
 
 <h2>Tools to analyze PDB structures</h2>
 <p><code>pdbremix</code> is a library to analyze PDB structures and MD trajectories. As such, it provides a platform to build command-line tools for PDB files as well as to carry out useful pre-processing of PDB files for external tools.</p>
+<p>For all tools, detailed help is available with the <code>-h</code> flag, and many of the scripts work with <code>pypy</code> for significant speed-ups.</p>
 <h3>Tools in Pure Python</h3>
 <p>Some of the tools can be used straight out of the box:</p>
 <ul>
@@ -66,7 +69,6 @@
 </pre></div>
 
 
-<p>As usual, detailed help is available with the <code>-h</code> flag. </p>
 <h3>Wrappers around External Tools</h3>
 <p>These following tools wrap external tools to solve some very common (and painful) use-cases in PDB analysis.</p>
 <ul>
@@ -438,6 +440,19 @@ soup.write_pdb(&#39;bfactor.pdb&#39;)
 </pre></div>
 
 
+<p>You can extract fragments:</p>
+<div class="codehilite"><pre>fragment1 = soup.extract_soup(0, 5)
+fragment2 = soup.extract_soup(5, 10)
+</pre></div>
+
+
+<p>And stitch them back together again:</p>
+<div class="codehilite"><pre>soup = pdbatoms.Soup()
+soup.insert_soup(0, fragment2)
+soup.insert_soup(0, fragment1)
+</pre></div>
+
+
 <h3>Searching through residues</h3>
 <p>The Soup object is not just a list of Atoms, it also contains a list of Residues that organize the list of Atoms. </p>
 <p>Following the PDB, a residue represents a collection of atoms that forms a recognisable chemical group, whether a distinct molecule in the case of solvent, ions and ligands, or an actual residue that forms a polymer, as in amino acids in a protein or a nucleic acid in DNA. This is actually quite a useful organizational definition. If we were to force the grouping of atoms in terms of molecules, then you'd be treating proteins with tens of thousands of atoms to a water molecules with 3. </p>
@@ -486,6 +501,15 @@ data.backbone_atoms - common backbone names for PDB and MD packages
 data.radii - dictionary of atomic radii for various elements
 data.solvent_res_types - some common solvent residue names in PDB   
                          MD packages
+</pre></div>
+
+
+<p>Atoms in a residue can be changed together:</p>
+<div class="codehilite"><pre>set_chain_id
+set_type
+change_atom_type
+has_atom
+copy
 </pre></div>
 
 
@@ -706,21 +730,6 @@ soup.write_pdb(&#39;sim.rsetraint.pdb&#39;)
 
 
 <p>Unfortunately, due to the nature of numerical simulations, the integrity of the system will degrade over the length of the simulation, and the energy of the system will fluctuate.</p>
-<h3>Examples of Equilibration Strategies</h3>
-<p>Here's an example: I wanted to do some low temperature RIP simulations. The structures had to be equilibrated to 10K, and the simulations had to run in constant energy.</p>
-<ol>
-<li>Heating to 10K using Langevin for 10ps</li>
-<li>Relaxation at constant energy for 10ps</li>
-<li>Heating the relaxed conformation back to 10px</li>
-</ol>
-<p>I could build a function that does all this in <code>pdbremix</code> and have restart files in a directory <code>equil_md</code>.</p>
-<div class="codehilite"><pre>simulate.minimize(&#39;sim&#39;, &#39;min&#39;) 
-simulate.langevin_thermometer(&#39;min&#39;, &#39;heat1&#39;, 1000, 10)
-simulate.constant_energy(&#39;heat1&#39;, &#39;const2&#39;, 1000)
-simulate.langevin_thermometer(&#39;const1&#39;, &#39;heat3&#39;, 1000)
-</pre></div>
-
-
 <h3>PUFF approach to steered molecular dynamics</h3>
 <p>The <code>pdbremix</code> libraries a particular powerful method of carrying out steered molecular dynamics simulations. This is the PUFF method (ref).</p>
 <p>The idea is very simple. Steered molecular dynamics works by applying artificial forces to a system. This is normally implemented within a MD package, and requires quite a detailed setup.</p>
@@ -763,17 +772,16 @@ simulate.langevin_thermometer(&#39;const1&#39;, &#39;heat3&#39;, 1000)
 
 </li>
 </ol>
-<p>To use here's an example:</p>
-<div class="codehilite"><pre> top, crds, vels = simulate.get_restart_files(md)
- n = len(simulate.soup_from_restart_files(top, crds, vels).residues())
- pulse_fn = force.make_puff_fn([0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
+<p>And this is how you'd use the <code>pulse_fn</code>:</p>
+<div class="codehilite"><pre> pulse_fn = simulate.force.make_puff_fn(
+    [0], [n-1], 10.0, 0.1, 300)
  simulate.pulse(ff, md, &#39;md&#39;, 2000, pulse_fn, 100)
 </pre></div>
 
 
 <h3>Reading Trajectories</h3>
 <p>Reading a trajectory in <code>pdbremix</code> is simply plugging in a Soup read from topology files to a frame reader. This is achieved from a Trajectory class defined for each package with a common interface. This interace is:</p>
-<div class="codehilite"><pre>class TrajectoryReader
+<div class="codehilite"><pre>class Trajectory
   Attributes:
     soup
     i_frame
