@@ -11,8 +11,8 @@ Options:
 -s    only take 1st model conformation
 
 Intermediate files are saved in the 'pdboverlay' directory.
-If restarted with no parameters, or parameters the same as
-in 'pdboverlay', will load results from 'pdboverlay'.
+If restarted with no parameters and `pdboverlay` exists,
+will load results from 'pdboverlay'.
 """
 
 
@@ -255,12 +255,7 @@ if __name__ == "__main__":
   if arg['<pdb>']:
     fnames = [os.path.abspath(f) for f in arg['<pdb>']]
     util.check_files(*fnames)
-    if os.path.isfile('pdboverlay/filelist.txt'):
-      saved_fnames = util.words_in_file('pdboverlay/filelist.txt')
-      if set(saved_fnames) == set(fnames):
-        is_processed = True
-      else:
-        util.clean_fname('pdboverlay')
+    util.clean_fname('pdboverlay')
   else:
     if os.path.isfile('pdboverlay/filelist.txt'):
       fnames = util.words_in_file('pdboverlay/filelist.txt')

@@ -189,11 +189,13 @@ def get_center(atoms):
   return result
 
 
-def get_width(atoms, center):
+def get_width(atoms, center=None):
   """
   Returns twice the longest distance from the center.
   """
   max_diff = 0
+  if center is None:
+    center = get_center(atoms)
   for atom in atoms:
     diff = v3.distance(atom.pos, center)
     if diff > max_diff:
@@ -203,7 +205,7 @@ def get_width(atoms, center):
 
 def read_pdb(fname):
   """
-  Reads a PDB into a list of Atoms.
+  Reads a list of Atoms from a PDB file.
   """
   atoms = []
   for line in open(fname, 'r'):
@@ -370,6 +372,12 @@ class Soup():
     if fname:
       self.read_pdb(fname)
 
+  def clear(self):
+    del self._residues[:]
+    for atom in self._atoms:
+      del atom
+    del self._atoms[:]
+    
   def copy(self):
     return copy.deepcopy(self)
 
@@ -381,12 +389,6 @@ class Soup():
 
   def atom(self, i):
     return _atoms[i]
-
-  def residue(self, i):
-    return self._residues[i]
-    
-  def residues(self):
-    return self._residues
 
   def insert_atom(self, i, atom):
     self._atoms.append(atom)
@@ -401,15 +403,31 @@ class Soup():
         del atom
         break
     
-  def clear(self):
-    del self._residues[:]
-    for atom in self._atoms:
-      del atom
-    del self._atoms[:]
-    
   def transform(self, matrix):
     for atom in self._atoms:
       atom.transform(matrix)
+
+  def residues(self):
+    return self._residues
+
+  def residue(self, i):
+    return self._residues[i]
+    
+  def get_i_residue(self, tag):
+    """
+    Returns the index of residue with tag, or -1 on failure.
+    """
+    for i, residue in enumerate(self.residues()):
+      if split_tag(tag) == (residue.chain_id, residue.num, residue.insert):
+        return i
+    raise -1
+  
+  def residue_by_tag(self, tag):
+    i = self.get_i_residue(tag)
+    if i >= 0:
+      return self.residue(i)
+    else:
+      raise None
 
   def n_residue(self):
     return len(self._residues)
@@ -465,22 +483,6 @@ class Soup():
         for j in range(i, self.n_residue()):
           self.residue(j).dec_num()
     
-  def get_i_residue(self, tag):
-    """
-    Returns the index of residue with tag, or -1 on failure.
-    """
-    for i, residue in enumerate(self.residues()):
-      if split_tag(tag) == (residue.chain_id, residue.num, residue.insert):
-        return i
-    raise -1
-  
-  def residue_by_tag(self, tag):
-    i = self.get_i_residue(tag)
-    if i >= 0:
-      return self.residue(i)
-    else:
-      raise None
-
   def extract_soup(self, i, j):
     extract = Soup()
     for res in self.residues()[i:j]:
@@ -523,8 +525,9 @@ class Soup():
         atom = AtomFromPdbLine(line);
         if (res_num != atom.res_num) or \
            (res_insert != atom.res_insert):
-          residue = Residue(atom.res_type, atom.chain_id,
-                            atom.res_num, atom.res_insert)
+          residue = Residue(
+              atom.res_type, atom.chain_id,
+              atom.res_num, atom.res_insert)
           self.append_residue(residue)
           res_num = atom.res_num
           res_insert = atom.res_insert
