@@ -1,3 +1,35 @@
+
+__doc__ = """
+
+Example scripts to run MD simulations in PDBREMIX.
+
+It runs through a bunch of different simulations options, with
+user-defined pulsing functions,  and user-defined trajectory
+analysis. Script will fail on exception if there are any
+problems.
+
+"""
+
+# Setup parameters - force_field and structure
+
+# Alternate SMALL structures
+# insulin: 2-chains & 3 disuflide bonds
+#    'pdb': '1cph', 
+#    'i_residue': 18,
+# beta-hairpin: 
+#    'pdb': '2evq', 
+#    'i_residue': 2, 
+
+# Available force-fields:
+#   AMBER11-GBSA, AMBER11, GROMACS4.5, NAMD2.8
+
+params = {
+  'ff': 'AMBER11-GBSA',
+  'pdb': '1cph',
+  'i_residue': 2,
+}
+
+
 import os
 
 from pdbremix import pdbatoms
@@ -150,41 +182,16 @@ def test_traj_analysis(params):
   util.check_output('md.velocity.per_ps')
 
 
-def test_all(params):
-  test_prepare_for_md(params)
-  test_basic_md_merge(params)
-  test_user_defined_pulse(params)
-  test_rip(params)
-  test_puff(params)
-  test_restraint(params)
-  test_traj_analysis(params)
 
-
-if __name__ == "__main__":
-
-  # ff = 'AMBER11-GBSA'
-  # ff = 'AMBER11'
-  # ff = 'GROMACS4.5'
-  # ff = 'NAMD2.8'
-
-  # # insulin
-  # pdb = '1cph' 
-  # i_residue = 18
-
-  # # beta-hairpin turn
-  # pdb = '2evq'
-  # i_residue = 2 
-
-  params = {
-    'ff': 'AMBER11-GBSA',
-    'pdb': '1cph',
-    'i_residue': 2,
-    'save_dir': os.getcwd()
-  }
-  sim_dir = '%s/%s' % (params['ff'], params['pdb'])
-  params['sim_dir'] = os.path.abspath(sim_dir)
-
-  # util.clean_fname(sim_dir)
-
-  test_all(params)
-
+sim_dir = '%s/%s' % (params['ff'], params['pdb'])
+params.update({
+  'sim_dir': os.path.abspath(sim_dir),
+  'save_dir': os.getcwd(),
+})
+test_prepare_for_md(params)
+test_basic_md_merge(params)
+test_user_defined_pulse(params)
+test_rip(params)
+test_puff(params)
+test_restraint(params)
+test_traj_analysis(params)

@@ -1,3 +1,16 @@
+
+__doc__ = """
+
+Example scripts to analyze PDB in PDBREMIX.
+
+This goes through a number of analysis that are reasonably
+useful. It demonstrates how the PDBREMIX data-structures 
+interfaces with Python, using idiomatic Python approaches
+such as lambda, list-comprehensions, re module, and
+a generally more functional-approach.
+
+"""
+
 import os
 import re
 
@@ -14,17 +27,20 @@ from pdbremix import data
 from pdbremix import rmsd
 
 
-
-# setup
-
 util.goto_dir('pdb')
+
+
+# load the structures from the website
 fetch.get_pdbs_with_http('1be9', '1rzx')
 soup = pdbatoms.Soup('1be9.pdb')
 soup2 = pdbatoms.Soup('1rzx.pdb')
 
 
 
-# test RMSD
+# the structures loaded 1be9 and 1rzx are both PDZ
+# domains. However, they don't quite map to each other
+# This shows how you might select homologous residues
+# and then extract the coordinates for RMSD calculation
 
 def split_pairs(indices):
   for i in range(0, len(indices), 2):
@@ -49,19 +65,19 @@ print rmsd
 
 
 
-# select polar/charged residues
-
+# select polar/charged residues using regular expresions
+# and list comprehensions
+residues = filter(
+    lambda r: re.match('(LY.|AR.|GL.|AS.).?', r.type),
+    soup.residues())
 print "Charged residues:"
-charged_residues = []
-for res in soup.residues():
-  if re.match('(LY.|AR.|GL.|AS.)', res.type[:3]):
-    charged_residues.append(res)
-for res in charged_residues:
+for res in residues:
   print res.tag()+'-'+res.type
 
 
 
-# contact residues
+# find contact residue pairs by decomposing comparisons
+# into functions that can be used later
 
 def in_contact(res1, res2):
   for a1 in res1.atoms():
@@ -70,6 +86,7 @@ def in_contact(res1, res2):
         return True
   return False
 
+print "Contact pairs:"
 residues = []
 for res in soup.residues():
   if res.type not in data.solvent_res_types:
@@ -80,16 +97,15 @@ for i in range(n):
     res1 = residues[i]
     res2 = residues[j]
     if in_contact(res1, res2):
-      print "Contact", residues[i].tag(), residues[j].tag()
+      print (residues[i].tag(), residues[j].tag())
 
 
 
 # find residues around catalytic sites
+# display the results using:
+#    >> pdbshow -b pdb/1be9.binding.pdb
 
-ligand_residues = []
-for res in soup.residues(): 
-  if res.chain_id == "B":
-    ligand_residues.append(res)
+ligand_residues = [r for r in soup.residues() if r.chain_id == "B"]
 
 binding_residues = []
 for res in soup.residues():
@@ -100,7 +116,6 @@ for res in soup.residues():
 
 for a in soup.atoms():
   a.bfactor = 0.0
-
 for res in binding_residues:
   for a in res.atoms():
     a.bfactor = 1.0
@@ -109,7 +124,8 @@ soup.write_pdb('1be9.binding.pdb')
 
 
 
-# find hydrogen bonds
+# find hydrogen bonds between N-H and O atoms using a dirty
+# method, looking at only heavy atom and distance criteria
 
 def neighbours(atom, test_atoms, distance):
   results = []
@@ -132,7 +148,40 @@ for oxygen in oxygens:
 
 
 
-# find salt bridges
+# find surface residues/set b-factor using the inbuilt
+# accessible surface-area calculator with a water probe radius
+# of 1.4 angstroms. writes out PDB file to be viewed:
+#     >> pdbshow -b 1be9.asa.pdb
+# And:
+#     >> pdbshow -b 1be9.res.asa.pdb
+
+atoms = []
+for res in soup.residues():
+  if res.type not in data.solvent_res_types:
+    atoms.extend(res.atoms())
+pdbatoms.add_radii(atoms)
+areas = asa.calculate_asa(atoms, 1.4)
+for a, area in zip(atoms, areas):
+  a.asa = area
+  a.bfactor = area
+for a in soup.atoms():
+  if not hasattr(a, 'asa'):
+    a.bfactor = 0.0
+print "Making atomic ASA pdb", '1be9.asa.pdb'
+soup.write_pdb('1be9.asa.pdb')
+
+print "Making residue ASA pdb", '1be9.asa.pdb'
+for res in soup.residues():
+  sum_b = sum(a.bfactor for a in res.atoms())
+  for a in res.atoms():
+    a.bfactor = sum_b
+soup.write_pdb('1be9.res.asa.pdb')
+
+
+
+# find salt bridges using distances between charged N atoms
+# of the two positive amino acids, and the O atoms of the
+# two negative amino acids
 
 def get_atom_from_res(res, res_type, atom_type):
   if res_type == res.type and res.has_atom(atom_type):
@@ -165,33 +214,8 @@ for bridge in bridges:
 
 
 
-# find surface residues/set b-factor
-
-atoms = []
-for res in soup.residues():
-  if res.type not in data.solvent_res_types:
-    atoms.extend(res.atoms())
-pdbatoms.add_radii(atoms)
-areas = asa.calculate_asa(atoms, 1.4)
-for a, area in zip(atoms, areas):
-  a.asa = area
-  a.bfactor = area
-for a in soup.atoms():
-  if not hasattr(a, 'asa'):
-    a.bfactor = 0.0
-print "Making atomic ASA pdb", '1be9.asa.pdb'
-soup.write_pdb('1be9.asa.pdb')
-
-print "Making residue ASA pdb", '1be9.asa.pdb'
-for res in soup.residues():
-  sum_b = sum(a.bfactor for a in res.atoms())
-  for a in res.atoms():
-    a.bfactor = sum_b
-soup.write_pdb('1be9.res.asa.pdb')
-
-
-
-# exposure of salt bridges
+# Combine the ASA with salt bridge calculations to
+# quickly identify which salt bridge is on the surface
 
 print "Salt bridge exposure area:"
 for bridge in bridges:
