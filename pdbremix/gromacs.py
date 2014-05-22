@@ -436,10 +436,6 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10):
   pdb = basename + '.clean.pdb'
   pdbtext.clean_pdb(full_pdb, pdb)
 
-  # Renumber residues so pdb2gmx can recognize correct residue order
-  txt = pdbtext.renumber_residues(open(pdb).read())
-  open(pdb, 'w').write(txt)
-
   # Generate protein topology in pdb2gmx_gro using pdb2gmx
   pdb2gmx_gro = basename + '.pdb2gmx.gro'
   top = basename + '.top'

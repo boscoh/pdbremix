@@ -66,7 +66,6 @@ def renumber_residues(pdb_txt):
   for i, tag in enumerate(sorted_res_tags):
     res_tag_to_new_resnum[tag] = "%4d" % (i+1)
 
-  i_atom = 1
   new_lines = []
   for line in lines:
     new_line = line
@@ -74,10 +73,8 @@ def renumber_residues(pdb_txt):
       if line.startswith(start_tag):
         tag = get_res_tag(line)
         resnum = res_tag_to_new_resnum[tag]
-        resnum = '%4d' % (int(resnum) % 10000)
-        new_line = line[:22] + resnum + line[26:]
-        new_line = new_line[:6] + "%5d" % i_atom + new_line[11:]
-        i_atom += 1
+        resnum = '%4d ' % (int(resnum) % 10000)
+        new_line = line[:22] + resnum + line[27:]
     new_lines.append(new_line)
   txt = ''.join(l + '\n' for l in new_lines)
   return txt
@@ -117,7 +114,7 @@ def clean_pdb(in_pdb, out_pdb):
   txt = strip_solvent(txt)
   txt = strip_alternative_atoms(txt)
   txt = strip_hydrogens(txt)
-  # txt = renumber_residues(txt)
+  txt = renumber_residues(txt)
   open(out_pdb, 'w').write(txt)
 
 

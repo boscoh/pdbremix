@@ -3,13 +3,14 @@
 __doc__ = """
 Strips PDB file into a single conformation for MD simulations.
 
-Usage: pdbstrip [-hysano] <pdb> [<out_pdb>]
+Usage: pdbstrip [-hysanor] <pdb> [<out_pdb>]
 
 -y   strip hydrogens
 -s   strip solvent
 -a   strip alternative conformation
 -n   strip out all other models
 -o   strip HETATM fields
+-r   renumber residues
 """
 
 from pdbremix import pdbtext
@@ -34,10 +35,13 @@ if arg['-n']:
   txt = pdbtext.strip_other_nmr_models(txt)
 if arg['-o']:
   print "Stripping HETATM residues"
-  txt = strip_lines(txt, lambda l: l.startswith('HETATM'))
+  txt = pdbtext.strip_lines(txt, lambda l: l.startswith('HETATM'))
+if arg['-r']:
+  print "Renumber residues consequetively"
+  txt = pdbtext.renumber_residues(txt)
 
 if raw_txt != txt:
-  out_pdb = arg['<out_pdb>'] if arg['<out_pdb>'] else pdb
+  out_pdb = arg['<out_pdb>'] if arg['<out_pdb>'] else arg['<pdb>']
   open(out_pdb, 'w').write(txt)
   print out_pdb
 else:
