@@ -22,7 +22,7 @@ if __name__ == "__main__":
   spacing = float(arg['-s']) if arg['-s'] else 0.5
   for pdb in arg['<pdb>']:
     print pdb + ":",
-    atoms = pdbatoms.AtomList(pdb).atoms()
+    atoms = pdbatoms.read_pdb(pdb)
     pdbatoms.add_radii(atoms)
     grid_pdb = pdb.replace('.pdb', '.grid.pdb')
     volume(atoms, spacing, grid_pdb)

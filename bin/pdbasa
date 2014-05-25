@@ -28,8 +28,7 @@ if __name__ == "__main__":
     n_sphere = int(arg['-n'])
   print "Points on sphere: ", n_sphere
 
-  mol = pdbatoms.AtomList(arg['<in_pdb>'])
-  atoms = mol.atoms()
+  atoms = pdbatoms.read_pdb(arg['<in_pdb>'])
   pdbatoms.add_radii(atoms)
 
   asas = calculate_asa(atoms, 1.4, n_sphere)
