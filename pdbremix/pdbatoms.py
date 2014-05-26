@@ -353,6 +353,10 @@ class Residue:
     for a in self.atoms():
       a.res_type = res_type
 
+  def load_bfactor(self, bfactor):
+    for atom in self.atoms():
+      atom.bfactor = bfactor
+
 
 class Soup():
   """
@@ -505,12 +509,8 @@ class Soup():
     return extract
  
   def load_residue_bfactors(self, res_bfactors):
-    for i, r in enumerate(self.residues()):
-      for atom in r.atoms():
-        if i >= len(res_bfactors):
-          return
-        else:
-          atom.bfactor = res_bfactors[i]
+    for r, b in zip(self.residues(), res_bfactors):
+      r.load_bfactor(b)
 
   def __str__(self):
     res_name_list = [str(res) for res in self._residues]

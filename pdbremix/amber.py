@@ -636,7 +636,7 @@ def make_restraint_script(pdb, force=100.0):
   script = "Restrained atoms from %s\n" % pdb
   script += "%s\n" % force
   script += restraint_script
-  for i, atom in enumerate(pdbatoms.AtomList(pdb).atoms()):
+  for i, atom in enumerate(pdbatoms.read_pdb(pdb)):
     if atom.bfactor > 0.0:
       script += "ATOM %d %d\n" % (i+1, i+1)
   script += "END\n"
@@ -918,12 +918,13 @@ class Trajectory:
     self.i_frame = self.soup_trj.i_frame
 
 
-def merge_trajectories(top, trajs, out_traj):
+def merge_amber_trajs(top, trajs, out_traj):
   """
   Given a list of traj filenames (trajs), merges them into one complete
   trajectory (out_traj) using top to work out the number of atoms, and
   hence the size of the frame of the trajectory.
   """
+  print os.getcwd(), top, out_traj, trajs
   # Get pos_start_frame and size_frame by opening one of the 
   # trajectories via trj_reader
   topology = read_top(top)
@@ -949,27 +950,28 @@ def merge_trajectories(top, trajs, out_traj):
   merge_traj_file.close()
 
 
-def merge_simulations(basename, pulses):
+def merge_trajectories(basename, traj_basenames):
   """
   Given a list of directories with partial trajectories in each directory
   with the same basename for the md, will splice them together into one uber
   simulation.
   """
-  shutil.copy(os.path.join(pulses[0], basename + '.sander.in'), basename + '.sander.in')
-  shutil.copy(os.path.join(pulses[0], basename + '.top'), basename + '.top')
-  shutil.copy(os.path.join(pulses[-1], basename + '.rst'), basename + '.rst')
+  print traj_basenames
+  shutil.copy(traj_basenames[-1] + '.sander.in', basename + '.sander.in')
+  shutil.copy(traj_basenames[-1] + '.top', basename + '.top')
+  shutil.copy(traj_basenames[-1] + '.rst', basename + '.rst')
 
-  # merge energies of pulses into one energy file
+  # merge energies of sims into one energy file
   f = open(basename + '.energy', 'w')
   f.write('[\n')
   n_step = 0
   time = 0.0
-  for pulse in pulses:
-    energy_fname = os.path.join(pulse, basename + '.energy')
+  for traj_basename in traj_basenames:
+    energy_fname = traj_basename + '.energy'
     if os.path.isfile(energy_fname):
       blocks = eval(open(energy_fname).read())
     else:
-      sander_out = os.path.join(pulse, basename + '.sander.out')
+      sander_out = traj_basename + '.sander.out'
       blocks = read_dynamics_sander_out(sander_out)
       for block in blocks:
         block_n_step = int(block['NSTEP'])
@@ -982,12 +984,12 @@ def merge_simulations(basename, pulses):
   f.write(']\n')
   f.close()
     
-  trajs = [os.path.join(pulse, basename + '.trj') for pulse in pulses]
-  merge_trajectories(basename + '.top', trajs, basename + '.trj')
+  trajs = [b + '.trj' for b in traj_basenames]
+  merge_amber_trajs(basename + '.top', trajs, basename + '.trj')
 
-  vels = [os.path.join(pulse, basename + '.vel.trj') for pulse in pulses]
-  merge_trajectories(basename + '.top', vels, basename + '.vel.trj')
-  
+  vels = [b + '.vel.trj' for b in traj_basenames]
+  merge_amber_trajs(basename + '.top', vels, basename + '.vel.trj')
+
 
 def convert_crd_to_trj_frame(crd):
   """

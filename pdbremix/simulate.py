@@ -298,7 +298,8 @@ def merge_simulations(force_field, basename, sim_dirs):
   if not sim_dirs:
     return
   md_module = get_md_module(force_field)
-  md_module.merge_simulations(basename, sim_dirs)
+  traj_basenames = [os.path.join(s, basename) for s in sim_dirs]
+  md_module.merge_trajectories(basename, traj_basenames)
 
     
 def pulse(
@@ -395,11 +396,11 @@ def pulse(
 
   merge_simulations(force_field, basename, pulses)
 
-  # cleanup pulses after merging
-  util.clean_fname(*pulses)
+  # # cleanup pulses after merging
+  # util.clean_fname(*pulses)
 
-  # everything worked, no exceptions thrown
-  open(basename+'.time', 'w').write(timer.str()+'\n')
-  util.write_dict(config, overall_config_parms)
+  # # everything worked, no exceptions thrown
+  # open(basename+'.time', 'w').write(timer.str()+'\n')
+  # util.write_dict(config, overall_config_parms)
 
 

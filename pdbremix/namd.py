@@ -461,6 +461,9 @@ def pdb_to_top_and_crds(force_field, pdb, basename, solvent_buffer=10.0):
   """
   solv_dir = basename + '.solvate'
   save_dir = os.getcwd()
+
+  pdb = os.path.abspath(pdb)
+
   util.goto_dir(solv_dir)
 
   # Remove all but protein heavy atoms in a single clean conformation
@@ -1042,18 +1045,33 @@ def merge_trajectories(psf, dcds, out_dcd):
   merge_dcd_file.close()
 
 
-def merge_simulations(basename, pulses):
+def merge_trajectories(basename, traj_basenames):
   """
   Splices together a bunch of simulations, all with the same
   basename, into one large simulation in the current directory.
   """
   for ext in ['.psf', '.coor', '.vel', '.xsc']:
-    fname = '%s%s' % (basename, ext)
-    shutil.copy('%s/%s' % (pulses[-1], fname), fname)
-  trajs = [os.path.join(pulse, basename + '.dcd') for pulse in pulses]
+    f = traj_basenames[-1] + ext
+    g = basename + ext
+    shutil.copy(f, g)
+  trajs = [b + '.dcd' for b in traj_basenames]
   merge_trajectories(basename + '.psf', trajs, basename + '.dcd')
-  vels = [os.path.join(pulse, basename + '.vel.dcd') for pulse in pulses]
+  vels = [b + '.vel.dcd' for b in traj_basenames]
   merge_trajectories(basename + '.psf', vels, basename + '.vel.dcd')
+
+
+# def merge_simulations(basename, pulses):
+#   """
+#   Splices together a bunch of simulations, all with the same
+#   basename, into one large simulation in the current directory.
+#   """
+#   for ext in ['.psf', '.coor', '.vel', '.xsc']:
+#     fname = '%s%s' % (basename, ext)
+#     shutil.copy('%s/%s' % (pulses[-1], fname), fname)
+#   trajs = [os.path.join(pulse, basename + '.dcd') for pulse in pulses]
+#   merge_trajectories(basename + '.psf', trajs, basename + '.dcd')
+#   vels = [os.path.join(pulse, basename + '.vel.dcd') for pulse in pulses]
+#   merge_trajectories(basename + '.psf', vels, basename + '.vel.dcd')
   
 
 

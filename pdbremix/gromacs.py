@@ -937,7 +937,7 @@ class Trajectory(object):
     self.i_frame = self.soup_trj.i_frame
 
 
-def merge_simulations(basename, pulses):
+def merge_trajectories(basename, traj_basenames):
   """
   Given a bunch of directories with consecutive trajectories, all
   with the same basename, the function will splice them into a
@@ -946,7 +946,7 @@ def merge_simulations(basename, pulses):
   save_dir = os.getcwd()
 
   trr_fname = basename + '.trr'
-  trr_list = [os.path.join(p, trr_fname) for p in pulses]
+  trr_list = [b + '.trr' for b in traj_basenames]
   util.check_files(*trr_list)
 
   f = open(trr_fname, 'w')
@@ -959,14 +959,16 @@ def merge_simulations(basename, pulses):
   f.close()
 
   # Copy parameters of last pulse into current directory
-  pulse = pulses[-1]
+  traj_basename = traj_basenames[-1]
   for ext in ['.top', '.itp', '.tpr', '.mdrun.mdp', 
               '.grompp.mdp', '.gro']:
-    for f in glob.glob('%s/%s*%s' % (pulse, basename, ext)):
-      shutil.copy(f, '.')
+    for f in glob.glob('%s*%s' % (traj_basename, ext)):
+      g = f.replace(traj_basename, basename)
+      shutil.copy(f, g)
 
   os.chdir(save_dir)
     
-    
+
+
 
 
