@@ -226,7 +226,7 @@ def run_simulation_with_parameters(parms):
 
 
 def minimize(
-    force_field, top, crds, basename, 
+    force_field, in_basename, basename, 
     restraint_pdb="", n_step=200):
   """
   Runs an energy minimization on the restart files top & crd.
@@ -237,6 +237,8 @@ def minimize(
   start. This will avoid spurious initial energy fluctuations for
   future dynamics.
   """
+  md_module = get_md_module(force_field)
+  top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
       'minimization', basename)
@@ -245,7 +247,7 @@ def minimize(
 
 
 def langevin_thermometer(
-    force_field, top, crds, vels, n_step, temp, basename, 
+    force_field, in_basename, n_step, temp, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
   """
   Runs a constant temperature simulation using a Langevin
@@ -257,6 +259,8 @@ def langevin_thermometer(
   little random force. Langevin thus avoids getting trapped in
   unintended energy minima for the cost of a bit of stochasity.
   """
+  md_module = get_md_module(force_field)
+  top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
       'langevin_thermometer', basename)
@@ -269,7 +273,7 @@ def langevin_thermometer(
 
 
 def constant_energy(
-    force_field, top, crds, vels, n_step, basename, 
+    force_field, in_basename, n_step, basename, 
     n_step_per_snapshot=50, restraint_pdb=""):
   """
   Runs a constant energy simulation.
@@ -279,6 +283,8 @@ def constant_energy(
   preceeded by a period of thermal regulation using a Langevin
   thermometer.
   """
+  md_module = get_md_module(force_field)
+  top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
       'constant_energy', basename)
@@ -290,6 +296,11 @@ def constant_energy(
   run_simulation_with_parameters(parms)
 
 
+def merge_trajectories(force_field, basename, src_basenames):
+  md_module = get_md_module(force_field)
+  md_module.merge_trajectories(basename, src_basenames)
+
+
 def merge_simulations(force_field, basename, sim_dirs):
   """
   Splices together a bunch of simulations, all with the same
@@ -297,11 +308,10 @@ def merge_simulations(force_field, basename, sim_dirs):
   """
   if not sim_dirs:
     return
-  md_module = get_md_module(force_field)
-  traj_basenames = [os.path.join(s, basename) for s in sim_dirs]
-  md_module.merge_trajectories(basename, traj_basenames)
-
+  src_basenames = [os.path.join(s, basename) for s in sim_dirs]
+  merge_trajectories(force_field, basename, src_basenames)
     
+
 def pulse(
     force_field, in_basename, basename, n_step, pulse_fn, 
     n_step_per_pulse=100, restraint_pdb=""):
@@ -396,11 +406,11 @@ def pulse(
 
   merge_simulations(force_field, basename, pulses)
 
-  # # cleanup pulses after merging
-  # util.clean_fname(*pulses)
+  # cleanup pulses after merging
+  util.clean_fname(*pulses)
 
-  # # everything worked, no exceptions thrown
-  # open(basename+'.time', 'w').write(timer.str()+'\n')
-  # util.write_dict(config, overall_config_parms)
+  # everything worked, no exceptions thrown
+  open(basename+'.time', 'w').write(timer.str()+'\n')
+  util.write_dict(config, overall_config_parms)
 
 

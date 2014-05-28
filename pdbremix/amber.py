@@ -924,7 +924,6 @@ def merge_amber_trajs(top, trajs, out_traj):
   trajectory (out_traj) using top to work out the number of atoms, and
   hence the size of the frame of the trajectory.
   """
-  print os.getcwd(), top, out_traj, trajs
   # Get pos_start_frame and size_frame by opening one of the 
   # trajectories via trj_reader
   topology = read_top(top)
@@ -956,7 +955,6 @@ def merge_trajectories(basename, traj_basenames):
   with the same basename for the md, will splice them together into one uber
   simulation.
   """
-  print traj_basenames
   shutil.copy(traj_basenames[-1] + '.sander.in', basename + '.sander.in')
   shutil.copy(traj_basenames[-1] + '.top', basename + '.top')
   shutil.copy(traj_basenames[-1] + '.rst', basename + '.rst')
