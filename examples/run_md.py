@@ -96,13 +96,11 @@ def test_prepare_for_md(params):
   pdbtext.clean_pdb(full_pdb, clean_pdb)
 
   print "> Generating topologies"
-  top, crds = simulate.pdb_to_top_and_crds(
-      params['ff'], clean_pdb, 'sim')
+  simulate.pdb_to_top_and_crds(params['ff'], clean_pdb, 'sim')
 
   print "> Minimizing structure"
   util.goto_dir('min')
-  top, crds, vels = simulate.get_restart_files('../sim')
-  simulate.minimize(params['ff'], top, crds, 'min')
+  simulate.minimize(params['ff'], '../sim', 'min')
 
 
 def test_basic_md_merge(params):
@@ -110,20 +108,18 @@ def test_basic_md_merge(params):
 
   print "> Fixed-temp1"
   util.goto_dir('md1')
-  top, crds, vels = simulate.get_restart_files('../min/min')
   simulate.langevin_thermometer(
-      params['ff'], top, crds, vels, 1000, 300, 'md', 10)
+      params['ff'], '../min/min', 1000, 300, 'md', 10)
 
   print "> Fixed-temp2"
   util.goto_dir('../md2')
-  top, crds, vels = simulate.get_restart_files('../md1/md')
   simulate.langevin_thermometer(
-      params['ff'], top, crds, vels, 1000, 300, 'md', 10)
+      params['ff'], '../md1/md', 1000, 300, 'md', 10)
 
   print "> Merge temp1-temp2"
   util.goto_dir('../md_merge')
-  simulate.merge_simulations(
-      params['ff'], 'md', ['../md1', '../md2'])
+  simulate.merge_trajectories(
+      params['ff'], 'md', ['../md1/md', '../md2/md'])
 
 
 class RotateLoop:
@@ -184,19 +180,15 @@ def test_puff(params):
 
 
 def test_restraint(params):
-  util.goto_dir(params['sim_dir'])
-
-  util.goto_dir('restraint')
-
-  md = '../md_merge/md'
-
   print "> Equil with restraints on "
-  top, crds, vels = simulate.get_restart_files(md)
+  util.goto_dir(params['sim_dir'])
+  util.goto_dir('restraint')
+  in_md = '../md_merge/md'
   restraint_pdb = os.path.abspath('md.restraint.pdb')
   make_restraint_pdb(
-      md, [params['i_residue']], restraint_pdb, is_backbone_only=False)
+      in_md, [params['i_residue']], restraint_pdb, is_backbone_only=False)
   simulate.langevin_thermometer(
-      params['ff'], top, crds, vels, 1000, 300, 'md',  10, 
+      params['ff'], in_md, 1000, 300, 'md',  10, 
       restraint_pdb=restraint_pdb)
 
 
