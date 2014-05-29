@@ -13,6 +13,8 @@ Example param:
   'domain1': [0, 1, 2],
   'domain2': [9, 10, 11],
   'is_first_domain_only': True,
+  'n_step': 10000,
+  'n_step_per_pulse': 100,
   'vel': 2.0,
   'var_name': 'vel',
   'sim_dir': 'pull-2evq',
@@ -119,7 +121,12 @@ def run_puff(params):
       is_first_domain_only=is_first_domain_only)
 
   simulate.pulse(
-      params['ff'], equil, 'md', 2000, pulse_fn, 100,
+      params['ff'], 
+      equil, 
+      'md', 
+      params['n_step'],
+      pulse_fn, 
+      params['n_step_per_pulse'],
       restraint_pdb=restraint_pdb)
 
 

@@ -64,7 +64,7 @@ else:
     print "Binaries used by PDBREMIX that are missing:"
     print
     for bin in missing_binaries:
-      print "  - \"%s\" is there" % bin
+      print "  - \"%s\" is not found" % bin
   else:
     print "You're doing great: no binaries are missing"
   print
