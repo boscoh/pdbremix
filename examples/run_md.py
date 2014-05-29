@@ -16,6 +16,8 @@ problems.
 # insulin: 2-chains & 3 disuflide bonds
 #    'pdb': '1cph', 
 #    'i_residue': 18,
+#    'i_loop_start': 39, 
+#    'i_loop_end': 44
 # beta-hairpin: 
 #    'pdb': '2evq', 
 #    'i_residue': 2, 
@@ -25,10 +27,30 @@ problems.
 
 params = {
   'ff': 'AMBER11-GBSA',
-  'pdb': '1cph',
+  'pdb': '2evq',
   'i_residue': 2,
+  'i_loop_start': 3, 
+  'i_loop_end': 7
 }
 
+
+# 'ff': 'GROMACS4.5',
+
+params = {
+  'ff': 'AMBER11-GBSA',
+  'pdb': '1cph',
+  'i_residue': 18,
+  'i_loop_start': 39, 
+  'i_loop_end': 44
+}
+
+params = {
+  'ff': 'AMBER11-GBSA',
+  'pdb': '2evq',
+  'i_residue': 2,
+  'i_loop_start': 3, 
+  'i_loop_end': 7
+}
 
 import os
 
@@ -39,7 +61,27 @@ from pdbremix import util
 from pdbremix import pdbtext
 from pdbremix import trajectory
 from pdbremix import fetch
+from pdbremix import data
 from pdbremix import v3
+
+
+def make_restraint_pdb(in_md, residue_indices, out_pdb, is_backbone_only=True):
+  soup = simulate.soup_from_restart_files(in_md)
+  for i_res in residue_indices:
+    for a in soup.residue(i_res).atoms():
+      if is_backbone_only and a.type not in data.backbone_atoms:
+        continue
+      a.bfactor = 1.0
+  soup.write_pdb(out_pdb)
+
+
+def get_n_protein_residues_from_restart(in_md):
+  n = 0
+  soup = simulate.soup_from_restart_files(in_md)
+  for res in soup.residues():
+    if res not in data.solvent_res_types:
+      n += 1
+  return n
 
 
 def test_prepare_for_md(params):
@@ -56,9 +98,9 @@ def test_prepare_for_md(params):
   print "> Generating topologies"
   top, crds = simulate.pdb_to_top_and_crds(
       params['ff'], clean_pdb, 'sim')
-  util.goto_dir('min')
 
   print "> Minimizing structure"
+  util.goto_dir('min')
   top, crds, vels = simulate.get_restart_files('../sim')
   simulate.minimize(params['ff'], top, crds, 'min')
 
@@ -105,34 +147,39 @@ class RotateLoop:
 def test_user_defined_pulse(params):
   util.goto_dir(params['sim_dir'])
   util.goto_dir('user_pulse')
-  print "> Pulse with user-defined pulse_fn"
-  rotate_loop = RotateLoop(39, 44, 0.2)
+  i, j = params['i_loop_start'], params['i_loop_end']
+  rotate_loop = RotateLoop(i, j, 0.7)
+  print "> make restraint_pdb"
+  restraint_pdb = os.path.abspath('md.restraint.pdb')
+  in_md = '../md_merge/md'
+  n = get_n_protein_residues_from_restart(in_md)
+  residue_indices = range(0, i) + range(j, n)
+  make_restraint_pdb(in_md, residue_indices, restraint_pdb)
   pulse_fn = lambda soup: rotate_loop.apply(soup)
-  print "> Pulse with terminii push"
+  print "> Pulse with user-defined pulse_fn"
   simulate.pulse(
-      params['ff'], '../md_merge/md', 'md', 5000, pulse_fn, 100)
+      params['ff'], '../md_merge/md', 'md', 5000, pulse_fn, 100,
+      restraint_pdb=restraint_pdb)
 
 
 def test_rip(params):
   util.goto_dir(params['sim_dir'])
   print "> Pulse with RIP residue rotation"
   util.goto_dir('rip')
-  pulse_fn = force.make_rip_fn(params['i_residue'], 300)
   simulate.pulse(
-      params['ff'], '../md_merge/md', 'md', 2000, pulse_fn, 100)
+      params['ff'], '../md_merge/md', 'md', 2000, 
+      force.make_rip_fn(params['i_residue'], 300), 100)
 
 
 def test_puff(params):
   util.goto_dir(params['sim_dir'])
   util.goto_dir('puff')
-
-  # make push function
+  print "> Pulse with terminii push"
   md = '../md_merge/md'
-  n = len(simulate.soup_from_restart_files(md).residues())
+  n = get_n_protein_residues_from_restart(md)
+  # make push function
   pulse_fn = force.make_puff_fn(
       [0, 1, 2], [n-3, n-2, n-1], 10.0, 0.1, 300)
-
-  print "> Pulse with terminii push"
   simulate.pulse(params['ff'], md, 'md', 2000, pulse_fn, 100)
 
 
@@ -143,15 +190,11 @@ def test_restraint(params):
 
   md = '../md_merge/md'
 
-  # make restraint_pdb
-  restraint_pdb = 'restraint.pdb'
-  soup = simulate.soup_from_restart_files(md)
-  for atom in soup.residue(params['i_residue']).atoms():
-    atom.bfactor = 1.0
-  soup.write_pdb(restraint_pdb)
-
   print "> Equil with restraints on "
   top, crds, vels = simulate.get_restart_files(md)
+  restraint_pdb = os.path.abspath('md.restraint.pdb')
+  make_restraint_pdb(
+      md, [params['i_residue']], restraint_pdb, is_backbone_only=False)
   simulate.langevin_thermometer(
       params['ff'], top, crds, vels, 1000, 300, 'md',  10, 
       restraint_pdb=restraint_pdb)

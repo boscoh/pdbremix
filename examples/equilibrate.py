@@ -13,84 +13,74 @@ from pdbremix import simulate
 from pdbremix import force
 from pdbremix import util
 from pdbremix import pdbtext
-from pdbremix import trajectory
 from pdbremix import fetch
 from pdbremix import data
 
+
+def make_protein_restraint_pdb(in_basename, pdb):
+  soup = simulate.soup_from_restart_files(in_basename)
+  for a in soup.atoms():
+    a.bfactor = 0.0
+    if a.res_type not in data.solvent_res_types:
+      a.bfactor = 1.0
+  soup.write_pdb(pdb)
+
+
 sim_dir = "equilibrate"
-pdb = '2evq'
-pdb = '1cph'
+pdb_code = '1cph'
 ff = 'GROMACS4.5'
+pdb_code = '2evq'
+ff = 'AMBER11-GBSA'
+ff = 'GROMACS4.5'
+i_residue = 2
 
 util.goto_dir(sim_dir)
 
-
 # Get the PDB files from the website
-fetch.get_pdbs_with_http(pdb)
+fetch.get_pdbs_with_http(pdb_code)
 
 # Format the PDB file to give one single conformation 
 clean_pdb = '2evq.clean.pdb'
-pdbtext.clean_pdb(pdb+'.pdb', clean_pdb)
+pdbtext.clean_pdb(pdb_code+'.pdb', clean_pdb)
 
 # Generate restart files from PDB
-top, crds = simulate.pdb_to_top_and_crds(ff, clean_pdb, 'sim')
+simulate.pdb_to_top_and_crds(ff, clean_pdb, 'sim')
 
-# Make a protein positional restraint.pdb file
-soup = simulate.soup_from_restart_files('sim')
-for a in soup.atoms():
-  a.bfactor = 0.0
-  if a.res_type not in data.solvent_res_types:
-    a.bfactor = 1.0
-soup.write_pdb('restraint.pdb')
+# Make a protein positional restrain_protein.pdb file
+make_protein_restraint_pdb('sim', 'restrain_protein.pdb')
 
 # minimize system (mostly water) with protein positions fixed
-util.goto_dir('min')
-top, crds, vels = simulate.get_restart_files('../sim')
 simulate.minimize(
-    ff, top, crds, 'min', 
-    restraint_pdb='../restraint.pdb')
+    ff, 'sim', 'minwater', restraint_pdb='restrain_protein.pdb')
 
 # heat only water to 300K, hold protein fixed
-util.goto_dir('../heatwater')
-top, crds, vels = simulate.get_restart_files('../min/min')
 simulate.langevin_thermometer(
-    ff, top, crds, vels, 5000, 300, 'md',  50, 
-    restraint_pdb='../restraint.pdb')
+    ff, 'minwater', 5000, 300, 'heatwater',  50, 
+    restraint_pdb='restrain_protein.pdb')
 
 # cool water back down 10K, hold protein fixed
-util.goto_dir('../coolwater')
-top, crds, vels = simulate.get_restart_files('../heatwater/md')
 simulate.langevin_thermometer(
-    ff, top, crds, vels, 5000, 10, 'md',  50, 
-    restraint_pdb='../restraint.pdb')
+    ff, 'heatwater', 5000, 10, 'coolwater',  50, 
+    restraint_pdb='restrain_protein.pdb')
 
 # equilibrate entire system to 10K 
-util.goto_dir('../heat')
-top, crds, vels = simulate.get_restart_files('../coolwater/md')
 simulate.langevin_thermometer(
-    ff, top, crds, vels, 5000, 10, 'md',  50)
+    ff, 'coolwater', 5000, 10, 'heat',  50)
 
 # let the system relax without thermometer
-util.goto_dir('../const')
-top, crds, vels = simulate.get_restart_files('../heat/md')
 simulate.constant_energy(
-    ff, top, crds, vels, 5000, 'md',  50)
+    ff, 'heat', 5000, 'const',  50)
 
 # then reequilibrate to 10K
-util.goto_dir('../reheat')
-top, crds, vels = simulate.get_restart_files('../const/md')
 simulate.langevin_thermometer(
-    ff, top, crds, vels, 5000, 10, 'md',  50)
+    ff, 'const', 5000, 10, 'reheat',  50)
 
 # we are ready to apply RIP
-util.goto_dir('../rip')
+pulse_fn = force.make_rip_fn(i_residue, 100)
 simulate.pulse(
-    ff, '../reheat/md', 'md', 5000, 
-    force.make_rip_fn(18, 100), 100)
+    ff, 'reheat', 'rip', 5000, pulse_fn, 100)
 
-# splice all the simulations together into one trajectory
-util.goto_dir('../equil')
-simulate.merge_simulations(
-    ff, 'md', 
-    ['../heatwater', '../coolwater', '../heat', 
-     '../const', '../reheat', '../rip'])
+# combine all sims into one long trajectory for viewing
+simulate.merge_trajectories(
+    ff, 'equil', ['heatwater', 'coolwater', 'heat', 
+                  'const', 'reheat', 'rip'])
