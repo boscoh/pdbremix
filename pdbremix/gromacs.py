@@ -965,6 +965,9 @@ def merge_trajectories(basename, traj_basenames):
     for f in glob.glob('%s*%s' % (traj_basename, ext)):
       g = f.replace(traj_basename, basename)
       shutil.copy(f, g)
+      if g.endswith('.top'):
+        replace_include_file(g, traj_basename + "_", basename + "_")
+
 
   os.chdir(save_dir)
     

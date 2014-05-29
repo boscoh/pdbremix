@@ -1,0 +1,137 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Run domain pull expriments
+
+Usage: pullit [-h] <param>
+
+Example param:
+
+{
+  'ff': 'AMBER11-GBSA',
+  'pdb': '2evq.pdb',
+  'domain1': [0, 1, 2],
+  'domain2': [9, 10, 11],
+  'is_first_domain_only': True,
+  'vel': 2.0,
+  'var_name': 'vel',
+  'sim_dir': 'pull-2evq',
+}
+"""
+
+import os, time
+
+from pdbremix import pdbatoms
+from pdbremix import simulate
+from pdbremix.lib.docopt import docopt
+from pdbremix import force
+from pdbremix import util
+from pdbremix import pdbtext
+from pdbremix import trajectory
+from pdbremix import fetch
+from pdbremix import data
+from pdbremix import v3
+
+
+
+def make_restraint_pdb(
+    in_md, residue_indices, out_pdb, is_backbone_only=True):
+  soup = simulate.soup_from_restart_files(in_md)
+  for i_res in residue_indices:
+    for a in soup.residue(i_res).atoms():
+      if is_backbone_only and a.type not in data.backbone_atoms:
+        continue
+      a.bfactor = 1.0
+  soup.write_pdb(out_pdb)
+
+
+def run_equil(params):
+  pdb = params['pdb']
+  clean_pdb = os.path.split(pdb)[-1] + '.clean.pdb'
+  print os.getcwd(), clean_pdb
+  pdbtext.clean_pdb(pdb, clean_pdb)
+
+  print "> Generating topologies"
+  top, crds = simulate.pdb_to_top_and_crds(
+      params['ff'], clean_pdb, 'sim')
+
+  util.goto_dir('equil')
+
+  simulate.minimize(params['ff'], '../sim', 'min')
+
+  print "> Heating to 300K"
+  simulate.langevin_thermometer(
+      params['ff'], 'min', 1000, 300, 'heat', 50)
+
+  print "> Constant energy relaxation"
+  simulate.constant_energy(
+      params['ff'], 'heat', 1000, 'const', 50)
+
+  print "> Reheat to 300K"
+  simulate.langevin_thermometer(
+      params['ff'], 'const', 1000, 300, 'reheat', 50)
+
+  print "> Merge into 1 equil"
+  simulate.merge_trajectories(
+      params['ff'], 'equil', ['heat', 'const', 'reheat'])
+
+  util.write_dict('equil.config', params)
+
+  util.goto_dir('..')
+
+
+def run_or_wait_for_equil(params):
+  sim_dir = params['sim_dir']
+  util.goto_dir(sim_dir)
+  print sim_dir
+  # if os.path.isdir('equil'):
+  #   while not os.path.isfile('equil/equil.config'):
+  #     time.sleep(1)
+  #     print "Waiting for equil to finish..."
+  #   return
+  run_equil(params)
+
+
+def run_puff(params):
+  print "> Pulse with terminii push"
+
+  vel = float(params['vel'])
+  domain1 = params['domain1']
+  domain2 = params['domain2']
+  is_first_domain_only = params['is_first_domain_only']
+  vel_dir = '%s/%.2f' % (params['var_name'], vel)
+
+  util.goto_dir(params['sim_dir'])
+
+  equil = os.path.abspath('equil/equil')
+  
+  util.goto_dir(vel_dir)
+
+  if is_first_domain_only:
+    restraint_pdb = os.path.abspath('md.restraint.pdb')
+    make_restraint_pdb(equil, domain2, restraint_pdb)
+  else:
+    restraint_pdb = ''
+
+  pulse_fn = force.make_puff_fn(
+      domain1, domain2, vel, 
+      temperature=300, 
+      is_first_domain_only=is_first_domain_only)
+
+  simulate.pulse(
+      params['ff'], equil, 'md', 2000, pulse_fn, 100,
+      restraint_pdb=restraint_pdb)
+
+
+if __name__ == "__main__":
+  args = docopt(__doc__)
+  config = args['<param>']
+  done = os.path.abspath(config + '.done')
+  if not os.path.isfile(done):
+    params = util.read_dict(args['<param>'])
+    run_or_wait_for_equil(params)
+    run_puff(params)
+    open(done, 'w').write('done')
+  
+
+

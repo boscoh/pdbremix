@@ -1,0 +1,163 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Run domain pull expriments
+
+Usage: ripit run <param> 
+       ripit prep <pdb> [<out_dir>]
+
+Example param:
+
+{
+  'ff': 'AMBER11-GBSA',
+  'pdb': '2evq.pdb',
+  'domain1': [0, 1, 2],
+  'domain2': [9, 10, 11],
+  'is_first_domain_only': True,
+  'vel': 2.0,
+  'var_name': 'vel',
+  'sim_dir': 'pull-2evq',
+}
+"""
+
+import os, time
+
+from pdbremix import pdbatoms
+from pdbremix import simulate
+from pdbremix.lib.docopt import docopt
+from pdbremix import force
+from pdbremix import util
+from pdbremix import pdbtext
+from pdbremix import trajectory
+from pdbremix import fetch
+from pdbremix import data
+from pdbremix import v3
+
+
+
+def make_restraint_pdb(
+    in_md, residue_indices, out_pdb, is_backbone_only=True):
+  soup = simulate.soup_from_restart_files(in_md)
+  for i_res in residue_indices:
+    for a in soup.residue(i_res).atoms():
+      if is_backbone_only and a.type not in data.backbone_atoms:
+        continue
+      a.bfactor = 1.0
+  soup.write_pdb(out_pdb)
+
+
+def run_equil(params):
+  pdb = params['pdb']
+  clean_pdb = os.path.split(pdb)[-1] + '.clean.pdb'
+  print os.getcwd(), clean_pdb
+  pdbtext.clean_pdb(pdb, clean_pdb)
+
+  print "> Generating topologies"
+  top, crds = simulate.pdb_to_top_and_crds(
+      params['ff'], clean_pdb, 'sim')
+
+  util.goto_dir('equil')
+
+  temperature = params['equil_temperature']
+
+  simulate.minimize(params['ff'], '../sim', 'min')
+
+  print "> Heating to %dK" % temperature
+  simulate.langevin_thermometer(
+      params['ff'], 'min', 1000, temperature, 'heat', 50)
+
+  print "> Constant energy relaxation"
+  simulate.constant_energy(
+      params['ff'], 'heat', 1000, 'const', 50)
+
+  print "> Reheat to %dK" % temperature
+  simulate.langevin_thermometer(
+      params['ff'], 'const', 1000, temperature, 'reheat', 50)
+
+  print "> Merge into single equil trajecotry"
+  simulate.merge_trajectories(
+      params['ff'], 'equil', ['heat', 'const', 'reheat'])
+
+  util.write_dict('equil.config', params)
+
+  util.goto_dir('..')
+
+
+def run_or_wait_for_equil(params):
+  sim_dir = params['sim_dir']
+  util.goto_dir(sim_dir)
+  print sim_dir
+  if os.path.isdir('equil'):
+    while not os.path.isfile('equil/equil.config'):
+      time.sleep(1)
+      print "Waiting for equil to finish..."
+    return
+  run_equil(params)
+
+
+def run_puff(params):
+  util.goto_dir(params['sim_dir'])
+
+  i_residue = params['i_residue']
+  res_dir = '%s/%d' % (params['var_name'], i_residue)
+  restraint_pdb = ''
+  in_md = os.path.abspath('equil/equil')
+
+  print "> Pulse with RIP on residue %d" % i_residue
+
+  util.goto_dir(res_dir)
+  simulate.pulse(
+      params['ff'], 
+      in_md,  
+      'md', 
+      params['n_step'],
+      force.make_rip_fn(
+          params['i_residue'],
+          params['rip_temperature']), 
+      100,
+      restraint_pdb=restraint_pdb)
+
+
+def process_config(config):
+  done = os.path.abspath(config + '.done')
+  if not os.path.isfile(done):
+    params = util.read_dict(args['<param>'])
+    run_or_wait_for_equil(params)
+    run_puff(params)
+    open(done, 'w').write('done')
+
+
+def prepare(pdb, sim_dir):
+  if not sim_dir:
+    sim_dir = os.getcwd()
+  sim_dir = os.path.abspath(sim_dir)
+  pdb = os.path.abspath(pdb)
+  soup = pdbatoms.Soup(pdb)
+  pdb_code = os.path.splitext(pdb)[0]
+  for i_res, res in enumerate(soup.residues()):
+    if res.type not in data.solvent_res_types:
+      if force.get_n_chi(res) and res.type != 'PRO':
+        config = '%s.rip.%d.config' % (pdb_code, i_res)
+        print res.tag(), res.type, '->', util.relpath(config)
+        params = {
+          'ff': 'AMBER11-GBSA',
+          'pdb': pdb,
+          'i_residue': i_res,
+          'rip_temperature': 26,
+          'equil_temperature': 10,
+          'n_step': 5000, 
+          'var_name': 'rip',
+          'sim_dir': sim_dir,
+        }
+        util.write_dict(config, params)
+
+if __name__ == "__main__":
+  args = docopt(__doc__)
+  if args['prep']:
+    prepare(args['<pdb>'], args['<out_dir>'])
+  elif args['run']:
+    process_config(args['<param>'])
+
+  
+
+

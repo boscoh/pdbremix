@@ -1018,7 +1018,7 @@ class Trajectory:
     self.i_frame = self.soup_trj.i_frame
 
 
-def merge_trajectories(psf, dcds, out_dcd):
+def merge_dcds(psf, dcds, out_dcd):
   """
   Given a list of traj filenames (trajs), merges them into one complete
   trajectory (out_traj) using top to work out the number of atoms, and
@@ -1055,9 +1055,9 @@ def merge_trajectories(basename, traj_basenames):
     g = basename + ext
     shutil.copy(f, g)
   trajs = [b + '.dcd' for b in traj_basenames]
-  merge_trajectories(basename + '.psf', trajs, basename + '.dcd')
+  merge_dcds(basename + '.psf', trajs, basename + '.dcd')
   vels = [b + '.vel.dcd' for b in traj_basenames]
-  merge_trajectories(basename + '.psf', vels, basename + '.vel.dcd')
+  merge_dcds(basename + '.psf', vels, basename + '.vel.dcd')
 
 
 # def merge_simulations(basename, pulses):
