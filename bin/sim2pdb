@@ -20,7 +20,7 @@ from pdbremix import simulate
 from pdbremix import force
 from pdbremix import data
 from pdbremix.lib.docopt import docopt
-
+from pdbremix import pdbatoms
 
 def relpath(path):
   if path == '':
@@ -43,8 +43,10 @@ if __name__ == "__main__":
   vels = relpath(vels)
   print "restart-files:", top, crds, vels 
 
+  simulate.convert_restart_to_pdb(md, pdb)
+
   if arg['-b']:
-    soup = simulate.soup_from_restart_files(top, crds, vels)
+    soup = pdbatoms.Soup(pdb)
     for atom in soup.atoms():
       if (atom.type in data.backbone_atoms):
         print atom.type
@@ -55,7 +57,7 @@ if __name__ == "__main__":
     print "Backbone atoms B-factor set to 1.0"
 
   elif arg['-a']:
-    soup = simulate.soup_from_restart_files(top, crds, vels)
+    soup = pdbatoms.Soup(pdb)
     for atom in soup.atoms():
       if atom.res_type not in data.solvent_res_types:
         atom.bfactor = 1.0 
@@ -63,9 +65,6 @@ if __name__ == "__main__":
         atom.bfactor = 0.0
     soup.write_pdb(pdb)
     print "Non-solvent atoms B-factor set to 1.0"
-
-  else:
-    simulate.convert_restart_to_pdb(md, pdb)
 
   print pdb
   

@@ -98,7 +98,6 @@ def transformed_soup_from_pdb(
 def is_peptide_connected(res1, res2):
   if res1.has_atom('CA') and \
      res1.has_atom('C') and \
-     res1.has_atom('O') and \
      res2.has_atom('N') and \
      res2.has_atom('CA'):
      d = v3.distance(res1.atom('C').pos, res2.atom('N').pos)
@@ -114,15 +113,18 @@ def find_chains(soup):
     return
   i_chain = 0
   chain_id = string.ascii_uppercase[i_chain]
-  for i in range(0, n-1):
+  for i in range(0, n):
     res = residues[i]
-    next_res = residues[i+1]
-    is_connected_to_next = is_peptide_connected(res, next_res)
     if i == 0:
       is_connected_to_prev = False
     else:
       prev_res = residues[i-1]
       is_connected_to_prev = is_peptide_connected(prev_res, res)
+    if i < n-1:
+      next_res = residues[i+1]
+      is_connected_to_next = is_peptide_connected(res, next_res)
+    else:
+      is_connected_to_next = False
     if is_connected_to_prev or is_connected_to_next:
       res.set_chain_id(chain_id)
       if not is_connected_to_next:

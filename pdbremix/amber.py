@@ -133,7 +133,6 @@ def soup_from_topology(topology):
       atom.element = data.guess_element(
           atom.res_type, atom.type)
       soup.insert_atom(-1, atom)
-  protein.find_chains(soup)
   convert_to_pdb_atom_names(soup)
   if topology['IFBOX'] > 0:
     # create dummy dimension to ensure box dimension recognized
@@ -195,6 +194,7 @@ def soup_from_top_and_crd_or_rst(top, crd_or_rst):
   topology = read_top(top)
   soup = soup_from_topology(topology)
   load_crd_or_rst_into_soup(soup, crd_or_rst)
+  protein.find_chains(soup)
   if topology['IFBOX'] > 0:
     # if periodic cells are in .crd or .rst then save
     # for later, if we need to write modified .crd or .rst 
