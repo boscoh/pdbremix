@@ -127,7 +127,8 @@ def run_puff(params):
       params['n_step'],
       pulse_fn, 
       params['n_step_per_pulse'],
-      restraint_pdb=restraint_pdb)
+      restraint_pdb=restraint_pdb,
+      restraint_force=5)
 
   util.write_dict('md.puff.config', params)
 

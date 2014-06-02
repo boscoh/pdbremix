@@ -177,7 +177,7 @@ def pdb_to_top_and_crds(
 
 def fetch_simulation_parameters(
     force_field, top, crds, restraint_pdb, 
-    simulation_type, basename):
+    simulation_type, basename, restraint_force=None):
   """
   Returns a dictionary that contains all the high level
   parameters needed to run an MD simulation using the package
@@ -204,6 +204,8 @@ def fetch_simulation_parameters(
   })
   if restraint_pdb:
     parms['restraint_pdb'] = restraint_pdb
+    if restraint_force is not None:
+      parms['restraint_force'] = restraint_force
   return parms
 
 
@@ -227,7 +229,7 @@ def run_simulation_with_parameters(parms):
 
 def minimize(
     force_field, in_basename, basename, 
-    restraint_pdb="", n_step=200):
+    restraint_pdb="", restraint_force=None, n_step=200):
   """
   Runs an energy minimization on the restart files top & crd.
 
@@ -241,14 +243,14 @@ def minimize(
   top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'minimization', basename)
+      'minimization', basename, restraint_force)
   parms['n_step_minimization'] = n_step
   run_simulation_with_parameters(parms)
 
 
 def langevin_thermometer(
     force_field, in_basename, n_step, temp, basename, 
-    n_step_per_snapshot=50, restraint_pdb=""):
+    n_step_per_snapshot=50, restraint_pdb="", restraint_force=None):
   """
   Runs a constant temperature simulation using a Langevin
   thermometer.
@@ -263,7 +265,7 @@ def langevin_thermometer(
   top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'langevin_thermometer', basename)
+      'langevin_thermometer', basename, restraint_force)
   parms['input_vels'] = vels
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
@@ -274,7 +276,7 @@ def langevin_thermometer(
 
 def constant_energy(
     force_field, in_basename, n_step, basename, 
-    n_step_per_snapshot=50, restraint_pdb=""):
+    n_step_per_snapshot=50, restraint_pdb="", restraint_force=None):
   """
   Runs a constant energy simulation.
 
@@ -287,7 +289,7 @@ def constant_energy(
   top, crds, vels = md_module.get_restart_files(in_basename)
   parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'constant_energy', basename)
+      'constant_energy', basename, restraint_force)
   parms['input_vels'] = vels
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
@@ -314,7 +316,7 @@ def merge_simulations(force_field, basename, sim_dirs):
 
 def pulse(
     force_field, in_basename, basename, n_step, pulse_fn, 
-    n_step_per_pulse=100, restraint_pdb=""):
+    n_step_per_pulse=100, restraint_pdb="", restraint_force=None):
   """
   Runs a pulse simulation that uses the restart-file modification
   strategy to manage a steered-molecular dynamics simulation.
@@ -342,7 +344,7 @@ def pulse(
   # use dummy top and crds, which will be overriden 
   overall_config_parms = fetch_simulation_parameters(
       force_field, top, crds, restraint_pdb, 
-      'constant_energy', basename)
+      'constant_energy', basename, restraint_force)
   overall_config_parms.update({
     'input_md_name': in_basename,
     'input_vels': vels,
