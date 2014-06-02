@@ -129,7 +129,9 @@ def run_puff(params):
       params['n_step_per_pulse'],
       restraint_pdb=restraint_pdb)
 
+  util.write_dict('md.puff.config', params)
 
+  
 if __name__ == "__main__":
   args = docopt(__doc__)
   config = args['<param>']

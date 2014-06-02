@@ -53,6 +53,12 @@ class Vec3(array):
   def __pos__(self):
     return self
 
+  def __mul__(self, s):
+    return Vec3(self[0]*s, self[1]*s, self[2]*s)
+
+  def __rmul__(self, s):
+    return Vec3(self[0]*s, self[1]*s, self[2]*s)
+
   def __deepcopy__(self, memo):
     cls = self.__class__
     return array.__new__(cls, 'd', (self[0],self[1],self[2]))
