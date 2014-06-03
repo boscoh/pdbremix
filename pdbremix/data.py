@@ -21,8 +21,39 @@ import util
 module_dir = os.path.dirname(__file__)
 data_dir = os.path.join(module_dir, 'data')
 
-binaries_fname = os.path.join(data_dir, 'binaries.json')
-binaries = util.read_dict(binaries_fname)
+binaries = {
+  "pymol": "",
+  "pymol_batch": "",
+  "chimera": "",
+
+  "theseus": "",
+  "mafft": "",
+
+  "sander": "",
+  "tleap": "",
+
+  "mdrun": "",
+  "pdb2gmx": "",
+  "trjconv": "",
+  "grompp": "",
+  "editconf": "",
+  "genion": "",
+  "genbox": "",
+
+  "vmd": "",
+  "psfgen": "",
+  "namd2": "",
+  "flipdcd": "",
+
+  "mod9v8": ""
+}
+home_dir = os.path.expanduser('~')
+binaries_fname = os.path.join(home_dir, '.pdbremix.config')
+if not os.path.isfile(binaries_fname):
+  util.write_dict(binaries_fname, binaries)
+else:
+  binaries = util.read_dict(binaries_fname)
+
 
 def binary(bin, arg_str='', out_name=None, in_fname=None):
   """
