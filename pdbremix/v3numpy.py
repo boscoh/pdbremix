@@ -90,9 +90,7 @@ def identity():
   """
   Returns the identity transform.
   """
-  m = np.zeros((4, 3))
-  m[:3,:3] = np.eye(3)
-  return m
+  return np.eye(4)
 
 
 def matrix_elem(matrix, i, j, val=None):
@@ -114,7 +112,7 @@ def transform(matrix, vector):
   """
   Returns vector of applying the transform in matrix to v.
   """
-  return np.dot(matrix[:3,:3], vector) + matrix[3,:]  
+  return np.dot(matrix[:3,:3], vector) + matrix[:3,3]  
 
 
 def left_inverse(matrix):
@@ -127,7 +125,7 @@ def left_inverse(matrix):
   inverse = identity()
   r = matrix[:3,:3].transpose()
   inverse[:3,:3] = r
-  inverse[3,:] = -np.dot(r, matrix[3,:])
+  inverse[:3,3] = -np.dot(r, matrix[:3,3])
   return inverse
 
 
@@ -139,9 +137,9 @@ def rotation(axis, theta):
   m = identity()
   a = np.cos(theta/2)
   b, c, d = norm(axis) * np.sin(theta/2)
-  m[0] = [a*a+b*b-c*c-d*d, 2*(b*c-a*d),     2*(b*d+a*c)    ]
-  m[1] = [2*(b*c+a*d),     a*a+c*c-b*b-d*d, 2*(c*d-a*b)    ]
-  m[2] = [2*(b*d-a*c),     2*(c*d+a*b),     a*a+d*d-b*b-c*c]
+  m[0,:3] = [a*a+b*b-c*c-d*d, 2*(b*c-a*d),     2*(b*d+a*c)    ]
+  m[1,:3] = [2*(b*c+a*d),     a*a+c*c-b*b-d*d, 2*(c*d-a*b)    ]
+  m[2,:3] = [2*(b*d-a*c),     2*(c*d+a*b),     a*a+d*d-b*b-c*c]
   return m
 
 
@@ -150,7 +148,18 @@ def translation(displacement):
   Returns transform that translates a vector.
   """
   m = identity()
-  m[3,:] = displacement
+  m[:3,3] = displacement
+  return m
+
+
+def scaling_matrix(s0, s1, s2):
+  """
+  Returns a scaling matrix.
+  """
+  m = identity()
+  matrix_elem(m, 0, 0, s0)
+  matrix_elem(m, 1, 1, s1)
+  matrix_elem(m, 2, 2, s2)
   return m
 
 
@@ -159,8 +168,7 @@ def combine(m1, m2):
   Returns transform that combines two other transforms.
   """
   m3 = identity()
-  m3[:3,:3] = np.dot(m1[:3,:3], m2[:3,:3])
-  m3[3,:] = np.dot(m1[:3,:3], m2[3,:]) + m1[3,:]
+  m3 = np.dot(m1, m2)
   return m3
 
 
