@@ -106,11 +106,7 @@ def add_vel_to_atoms(atoms, vel_diff):
   Adds vel_diff to the vel vector of atoms.
   """
   for a in atoms:
-    a.vel_last = a.vel
     a.vel += vel_diff
-    a.work_delta = \
-        v3.dot(vel_diff, a.vel) * a.mass * timestep_in_ps * \
-        work_DaAngSqPerPsSq_to_pNAng
 
 
 def maxwell_velocity(temperature, mass):
@@ -275,19 +271,23 @@ class PushApartByVel():
 
   def change_vels(self):
     # calculate the vel diff vector 
-    target_axis_vel2to1 = v3.scale(self.axis2to1, self.target_val)
-    diff_axis_vel2to1 = target_axis_vel2to1 - self.axis_vel2to1
-    self.vel_diff = v3.dot(diff_axis_vel2to1, self.axis2to1)
+    self.old_kinetic_energy = kinetic_energy(self.move_atoms)
+
+    vel_target = self.target_val*self.axis2to1
+    if self.is_first_domain_only:
+      change_sets = [(self.atoms1, vel_target)]
+    else:
+      change_sets = [
+        (self.atoms1,  0.5*vel_target),
+        (self.atoms2, -0.5*vel_target)]
 
     # now change velocities of movable atoms
-    self.old_kinetic_energy = kinetic_energy(self.move_atoms)
-    if self.is_first_domain_only:
-      add_vel_to_atoms(self.atoms1, diff_axis_vel2to1)
-    else:
-      # apply half of vel_diff to each domain
-      v3.scale(diff_axis_vel2to1, 0.5)
-      add_vel_to_atoms(self.atoms1, diff_axis_vel2to1)
-      add_vel_to_atoms(self.atoms2, -diff_axis_vel2to1)
+    for move_atoms, vel_target in change_sets:
+      for a in move_atoms:
+        vel_axis = v3.parallel(a.vel, self.axis2to1)
+        vel_diff = vel_target - vel_axis
+        a.vel += vel_diff
+
     self.kinetic_energy = kinetic_energy(self.move_atoms)
 
   def calculate_output(self):
@@ -299,7 +299,6 @@ class PushApartByVel():
       'mass': sum(a.mass for a in self.move_atoms),
       'target_vel': self.target_val,
       'vel': self.vel,
-      'vel_diff': self.vel_diff,
       'work_applied': work_applied
     }
 

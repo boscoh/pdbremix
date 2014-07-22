@@ -8,15 +8,14 @@ Usage: ripit run <param>
 
 Example param:
 
-{
+{ 'equil_temperature': 10,
   'ff': 'AMBER11-GBSA',
-  'pdb': '2evq.pdb',
-  'domain1': [0, 1, 2],
-  'domain2': [9, 10, 11],
-  'is_first_domain_only': True,
-  'vel': 2.0,
-  'var_name': 'vel',
-  'sim_dir': 'pull-2evq',
+  'i_residue': 0,
+  'n_step': 5000,
+  'pdb': '/Users/bosco/Projects/examples/2evq.pdb',
+  'rip_temperature': 26,
+  'sim_dir': '/Users/bosco/Projects/examples',
+  'var_name': 'rip'
 }
 """
 

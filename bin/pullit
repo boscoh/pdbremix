@@ -13,6 +13,8 @@ Example param:
   'domain1': [0, 1, 2],
   'domain2': [9, 10, 11],
   'is_first_domain_only': True,
+  'is_backbone_only': True,
+  'temperature': None,
   'n_step': 10000,
   'n_step_per_pulse': 100,
   'vel': 2.0,
@@ -21,7 +23,9 @@ Example param:
 }
 """
 
-import os, time
+import os
+import time
+import copy
 
 from pdbremix import pdbatoms
 from pdbremix import simulate
@@ -94,13 +98,33 @@ def run_or_wait_for_equil(params):
   run_equil(params)
 
 
-def run_puff(params):
+default_params = {
+  'ff': 'AMBER11-GBSA',
+  'pdb': '',
+  'domain1': [],
+  'domain2': [],
+  'is_first_domain_only': True,
+  'is_backbone_only': True,
+  'temperature': None,
+  'n_step': 10000,
+  'n_step_per_pulse': 100,
+  'vel': 2.0,
+  'var_name': 'vel',
+  'sim_dir': ''
+}
+
+def run_puff(in_params):
   print "> Pulse with terminii push"
+
+  params = copy.copy(default_params)
+  params.update(in_params)
 
   vel = float(params['vel'])
   domain1 = params['domain1']
   domain2 = params['domain2']
   is_first_domain_only = params['is_first_domain_only']
+  is_backbone_only = params['is_backbone_only']
+  temperature = params['temperature']
   vel_dir = '%s/%.2f' % (params['var_name'], vel)
 
   util.goto_dir(params['sim_dir'])
@@ -117,7 +141,8 @@ def run_puff(params):
 
   pulse_fn = force.make_puff_fn(
       domain1, domain2, vel, 
-      temperature=300, 
+      temperature=temperature, 
+      is_backbone_only=is_backbone_only,
       is_first_domain_only=is_first_domain_only)
 
   simulate.pulse(
