@@ -590,6 +590,7 @@ tcoupl          = V-rescale     ; modified Berendsen thermostat
 tc-grps         = Protein Non-Protein   ; two coupling groups - more accurate
 tau_t           = 0.1   0.1     ; time constant, in ps
 ref_t           = %(temperature_thermometer)s  %(temperature_thermometer)s   ; reference temperature, one for each group, in K
+ld-seed         = %(random_seed)s
 """
 
 vel_mdp = """

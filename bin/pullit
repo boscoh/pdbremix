@@ -14,7 +14,8 @@ Example param:
   'domain2': [9, 10, 11],
   'is_first_domain_only': True,
   'is_backbone_only': True,
-  'temperature': None,
+  'temperature': 300,
+  'random_seed': 2342,
   'n_step': 10000,
   'n_step_per_pulse': 100,
   'vel': 2.0,
@@ -66,8 +67,10 @@ def run_equil(params):
   simulate.minimize(params['ff'], '../sim', 'min')
 
   print "> Heating to 300K"
+  random_seed = params['random_seed']
   simulate.langevin_thermometer(
-      params['ff'], 'min', 1000, 300, 'heat', 50)
+      params['ff'], 'min', 1000, 300, 'heat', 50, 
+      random_seed=random_seed)
 
   print "> Constant energy relaxation"
   simulate.constant_energy(
@@ -75,7 +78,8 @@ def run_equil(params):
 
   print "> Reheat to 300K"
   simulate.langevin_thermometer(
-      params['ff'], 'const', 1000, 300, 'reheat', 50)
+      params['ff'], 'const', 1000, 300, 'reheat', 50,
+      random_seed=random_seed)
 
   print "> Merge into 1 equil"
   simulate.merge_trajectories(
@@ -89,12 +93,11 @@ def run_equil(params):
 def run_or_wait_for_equil(params):
   sim_dir = params['sim_dir']
   util.goto_dir(sim_dir)
-  print sim_dir
-  # if os.path.isdir('equil'):
-  #   while not os.path.isfile('equil/equil.config'):
-  #     time.sleep(1)
-  #     print "Waiting for equil to finish..."
-  #   return
+  if os.path.isdir('equil'):
+    while not os.path.isfile('equil/equil.config'):
+      time.sleep(1)
+      print "Waiting for equil to finish..."
+    return
   run_equil(params)
 
 
@@ -105,6 +108,7 @@ default_params = {
   'domain2': [],
   'is_first_domain_only': True,
   'is_backbone_only': True,
+  'random_seed': 2342,
   'temperature': None,
   'n_step': 10000,
   'n_step_per_pulse': 100,

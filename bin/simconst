@@ -30,7 +30,6 @@ if __name__ == "__main__":
     restraint_pdb = arg['-r']
   else:
     restraint_pdb = ""
-  top, crds, vels = simulate.get_restart_files(in_md)
   simulate.constant_energy(
-      force_field, top, crds, vels, n_step, out_md, 
+      force_field, in_md, n_step, out_md, 
       restraint_pdb=restraint_pdb)

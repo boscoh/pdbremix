@@ -30,5 +30,4 @@ if __name__ == "__main__":
     restraint_pdb = arg['-r']
   else:
     restraint_pdb = ""
-  top, crds, vels = simulate.get_restart_files(in_md)
-  simulate.minimize(force_field, top, crds, out_md, restraint_pdb)
+  simulate.minimize(force_field, in_md, out_md, restraint_pdb)

@@ -250,7 +250,8 @@ def minimize(
 
 def langevin_thermometer(
     force_field, in_basename, n_step, temp, basename, 
-    n_step_per_snapshot=50, restraint_pdb="", restraint_force=None):
+    n_step_per_snapshot=50, restraint_pdb="", restraint_force=None,
+    random_seed=2343):
   """
   Runs a constant temperature simulation using a Langevin
   thermometer.
@@ -267,6 +268,7 @@ def langevin_thermometer(
       force_field, top, crds, restraint_pdb, 
       'langevin_thermometer', basename, restraint_force)
   parms['input_vels'] = vels
+  parms['random_seed'] = random_seed
   parms['n_step_dynamics'] = n_step
   parms['n_step_per_snapshot'] = n_step_per_snapshot
   parms['temperature_thermometer'] = "%.1f" % temp
