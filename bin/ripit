@@ -8,12 +8,12 @@ Usage: ripit run <param>
 
 Example <param>:
 
-{ 'equil_temperature': 10,
+{ 'equil_temperature': 300,
   'ff': 'AMBER11-GBSA',
   'i_residue': 0,
   'n_step': 5000,
   'pdb': '/Users/bosco/Projects/examples/2evq.pdb',
-  'rip_temperature': 26,
+  'rip_temperature': 300,
   'sim_dir': '/Users/bosco/Projects/examples',
   'var_name': 'rip'
 }
@@ -142,8 +142,8 @@ def prepare(pdb, sim_dir):
           'ff': 'AMBER11-GBSA',
           'pdb': pdb,
           'i_residue': i_res,
-          'rip_temperature': 26,
-          'equil_temperature': 10,
+          'rip_temperature': 300,
+          'equil_temperature': 300,
           'n_step': 5000, 
           'var_name': 'rip',
           'sim_dir': sim_dir,
