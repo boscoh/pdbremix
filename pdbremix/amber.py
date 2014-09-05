@@ -793,17 +793,17 @@ class TrjReader:
       size_frame += len(self.file.readline())
     return size_frame
 
-  def load_frame(self, i):
+  def load_frame(self, i_frame):
     """
     Loads the frame into self.frame, a list of 3*n_atom floats
     """
     # Check bounds
-    if i < - 1*self.n_frame or i >= self.n_frame:
+    if i_frame < - 1*self.n_frame or i_frame >= self.n_frame:
       raise IndexError
-    elif i < 0:
-      i = self.n_frame + i
+    elif i_frame < 0:
+      i_frame = self.n_frame + i_frame
 
-    self.file.seek(self.pos_start_frame + i*(self.size_frame))
+    self.file.seek(self.pos_start_frame + i_frame*(self.size_frame))
 
     # read frame as list of 3 floats
     s = self.file.read(self.size_frame).replace('\n', '')
@@ -818,13 +818,13 @@ class TrjReader:
       raise ValueError("Improper number of coordinates in frame.")
 
     self.frame = vals
-    self.i_frame = i
+    self.i_frame = i_frame
 
-  def __getitem__(self, i):
+  def __getitem__(self, i_frame):
     """
     Returns the container for coordinates of the i'th frame.
     """
-    self.load_frame(i)
+    self.load_frame(i_frame)
     return self.frame
 
   def save_to_crd(self, crd):
@@ -873,10 +873,10 @@ class SoupTrajectory:
 
     self.n_frame = self.trj_reader.n_frame
 
-  def load_frame(self, i):
+  def load_frame(self, i_frame):
     # Load coordinates of soup with coordinates from self.trj_reader
-    crds = self.trj_reader[i]
-    vels = self.vel_trj_reader[i] if self.vel_trj_reader else None
+    crds = self.trj_reader[i_frame]
+    vels = self.vel_trj_reader[i_frame] if self.vel_trj_reader else None
     atoms = self.soup.atoms()
     for i in range(self.n_atom):
       atom = atoms[i]
@@ -913,8 +913,8 @@ class Trajectory:
     self.i_frame = 0
     self.load_frame(0)
 
-  def load_frame(self, i):
-    self.soup_trj.load_frame(i)
+  def load_frame(self, i_frame):
+    self.soup_trj.load_frame(i_frame)
     self.i_frame = self.soup_trj.i_frame
 
 

@@ -112,7 +112,8 @@ def transform(matrix, vector):
   """
   Returns vector of applying the transform in matrix to v.
   """
-  return np.dot(matrix[:3,:3], vector) + matrix[:3,3]  
+  # return np.dot(matrix[:3,:3], vector) + matrix[:3,3]  
+  return np.dot(matrix, np.append(vector,[1],0))[:3]
 
 
 def left_inverse(matrix):
@@ -167,9 +168,7 @@ def combine(m1, m2):
   """
   Returns transform that combines two other transforms.
   """
-  m3 = identity()
-  m3 = np.dot(m1, m2)
-  return m3
+  return np.dot(m1, m2)
 
 
 def is_similar_mag(a, b, small=1E-5):
