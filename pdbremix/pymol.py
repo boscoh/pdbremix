@@ -305,7 +305,7 @@ def bfactor_script(pdb, lower_bfactor=None, upper_bfactor=None,
     else:
       script += "show stick\n"
   script += ligands_as_sticks_script([pdb])
-  script += hide_backbone_sticks_script()
+  script += hide_backbone_sticks_script
   return script
 
 
@@ -322,7 +322,7 @@ def soup_to_bfactor_png(
        temp2_pdb, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
   if highlight_res is not None:
     script += highlight_res_script(highlight_res)
-    script += hide_backbone_sticks_script()
+    script += hide_backbone_sticks_script
   if 'frame_pymol_script' in soup.__dict__:
     script += soup.frame_pymol_script
   script += "clip far, -20\n"
@@ -370,7 +370,7 @@ def make_pdb_png(
   script += ligands_as_sticks_script(pdbs)
   if highlight_res:
     script += highlight_res_script(highlight_res)
-  script += hide_backbone_sticks_script()
+  script += hide_backbone_sticks_script
   # script += "clip far, 5\n"
   script += "save %s\n" % png
   script += "quit"

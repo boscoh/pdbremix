@@ -206,6 +206,28 @@ class KineticEnergyAnalyzer(TrajectoryAnalyzer):
     return results
 
 
+class ResidueDeviationAnalyzer(TrajectoryAnalyzer):
+  """
+  TrajectoryAnalyzer to calculate kinetic energy of residues.
+  """
+  var_name = 'dev'
+  def calculate_results(self):
+    ref_crds = []
+    crds = []
+    for ref_residue, residue in zip(self.ref_soup.residues(), self.soup.residues()):
+      if residue.type not in data.solvent_res_types:
+        if residue.has_atom('CA'):
+          ref_crds.append(ref_residue.atom('CA').pos.copy())
+          crds.append(residue.atom('CA').pos.copy())
+    center = v3.get_center(crds)
+    crds = [c - center for c in crds]
+    ref_center = v3.get_center(ref_crds)
+    ref_crds = [c - ref_center for c in ref_crds]
+    rmsd_val, transform_ref_to_this = rmsd.calc_rmsd_rot(ref_crds, crds)
+    ref_crds = [v3.transform(transform_ref_to_this, c) for c in ref_crds]
+    return [v3.distance(crd, ref_crd) for crd, ref_crd in zip(crds, ref_crds)]
+
+
 def guess_n_frame_per_ps(basename):
   """
   Returns the n_frame_per_ps of a trajectory by reading any
@@ -239,7 +261,8 @@ def analyze_trajectory(
   if n_frame_per_ps is None:
     n_frame_per_ps = guess_n_frame_per_ps(basename)
   if analyzer_classes is None:
-    analyzer_classes = [KineticEnergyAnalyzer, CaRmsdAnalyzer]
+    analyzer_classes = \
+        [KineticEnergyAnalyzer, CaRmsdAnalyzer, ResidueDeviationAnalyzer]
   analyzers = [a(trj, n_frame_per_ps, ref_pdb) \
                for a in analyzer_classes]
 
