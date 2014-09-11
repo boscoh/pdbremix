@@ -5,10 +5,11 @@ __doc__ = """
 Aligns and displays homologous proteins and multiple models of
 PDB structures using MAFFT, THESEUS and PYMOL
 
-Usage: pdboverlay [-hs] [<pdb>] ...
+Usage: pdboverlay [-s -f] <pdb> ...
 
 Options:
--s    only take 1st model conformation
+-f    only take 1st model conformation
+-s    don't show 
 
 Intermediate files are saved in the 'pdboverlay' directory.
 If restarted with no parameters and `pdboverlay` exists,
@@ -281,7 +282,7 @@ if __name__ == "__main__":
         numbered_pdbs.append(numbered_pdb)
         os.rename(target_pdb, numbered_pdb)
         i_pdb += 1
-        if arg['-s']:
+        if arg['-f']:
           break
     if len(numbered_pdbs) == 1:
       os.rename(numbered_pdbs[0], pdbs[0])
@@ -296,6 +297,6 @@ if __name__ == "__main__":
     open('overlay.pml', 'w').write(pymol_script(pdbs))
     open('filelist.txt', 'w').write(' '.join(fnames))
 
-  if not arg['-h']:
+  if not arg['-s']:
     pymol.run_pymol_script('overlay.pml')
   
