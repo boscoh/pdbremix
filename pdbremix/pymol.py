@@ -374,14 +374,14 @@ def get_pdb_transform(pdb, center_res, top_res):
   angle = v3.vec_dihedral(view, axis, center_atom.pos)
   rotation = v3.rotation(axis, angle)
   soup.transform(rotation)
-  result = rotation * translation
+  result = v3.combine(rotation, result)
 
   top_atom = find_ca_of_resname(soup.atoms(), top_res)
   top_dir = v3.vector(0, 1, 0)
   axis = view.copy()
   angle = v3.vec_dihedral(top_dir, axis, top_atom.pos)
   rotation2 = v3.rotation(axis, angle)
-  result = rotation2*result
+  result = v3.combine(rotation2, result)
   
   del soup
   return result
