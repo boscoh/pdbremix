@@ -5,6 +5,7 @@ Run rip expriments
 
 Usage: ripit run <param> 
        ripit prep <pdb> [<out_dir>]
+       ripit analyze <pdb> <rip_dir>
 
 Example <param>:
 
@@ -19,7 +20,12 @@ Example <param>:
 }
 """
 
-import os, time
+import os
+import time
+
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib import pylab
 
 from pdbremix import pdbatoms
 from pdbremix import simulate
@@ -31,6 +37,7 @@ from pdbremix import trajectory
 from pdbremix import fetch
 from pdbremix import data
 from pdbremix import v3
+from pdbremix import trajectory
 
 
 
@@ -150,13 +157,145 @@ def prepare(pdb, sim_dir):
         }
         util.write_dict(config, params)
 
+
+############################################
+# RIP-analysis 
+
+def get_res_dir_list(rip_dir):
+  for root_dir, dirnames, fnames in os.walk(rip_dir):
+    if root_dir == rip_dir:
+      res_dir_list = [d for d in dirnames if d.isdigit()]
+      break
+  res_dir_list.sort(key=lambda r: int(r))
+  return res_dir_list
+
+
+def get_matrix_from_dir(n_res, rip_dir, res_dir_list):
+  matrix = np.zeros((n_res, n_res))
+  for res_dir in res_dir_list:
+    i_res = int(res_dir)
+    fname = os.path.join(rip_dir, res_dir, 'md.dev.per_frame')
+    if not os.path.isfile(fname):
+      md = '%s/md' % os.path.join(rip_dir, res_dir)
+      trajectory.analyze_trajectory(md)
+    lines = open(fname).readlines()
+    words = lines[-1].split()
+    devs = map(float, words[1:])
+    matrix[i_res][:] = devs
+  return matrix
+
+
+def make_block_matrix(matrix, min_val):
+  """
+  Uses a min_val cutoff and converts a float-based matrix
+  array into a binary 1,0 array.
+  """
+  result = matrix.copy()
+  n_x, n_y = np.shape(matrix)
+  for i in range(n_x):
+    for j in range(n_y):
+      if result[i,j] > min_val:
+        result[i,j] = 1
+      else:
+        result[i,j] = 0
+  return result
+
+
+def count_vals_over_min_per_column(matrix, min_val):
+  block_matrix = make_block_matrix(matrix, min_val)
+  n_bin = block_matrix.shape[0]
+  for i in range(n_bin):
+    block_matrix[i,i] = 0
+  result = np.zeros(n_bin, int)
+  for i in range(n_bin):
+    result[i] = sum(block_matrix[i,:])
+  return result
+
+
+def write_soup_bfactor(soup, bfactors, pdb):
+  for a in soup.atoms():
+    a.bfactor = 0.0
+  residues = [r for r in soup.residues() if r.has_atom('CA')]
+  for bfactor, res in zip(bfactors, residues):
+    for a in res.atoms():
+      a.bfactor = bfactor
+  soup.write_pdb(pdb)
+
+
+def save_matrix_to_png(matrix, png):
+  pylab.clf()
+  
+  # draw heat map
+  plot = plt.imshow(matrix, interpolation='none')
+  plot.set_cmap('Reds')
+
+  # draw diagonal lines of green circles
+  x_vals, y_vals = [], []
+  n = matrix.shape[0]
+  size = int((350/float(n))**2)
+  if size==0:
+    size = 1
+  for i in range(n):
+    if sum(matrix[i,:]) > 0:
+      x_vals.append(i)
+      y_vals.append(i)
+  if x_vals:
+    pylab.scatter(
+        x_vals, y_vals, s=size, marker='o', 
+        facecolor='g', edgecolor='none') 
+    pylab.xlim([-0.5, n-0.5])
+    pylab.ylim([n, 0.5])
+
+  pylab.savefig(png)
+
+
+def get_fluctuations_per_column(matrix, min_val):
+  n_residue = matrix.shape[0]
+  y_vals = []
+  for j in range(n_residue):
+    fluctuations = []
+    for i in range(n_residue):
+      v = matrix[i,j]
+      if abs(i-j) > 3 and v > min_val:
+        fluctuations.append(v-min_val)
+    if fluctuations:
+      mean = sum(fluctuations)/float(len(fluctuations))
+    else:
+      mean = 0.0
+    y_vals.append(mean)
+  return y_vals
+
+
+def analyze_rip_dir(pdb, rip_dir):
+  min_val, max_val = 6, 10
+
+  soup = pdbatoms.Soup(pdb)
+  has_ca = lambda r: r.has_atom('CA')
+  n_res = len(filter(has_ca, soup.residues()))
+
+  res_dir_list = get_res_dir_list(rip_dir)
+  matrix = get_matrix_from_dir(n_res, rip_dir, res_dir_list)
+
+  save_matrix_to_png(matrix, 'map.png')
+
+  vals = count_vals_over_min_per_column(matrix, min_val)
+  write_soup_bfactor(soup, vals, 'strength.pdb')
+
+  vals = count_vals_over_min_per_column(matrix.transpose(), min_val)
+  write_soup_bfactor(soup, vals, 'flexibility.pdb')
+
+  vals = get_fluctuations_per_column(matrix, min_val)
+  write_soup_bfactor(soup, vals, 'fluctuation.pdb')
+
+
+
 if __name__ == "__main__":
   args = docopt(__doc__)
   if args['prep']:
     prepare(args['<pdb>'], args['<out_dir>'])
   elif args['run']:
     process_config(args['<param>'])
-
-  
+  elif args['analyze']:
+    analyze_rip_dir(args['<pdb>'], args['<rip_dir>'])
 
 

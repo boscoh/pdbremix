@@ -352,7 +352,7 @@ def find_ca_of_resname(atoms, resname):
     if chain_id == atom.chain_id and res_num == atom.res_num:
       if "CA" == atom.type:
         return atom
-  raise IndexError, "Can't find atom %s" % resname
+  return None
 
 
 def get_pdb_transform(pdb, center_res, top_res):
