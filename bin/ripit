@@ -3,8 +3,9 @@
 __doc__ = """
 Run rip expriments
 
-Usage: ripit run <param> 
-       ripit prep <pdb> [<out_dir>]
+Usage: ripit run <param> ...
+       ripit high <pdb> [<out_dir>]
+       ripit low <pdb> [<out_dir>]
        ripit analyze <pdb> <rip_dir>
 
 Example <param>:
@@ -125,15 +126,17 @@ def run_puff(params):
 
 
 def process_config(config):
-  done = os.path.abspath(config + '.done')
+  done = config + '.done'
+  save_dir = os.getcwd()
   if not os.path.isfile(done):
-    params = util.read_dict(args['<param>'])
+    params = util.read_dict(config)
     run_or_wait_for_equil(params)
     run_puff(params)
+    os.chdir(save_dir)
     open(done, 'w').write('done')
 
 
-def prepare(pdb, sim_dir):
+def prepare_high(pdb, sim_dir):
   if not sim_dir:
     sim_dir = os.getcwd()
   sim_dir = os.path.abspath(sim_dir)
@@ -151,6 +154,31 @@ def prepare(pdb, sim_dir):
           'i_residue': i_res,
           'rip_temperature': 300,
           'equil_temperature': 300,
+          'n_step': 5000, 
+          'var_name': 'rip',
+          'sim_dir': sim_dir,
+        }
+        util.write_dict(config, params)
+
+
+def prepare_low(pdb, sim_dir):
+  if not sim_dir:
+    sim_dir = os.getcwd()
+  sim_dir = os.path.abspath(sim_dir)
+  pdb = os.path.abspath(pdb)
+  soup = pdbatoms.Soup(pdb)
+  pdb_code = os.path.splitext(pdb)[0]
+  for i_res, res in enumerate(soup.residues()):
+    if res.type not in data.solvent_res_types:
+      if force.get_n_chi(res) and res.type != 'PRO':
+        config = '%s.rip.%d.config' % (pdb_code, i_res)
+        print res.tag(), res.type, '->', util.relpath(config)
+        params = {
+          'ff': 'AMBER11-GBSA',
+          'pdb': pdb,
+          'i_residue': i_res,
+          'rip_temperature': 26,
+          'equil_temperature': 10,
           'n_step': 5000, 
           'var_name': 'rip',
           'sim_dir': sim_dir,
@@ -243,8 +271,8 @@ def save_matrix_to_png(matrix, png):
     pylab.scatter(
         x_vals, y_vals, s=size, marker='o', 
         facecolor='g', edgecolor='none') 
-    pylab.xlim([-0.5, n-0.5])
-    pylab.ylim([n, 0.5])
+  pylab.xlim([-0.5, n-0.5])
+  pylab.ylim([-0.5, n-0.5])
 
   pylab.savefig(png)
 
@@ -288,13 +316,15 @@ def analyze_rip_dir(pdb, rip_dir):
   write_soup_bfactor(soup, vals, 'fluctuation.pdb')
 
 
-
 if __name__ == "__main__":
   args = docopt(__doc__)
-  if args['prep']:
-    prepare(args['<pdb>'], args['<out_dir>'])
+  if args['high']:
+    prepare_high(args['<pdb>'], args['<out_dir>'])
+  elif args['low']:
+    prepare_low(args['<pdb>'], args['<out_dir>'])
   elif args['run']:
-    process_config(args['<param>'])
+    for param in args['<param>']:
+      process_config(param)
   elif args['analyze']:
     analyze_rip_dir(args['<pdb>'], args['<rip_dir>'])
 
