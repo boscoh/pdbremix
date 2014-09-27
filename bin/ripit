@@ -1,32 +1,37 @@
 #!/usr/bin/env python
 
 __doc__ = """
-Run rip expriments
+Run RIP residue perturbation MD simulations for a 
+PDB structure. Note residues are counted from 0, 
+which is Python-style counting
 
-Usage: ripit run <param> ...
-       ripit high <pdb> [<out_dir>]
-       ripit low <pdb> [<out_dir>]
-       ripit analyze <pdb> <rip_dir>
+Usage: ripit high <pdb> <out_dir>
+       ripit low <pdb> <out_dir>
+       ripit run <param> ...
+       ripit coupling <pdb> <rip_dir>
+       ripit flexibility <pdb> <rip_dir>
 
-Example <param>:
+Example: Generate the config files for a set of MD
+runs for a high temperature RIP run.
 
-{ 'equil_temperature': 300,
-  'ff': 'AMBER11-GBSA',
-  'i_residue': 0,
-  'n_step': 5000,
-  'pdb': '/Users/bosco/Projects/examples/2evq.pdb',
-  'rip_temperature': 300,
-  'sim_dir': '/Users/bosco/Projects/examples',
-  'var_name': 'rip'
-}
+    >>> ripit high example.pdb high_rip
+
+Example: Generate the config files for a set of MD
+runs for a high temperature RIP run.
+
+    >>> ripit low example.pdb low_rip
+
 """
 
 import os
 import time
+import math
 
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import pylab
+
+from jinja2 import Template
 
 from pdbremix import pdbatoms
 from pdbremix import simulate
@@ -39,6 +44,7 @@ from pdbremix import fetch
 from pdbremix import data
 from pdbremix import v3
 from pdbremix import trajectory
+from pdbremix import pymol
 
 
 
@@ -143,10 +149,11 @@ def prepare_high(pdb, sim_dir):
   pdb = os.path.abspath(pdb)
   soup = pdbatoms.Soup(pdb)
   pdb_code = os.path.splitext(pdb)[0]
+  var_name = 'rip'
   for i_res, res in enumerate(soup.residues()):
     if res.type not in data.solvent_res_types:
       if force.get_n_chi(res) and res.type != 'PRO':
-        config = '%s.rip.%d.config' % (pdb_code, i_res)
+        config = '%s.%s.res%d.config' % (pdb_code, var_name, i_res)
         print res.tag(), res.type, '->', util.relpath(config)
         params = {
           'ff': 'AMBER11-GBSA',
@@ -155,7 +162,7 @@ def prepare_high(pdb, sim_dir):
           'rip_temperature': 300,
           'equil_temperature': 300,
           'n_step': 5000, 
-          'var_name': 'rip',
+          'var_name': var_name,
           'sim_dir': sim_dir,
         }
         util.write_dict(config, params)
@@ -168,10 +175,11 @@ def prepare_low(pdb, sim_dir):
   pdb = os.path.abspath(pdb)
   soup = pdbatoms.Soup(pdb)
   pdb_code = os.path.splitext(pdb)[0]
+  var_name = 'rip'
   for i_res, res in enumerate(soup.residues()):
     if res.type not in data.solvent_res_types:
       if force.get_n_chi(res) and res.type != 'PRO':
-        config = '%s.rip.%d.config' % (pdb_code, i_res)
+        config = '%s.%s.res%d.config' % (pdb_code, var_name, i_res)
         print res.tag(), res.type, '->', util.relpath(config)
         params = {
           'ff': 'AMBER11-GBSA',
@@ -180,14 +188,14 @@ def prepare_low(pdb, sim_dir):
           'rip_temperature': 26,
           'equil_temperature': 10,
           'n_step': 5000, 
-          'var_name': 'rip',
+          'var_name': var_name,
           'sim_dir': sim_dir,
         }
         util.write_dict(config, params)
 
 
 ############################################
-# RIP-analysis 
+# flexibility RIP-analysis 
 
 def get_res_dir_list(rip_dir):
   for root_dir, dirnames, fnames in os.walk(rip_dir):
@@ -198,18 +206,18 @@ def get_res_dir_list(rip_dir):
   return res_dir_list
 
 
-def get_matrix_from_dir(n_res, rip_dir, res_dir_list):
+def get_matrix_from_dir(
+    n_res, rip_dir, md_var_fname='md.dev.per_frame'):
   matrix = np.zeros((n_res, n_res))
-  for res_dir in res_dir_list:
+  for res_dir in get_res_dir_list(rip_dir):
     i_res = int(res_dir)
-    fname = os.path.join(rip_dir, res_dir, 'md.dev.per_frame')
+    fname = os.path.join(rip_dir, res_dir, md_var_fname)
     if not os.path.isfile(fname):
       md = '%s/md' % os.path.join(rip_dir, res_dir)
       trajectory.analyze_trajectory(md)
-    lines = open(fname).readlines()
-    words = lines[-1].split()
-    devs = map(float, words[1:])
-    matrix[i_res][:] = devs
+    last_line = open(fname).readlines()[-1]
+    words = last_line.split()
+    matrix[i_res][:] = map(float, words[1:])
   return matrix
 
 
@@ -296,24 +304,255 @@ def get_fluctuations_per_column(matrix, min_val):
 
 def analyze_rip_dir(pdb, rip_dir):
   min_val, max_val = 6, 10
+  out_dir = os.path.join(rip_dir, '../summary')
+  if not os.path.isdir(out_dir):
+    os.makedirs(out_dir)
 
   soup = pdbatoms.Soup(pdb)
   has_ca = lambda r: r.has_atom('CA')
   n_res = len(filter(has_ca, soup.residues()))
 
-  res_dir_list = get_res_dir_list(rip_dir)
-  matrix = get_matrix_from_dir(n_res, rip_dir, res_dir_list)
+  matrix = get_matrix_from_dir(
+      n_res, rip_dir, 'md.dev.per_frame')
 
-  save_matrix_to_png(matrix, 'map.png')
+  save_matrix_to_png(matrix, os.path.join(out_dir, 'map.png'))
 
   vals = count_vals_over_min_per_column(matrix, min_val)
-  write_soup_bfactor(soup, vals, 'strength.pdb')
+  write_soup_bfactor(
+      soup, vals, os.path.join(out_dir, 'strength.pdb'))
 
   vals = count_vals_over_min_per_column(matrix.transpose(), min_val)
-  write_soup_bfactor(soup, vals, 'flexibility.pdb')
+  write_soup_bfactor(
+      soup, vals, os.path.join(out_dir, 'flexibility.pdb'))
 
   vals = get_fluctuations_per_column(matrix, min_val)
-  write_soup_bfactor(soup, vals, 'fluctuation.pdb')
+  write_soup_bfactor(
+      soup, vals, os.path.join(out_dir, 'fluctuation.pdb'))
+
+
+# coupling analysis routines
+
+def is_connected(i, j, soup, cutoff=3.5):
+  if i == j:
+    return False
+  min_dist = 1000.0
+  for atom_i in soup.residue(i).atoms():
+    for atom_j in soup.residue(j).atoms():
+      dist = v3.distance(atom_i.pos, atom_j.pos)
+      if dist < min_dist:
+        min_dist = dist
+  return min_dist < cutoff
+
+
+backbone = ['CA', 'HA', 'N', 'H', 'O', 'C']
+def is_sidechain_connected(i, j, soup, cutoff=3.5):
+  if abs(i-j) <= 2:
+    return False
+  min_dist = 1000.0
+  sidechain_atoms_i = [a for a in soup.residue(i).atoms() 
+                       if a.type not in backbone]
+  for atom_i in sidechain_atoms_i:
+    for atom_j in soup.residue(j).atoms():
+      dist = v3.distance(atom_i.pos, atom_j.pos)
+      if dist < min_dist:
+        min_dist = dist
+  return min_dist < cutoff
+
+
+def merge_residues(residues1, residues2):
+  for i in residues2:
+    if i not in residues1:
+      residues1.append(i)
+  
+  
+def get_connected_residues(i, residues, soup):
+  connected_residues = [i]
+  neighbors = [j for j in residues if is_connected(i, j, soup)]
+  connected_residues.extend(neighbors)
+  non_neighbors = [j for j in residues if j not in neighbors]
+  if non_neighbors:
+    for j in neighbors:
+      connected_to_j = \
+          get_connected_residues(j, non_neighbors, soup)
+      merge_residues(connected_residues, connected_to_j)
+  return connected_residues
+
+
+def indices_above_threshold(data, i, min_val):
+  n = data.shape[0]
+  return [j for j in range(n) if data[i,j] >= min_val and i != j]
+
+
+def neighbors_above_threshold(i, data, min_val, soup):
+  residues = indices_above_threshold(data, i, min_val)
+  return [j for j in residues if is_sidechain_connected(i, j, soup)]
+
+  
+def filter_disconnected_residues(i, data, min_val, soup):
+  n_res = data.shape[0]
+  residues = indices_above_threshold(data, i, min_val)
+  neighbors = [j for j in residues 
+               if is_sidechain_connected(i, j, soup)]
+  non_neighbors = [j for j in residues if j not in neighbors]
+  connected_residues = [i]
+  for j in neighbors:
+    connected_to_j = \
+        get_connected_residues(j, non_neighbors, soup)
+    merge_residues(connected_residues, connected_to_j)
+  for j in range(n_res):
+    if j not in connected_residues:
+      data[i, j] = 0.0    
+
+
+def filter_indirectly_coupled(i, data, min_val, soup):
+  n_res = data.shape[0]
+  residues = indices_above_threshold(data, i, min_val)
+  neighbors = [j for j in residues 
+               if is_sidechain_connected(i, j, soup)]
+  for j in range(n_res):
+    if j not in neighbors:
+      data[i, j] = 0.0    
+
+
+def filter_short_pathways(i, data, min_val):
+  n_res = data.shape[0]
+  n_above_min_val = sum([1 for v in data[i,:] if v >= min_val])
+  if n_above_min_val < 3:
+    for j in range(n_res):
+      data[i, j] = 0.0
+
+
+def filter_immediate_neighbors(i, data, min_val):
+  n_res = data.shape[0]
+  test_j = [j for j in range(i-1, i+1+1) 
+            if j>=0 and j<n_res and i!=j]
+  for j in test_j:
+    data[i,j] = 0.0
+
+
+def make_pathway_from_heatflow(heatflow, min_val, pdb):
+  soup = pdbatoms.Soup(pdb)
+  pathway = heatflow.copy()
+  n_res = pathway.shape[0]
+  for i in range(n_res):
+    for j in range(n_res):
+      if pathway[i,j] <= min_val:
+        pathway[i,j] = 0.0
+    filter_immediate_neighbors(i, pathway, min_val)
+    filter_disconnected_residues(
+        i, pathway, min_val, soup)
+    filter_short_pathways(i, pathway, min_val)
+  return pathway
+
+
+def make_coupling_from_pathway(pathway, min_val, pdb):
+  n_res = pathway.shape[0]
+  coupling = np.zeros((n_res, n_res), float)
+  soup = pdbatoms.Soup(pdb)
+  for i in range(n_res):
+    for j in neighbors_above_threshold(
+        i, pathway, min_val, soup):
+      coupling[i,j] = 1.0
+  return coupling
+
+
+def get_cutoff_from_matrix(matrix):
+  vals = [d for d in matrix.flatten() if d > 0.0]
+  n = float(len(vals))
+  avg = sum(vals)/n
+  var = sum((v-avg)**2 for v in vals)/n
+  std = math.sqrt(var)
+  return avg + 2.0*std
+
+
+template = """
+<html>
+<head><title>{{attributes['name']}}</title></head>
+<body>
+
+  <div style="font-size:2em; padding:2em; text-align:left">
+    {{attributes['name']}}
+  </div>
+
+  {% for entry in attributes['residues']: %}
+  <table style="width:100%; border-top:1px solid #CCC">
+    <td style="width:260px; vertical-align:top;">
+      <span style="font-size:1.5em;">res {{entry['i_res']}}</span>
+      <br />
+      <img style="height:150px" src="{{entry['plot_png']}}">
+    </td>
+    <td>
+    {% for coupling_png in entry['coupling_pngs']: %}
+      <img style="height:150px" src="{{coupling_png}}">
+    {% endfor %}
+    </td>
+  </table>
+  {% endfor %}
+
+</body></html>
+"""
+
+
+def analyze_couplings_rip_dir(pdb, rip_dir):
+  out_dir = os.path.join(rip_dir, '../summary')
+  if not os.path.isdir(out_dir):
+    os.makedirs(out_dir)
+
+  has_ca = lambda r: r.has_atom('CA')
+  n_res = len(filter(has_ca, pdbatoms.Soup(pdb).residues()))
+
+  heatflow = get_matrix_from_dir(
+      n_res, rip_dir, 'md.kin.per_frame')
+  save_matrix_to_png(
+      heatflow, os.path.join(out_dir, 'heatflow.png'))
+
+  min_val = get_cutoff_from_matrix(heatflow)
+  max_val = min_val*2.0
+
+  pathway = make_pathway_from_heatflow(heatflow, min_val, pdb)
+  save_matrix_to_png(
+      pathway, os.path.join(out_dir, 'pathway.png'))
+
+  coupling = make_coupling_from_pathway(pathway, min_val, pdb)
+  save_matrix_to_png(
+      coupling, os.path.join(out_dir, 'coupling.png'))
+
+  attributes = {
+    'name': 'Heat Flow',
+    'residues': []
+  }
+  soup = pdbatoms.Soup(pdb)
+  for res_dir in get_res_dir_list(rip_dir):
+    i_res = int(res_dir)
+    pylab.clf()
+    pylab.plot(range(n_res), heatflow[i_res])
+    pylab.ylim([0, 0.2])
+    png = 'heat.res%d.png' % i_res
+    pylab.savefig(os.path.join(out_dir, png))
+    entry = {
+      'i_res': i_res,
+      'plot_png': png,
+      'coupling_pngs': []
+    }
+    for j_res in range(n_res):
+      if coupling[i_res,j_res] > 0:
+        bfactors = [0 for i in range(n_res)]
+        bfactors[i_res] = 1.0
+        bfactors[j_res] = 1.0
+        coupling_png = 'coupling.res%d.tes%d.png' % \
+            (i_res, j_res)
+        pymol.soup_to_bfactor_png(
+            soup,
+            os.path.join(out_dir, coupling_png),
+            bfactors)
+        entry['coupling_pngs'].append(coupling_png) 
+    attributes['residues'].append(entry)
+
+  attributes['pngs'] = png
+  t = Template(template)
+  s = t.render(attributes=attributes)
+  open(os.path.join(out_dir, 'index.html'), 'w').write(s)
+
 
 
 if __name__ == "__main__":
@@ -325,7 +564,9 @@ if __name__ == "__main__":
   elif args['run']:
     for param in args['<param>']:
       process_config(param)
-  elif args['analyze']:
+  elif args['flexibility']:
     analyze_rip_dir(args['<pdb>'], args['<rip_dir>'])
+  elif args['coupling']:
+    analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
 
 

@@ -297,7 +297,7 @@ def bfactor_script(pdb, lower_bfactor=None, upper_bfactor=None,
   if is_putty:
     script += putty_script(get_scale_max(max_bfactor, upper_bfactor))
   else:
-    script += cartoon_script()
+    script += cartoon_script
     script += "cartoon tube\n"
   if not is_putty:
     if lower_bfactor is not None:
@@ -314,12 +314,12 @@ def soup_to_bfactor_png(
     highlight_res=None, is_putty=False):
   temp_pdb = util.temp_fname('.pdb')
   soup.load_residue_bfactors(bfactors)
-  max_bfactor = rescale_positive_bfactors_pdb(soup, temp_pdb, 
-                lower_bfactor, upper_bfactor)
-  temp2_pdb = strip_solvent_pdb(temp_pdb)
-  script = bgcolor_script('white')
+  soup.write_pdb(temp_pdb)
+  max_bfactor = rescale_positive_bfactors_pdb(
+      temp_pdb, lower_bfactor, upper_bfactor)
+  script = ""
   script += bfactor_script(
-       temp2_pdb, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
+       temp_pdb, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
   if highlight_res is not None:
     script += highlight_res_script(highlight_res)
     script += hide_backbone_sticks_script
@@ -333,8 +333,10 @@ def soup_to_bfactor_png(
     width = soup.width
   if 'height' in soup.__dict__:
     height = soup.height
-  run_pymol_script(script, width, height)
-  util.clean_fname(temp_pdb, temp2_pdb)
+  pml = 'temp.pml'
+  open(pml, 'w').write(script)
+  run_pymol_script(pml, width, height)
+  util.clean_fname(temp_pdb)
 
 
 def split_resname(resname):
