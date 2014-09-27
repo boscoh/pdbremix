@@ -250,7 +250,7 @@ class PushApartByVel():
       anderson_velocity_scale(atoms, self.temperature, 3*len(atoms))
 
     # select the atoms from the domains definition
-    selection = data.backbone_atoms if self.is_backbone_only else None
+    selection = ['CA'] if self.is_backbone_only else None
     self.atoms1 = get_atoms_of_residues(self.soup, self.domain1, selection)
     self.atoms2 = get_atoms_of_residues(self.soup, self.domain2, selection)
 
