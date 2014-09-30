@@ -8,8 +8,8 @@ which is Python-style counting
 Usage: ripit high <pdb> <out_dir>
        ripit low <pdb> <out_dir>
        ripit run <param> ...
-       ripit coupling <pdb> <rip_dir>
-       ripit flexibility <pdb> <rip_dir>
+       ripit couple <pdb> <rip_dir>
+       ripit flex <pdb> <rip_dir>
 
 Example: Generate the config files for a set of MD
 runs for a high temperature RIP run.
@@ -28,7 +28,6 @@ import time
 import math
 
 import numpy as np
-from matplotlib import pyplot as plt
 from matplotlib import pylab
 
 from jinja2 import Template
@@ -213,7 +212,7 @@ def get_matrix_from_dir(
     i_res = int(res_dir)
     fname = os.path.join(rip_dir, res_dir, md_var_fname)
     if not os.path.isfile(fname):
-      md = '%s/md' % os.path.join(rip_dir, res_dir)
+      md = os.path.join(rip_dir, res_dir, 'md')
       trajectory.analyze_trajectory(md)
     last_line = open(fname).readlines()[-1]
     words = last_line.split()
@@ -248,6 +247,21 @@ def count_vals_over_min_per_column(matrix, min_val):
   return result
 
 
+def write_matrix(matrix, fname):
+  n_bin = matrix.shape[0]
+  lines = []
+  for j in range(n_bin):
+    strs = [str(val) for val in matrix[:,j]]
+    line = ' '.join(strs)
+    lines.append(line)
+  open(fname, 'w').write('\n'.join(lines))
+
+
+def write_vals(vals, fname):
+  line = ' '.join(map(str, vals))
+  open(fname, 'w').write(line)
+
+
 def write_soup_bfactor(soup, bfactors, pdb):
   for a in soup.atoms():
     a.bfactor = 0.0
@@ -258,12 +272,16 @@ def write_soup_bfactor(soup, bfactors, pdb):
   soup.write_pdb(pdb)
 
 
-def save_matrix_to_png(matrix, png):
+def write_matrix_png(matrix, png, max_val=None):
   pylab.clf()
   
+  # make room for legend
+  pylab.axes([.1, .1, .7, .8])
+
   # draw heat map
-  plot = plt.imshow(matrix, interpolation='none')
+  plot = pylab.imshow(matrix, interpolation='none', vmax=max_val)
   plot.set_cmap('Reds')
+  pylab.colorbar()
 
   # draw diagonal lines of green circles
   x_vals, y_vals = [], []
@@ -302,9 +320,9 @@ def get_fluctuations_per_column(matrix, min_val):
   return y_vals
 
 
-def analyze_rip_dir(pdb, rip_dir):
+def analyze_flex_rip_dir(pdb, rip_dir):
   min_val, max_val = 6, 10
-  out_dir = os.path.join(rip_dir, '../summary')
+  out_dir = os.path.join(rip_dir, '..', 'summary')
   if not os.path.isdir(out_dir):
     os.makedirs(out_dir)
 
@@ -315,22 +333,28 @@ def analyze_rip_dir(pdb, rip_dir):
   matrix = get_matrix_from_dir(
       n_res, rip_dir, 'md.dev.per_frame')
 
-  save_matrix_to_png(matrix, os.path.join(out_dir, 'map.png'))
-
+  max_rmsd = 15
+  write_matrix(matrix, os.path.join(out_dir, 'map.txt'))
+  write_matrix_png(matrix, os.path.join(out_dir, 'map.png'), max_rmsd)
+  
   vals = count_vals_over_min_per_column(matrix, min_val)
   write_soup_bfactor(
       soup, vals, os.path.join(out_dir, 'strength.pdb'))
+  write_vals(vals, os.path.join(out_dir, 'strength.txt'))
 
   vals = count_vals_over_min_per_column(matrix.transpose(), min_val)
   write_soup_bfactor(
       soup, vals, os.path.join(out_dir, 'flexibility.pdb'))
+  write_vals(vals, os.path.join(out_dir, 'flexibility.txt'))
 
   vals = get_fluctuations_per_column(matrix, min_val)
   write_soup_bfactor(
       soup, vals, os.path.join(out_dir, 'fluctuation.pdb'))
+  write_vals(vals, os.path.join(out_dir, 'fluctuations.txt'))
 
 
-# coupling analysis routines
+###################################################
+# COUPLING analysis routines
 
 def is_connected(i, j, soup, cutoff=3.5):
   if i == j:
@@ -378,19 +402,19 @@ def get_connected_residues(i, residues, soup):
   return connected_residues
 
 
-def indices_above_threshold(data, i, min_val):
-  n = data.shape[0]
-  return [j for j in range(n) if data[i,j] >= min_val and i != j]
+def indices_above_threshold(matrix, i, min_val):
+  n = matrix.shape[0]
+  return [j for j in range(n) if matrix[i,j] >= min_val and i != j]
 
 
-def neighbors_above_threshold(i, data, min_val, soup):
-  residues = indices_above_threshold(data, i, min_val)
+def neighbors_above_threshold(i, matrix, min_val, soup):
+  residues = indices_above_threshold(matrix, i, min_val)
   return [j for j in residues if is_sidechain_connected(i, j, soup)]
 
   
-def filter_disconnected_residues(i, data, min_val, soup):
-  n_res = data.shape[0]
-  residues = indices_above_threshold(data, i, min_val)
+def filter_disconnected_residues(i, matrix, min_val, soup):
+  n_res = matrix.shape[0]
+  residues = indices_above_threshold(matrix, i, min_val)
   neighbors = [j for j in residues 
                if is_sidechain_connected(i, j, soup)]
   non_neighbors = [j for j in residues if j not in neighbors]
@@ -401,33 +425,33 @@ def filter_disconnected_residues(i, data, min_val, soup):
     merge_residues(connected_residues, connected_to_j)
   for j in range(n_res):
     if j not in connected_residues:
-      data[i, j] = 0.0    
+      matrix[i, j] = 0.0    
 
 
-def filter_indirectly_coupled(i, data, min_val, soup):
-  n_res = data.shape[0]
-  residues = indices_above_threshold(data, i, min_val)
+def filter_indirectly_coupled(i, matrix, min_val, soup):
+  n_res = matrix.shape[0]
+  residues = indices_above_threshold(matrix, i, min_val)
   neighbors = [j for j in residues 
                if is_sidechain_connected(i, j, soup)]
   for j in range(n_res):
     if j not in neighbors:
-      data[i, j] = 0.0    
+      matrix[i, j] = 0.0    
 
 
-def filter_short_pathways(i, data, min_val):
-  n_res = data.shape[0]
-  n_above_min_val = sum([1 for v in data[i,:] if v >= min_val])
+def filter_short_pathways(i, matrix, min_val):
+  n_res = matrix.shape[0]
+  n_above_min_val = sum([1 for v in matrix[i,:] if v >= min_val])
   if n_above_min_val < 3:
     for j in range(n_res):
-      data[i, j] = 0.0
+      matrix[i, j] = 0.0
 
 
-def filter_immediate_neighbors(i, data, min_val):
-  n_res = data.shape[0]
+def filter_immediate_neighbors(i, matrix, min_val):
+  n_res = matrix.shape[0]
   test_j = [j for j in range(i-1, i+1+1) 
             if j>=0 and j<n_res and i!=j]
   for j in test_j:
-    data[i,j] = 0.0
+    matrix[i,j] = 0.0
 
 
 def make_pathway_from_heatflow(heatflow, min_val, pdb):
@@ -503,19 +527,22 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
 
   heatflow = get_matrix_from_dir(
       n_res, rip_dir, 'md.kin.per_frame')
-  save_matrix_to_png(
+  write_matrix_png(
       heatflow, os.path.join(out_dir, 'heatflow.png'))
+  write_matrix(heatflow, os.path.join(out_dir, 'heatflow.txt'))
 
   min_val = get_cutoff_from_matrix(heatflow)
   max_val = min_val*2.0
 
   pathway = make_pathway_from_heatflow(heatflow, min_val, pdb)
-  save_matrix_to_png(
+  write_matrix_png(
       pathway, os.path.join(out_dir, 'pathway.png'))
+  write_matrix(pathway, os.path.join(out_dir, 'heatflow.txt'))
 
   coupling = make_coupling_from_pathway(pathway, min_val, pdb)
-  save_matrix_to_png(
+  write_matrix_png(
       coupling, os.path.join(out_dir, 'coupling.png'))
+  write_matrix(coupling, os.path.join(out_dir, 'coupling.txt'))
 
   attributes = {
     'name': 'Heat Flow',
@@ -564,9 +591,9 @@ if __name__ == "__main__":
   elif args['run']:
     for param in args['<param>']:
       process_config(param)
-  elif args['flexibility']:
-    analyze_rip_dir(args['<pdb>'], args['<rip_dir>'])
-  elif args['coupling']:
+  elif args['flex']:
+    analyze_flex_rip_dir(args['<pdb>'], args['<rip_dir>'])
+  elif args['couple']:
     analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
 
 
