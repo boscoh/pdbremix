@@ -160,7 +160,7 @@ def prepare_high(pdb, sim_dir):
           'i_residue': i_res,
           'rip_temperature': 300,
           'equil_temperature': 300,
-          'n_step': 5000, 
+          'n_step': 10000, 
           'var_name': var_name,
           'sim_dir': sim_dir,
         }
@@ -488,14 +488,16 @@ def get_cutoff_from_matrix(matrix):
   return avg + 2.0*std
 
 
-def plot_heat_png(png, x_vals, y_vals, y_min, y_max, i_res):
+def plot_heat_png(png, y_vals, y_min, y_max, i_res):
   pylab.clf()
-  pylab.plot(x_vals, y_vals)
-  pylab.plot(x_vals, [y_min for x in x_vals], color="red")
+  n_res = len(y_vals)
+  x_vals = [i-0.5+0.1 for i in range(n_res)]
+  pylab.bar(x_vals, y_vals, edgecolor='none', width=0.8)
+  pylab.plot([-0.5, n_res], [y_min, y_min], color="red")
   y_rip = y_vals[i_res]
-  y_arrow = y_max*0.9
-  y_text = y_max*0.92
-  y_diff = y_arrow - y_rip - y_max*0.02
+  y_arrow = y_rip + y_max*0.15
+  y_text = y_arrow + y_max*0.02
+  y_diff = y_arrow - y_rip - y_max*0.04
   pylab.arrow(
       i_res, y_arrow, 0, -y_diff, 
       edgecolor="green", facecolor="green",
@@ -503,7 +505,7 @@ def plot_heat_png(png, x_vals, y_vals, y_min, y_max, i_res):
   pylab.text(
       i_res, y_text, "RIP", color="green",
       horizontalalignment='center')
-  pylab.xlim([0, x_vals[-1]])
+  pylab.xlim([-0.5, n_res-0.5])
   pylab.ylim([0, y_max])
   pylab.savefig(png)
 
@@ -570,8 +572,7 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
     i_res = int(res_dir)
     png = 'heat.res%d.png' % i_res
     plot_heat_png(
-      os.path.join(out_dir, png), range(n_res), heatflow[i_res], 
-      min_val, 0.2, i_res)
+      os.path.join(out_dir, png), heatflow[i_res], min_val, 0.2, i_res)
     attributes['residues'].append({ 'i_res': i_res, 'plot_png': png })
   html = Template(template).render(attributes=attributes)
   open(os.path.join(out_dir, 'index.html'), 'w').write(html)
