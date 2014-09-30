@@ -276,6 +276,9 @@ def analyze_trajectory(
       if (i_frame+1) % n_frame_per_ps == 0 or i_frame == 0:
         analyzer.process_frame_on_ps()
 
+  # At last frame
+  trj.soup.write_pdb(basename + '.last.pdb')
+  
   for analyzer in analyzers:
     analyzer.close()
 

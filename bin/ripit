@@ -330,10 +330,9 @@ def analyze_flex_rip_dir(pdb, rip_dir):
   has_ca = lambda r: r.has_atom('CA')
   n_res = len(filter(has_ca, soup.residues()))
 
-  matrix = get_matrix_from_dir(
-      n_res, rip_dir, 'md.dev.per_frame')
+  matrix = get_matrix_from_dir(n_res, rip_dir, 'md.dev.per_frame')
 
-  max_rmsd = 15
+  max_rmsd = 10
   write_matrix(matrix, os.path.join(out_dir, 'map.txt'))
   write_matrix_png(matrix, os.path.join(out_dir, 'map.png'), max_rmsd)
   
@@ -489,6 +488,33 @@ def get_cutoff_from_matrix(matrix):
   return avg + 2.0*std
 
 
+def plot_heat_png(png, x_vals, y_vals, y_min, y_max, i_res):
+  pylab.clf()
+  pylab.plot(x_vals, y_vals)
+  pylab.plot(x_vals, [y_min for x in x_vals], color="red")
+  y_rip = y_vals[i_res]
+  y_arrow = y_max*0.9
+  y_text = y_max*0.92
+  y_diff = y_arrow - y_rip - y_max*0.02
+  pylab.arrow(
+      i_res, y_arrow, 0, -y_diff, 
+      edgecolor="green", facecolor="green",
+      head_width=0.1, head_length=y_max*0.02)
+  pylab.text(
+      i_res, y_text, "RIP", color="green",
+      horizontalalignment='center')
+  pylab.xlim([0, x_vals[-1]])
+  pylab.ylim([0, y_max])
+  pylab.savefig(png)
+
+
+def write_coupling_pdb(soup, i_res, j_res, coupling_pdb):
+  bfactors = [0 for i in range(len(soup.residues()))]
+  bfactors[i_res] = 2.0
+  bfactors[j_res] = 1.0
+  write_soup_bfactor(soup, bfactors, coupling_pdb)
+
+
 template = """
 <html>
 <head><title>{{attributes['name']}}</title></head>
@@ -504,11 +530,6 @@ template = """
       <span style="font-size:1.5em;">res {{entry['i_res']}}</span>
       <br />
       <img style="height:150px" src="{{entry['plot_png']}}">
-    </td>
-    <td>
-    {% for coupling_png in entry['coupling_pngs']: %}
-      <img style="height:150px" src="{{coupling_png}}">
-    {% endfor %}
     </td>
   </table>
   {% endfor %}
@@ -544,42 +565,25 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
       coupling, os.path.join(out_dir, 'coupling.png'))
   write_matrix(coupling, os.path.join(out_dir, 'coupling.txt'))
 
-  attributes = {
-    'name': 'Heat Flow',
-    'residues': []
-  }
+  attributes = { 'name': 'Heat Flow', 'residues': [] }
+  for res_dir in get_res_dir_list(rip_dir):
+    i_res = int(res_dir)
+    png = 'heat.res%d.png' % i_res
+    plot_heat_png(
+      os.path.join(out_dir, png), range(n_res), heatflow[i_res], 
+      min_val, 0.2, i_res)
+    attributes['residues'].append({ 'i_res': i_res, 'plot_png': png })
+  html = Template(template).render(attributes=attributes)
+  open(os.path.join(out_dir, 'index.html'), 'w').write(html)
+
   soup = pdbatoms.Soup(pdb)
   for res_dir in get_res_dir_list(rip_dir):
     i_res = int(res_dir)
-    pylab.clf()
-    pylab.plot(range(n_res), heatflow[i_res])
-    pylab.ylim([0, 0.2])
-    png = 'heat.res%d.png' % i_res
-    pylab.savefig(os.path.join(out_dir, png))
-    entry = {
-      'i_res': i_res,
-      'plot_png': png,
-      'coupling_pngs': []
-    }
     for j_res in range(n_res):
       if coupling[i_res,j_res] > 0:
-        bfactors = [0 for i in range(n_res)]
-        bfactors[i_res] = 1.0
-        bfactors[j_res] = 1.0
-        coupling_png = 'coupling.res%d.tes%d.png' % \
-            (i_res, j_res)
-        pymol.soup_to_bfactor_png(
-            soup,
-            os.path.join(out_dir, coupling_png),
-            bfactors)
-        entry['coupling_pngs'].append(coupling_png) 
-    attributes['residues'].append(entry)
-
-  attributes['pngs'] = png
-  t = Template(template)
-  s = t.render(attributes=attributes)
-  open(os.path.join(out_dir, 'index.html'), 'w').write(s)
-
+        coupling_pdb = os.path.join(
+            out_dir, 'coupling.res%d.res%d.pdb' % (i_res, j_res))
+        write_coupling_pdb(soup, i_res, j_res, coupling_pdb)
 
 
 if __name__ == "__main__":
