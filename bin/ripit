@@ -5,11 +5,11 @@ Run RIP residue perturbation MD simulations for a
 PDB structure. Note residues are counted from 0, 
 which is Python-style counting
 
-Usage: ripit high <pdb> <out_dir>
-       ripit low <pdb> <out_dir>
+Usage: ripit prep high <pdb> <out_dir>
+       ripit prep low <pdb> <out_dir>
        ripit run <param> ...
-       ripit couple <pdb> <rip_dir>
-       ripit flex <pdb> <rip_dir>
+       ripit summarize <pdb> <rip_dir>
+       ripit summarize <pdb> <rip_dir>
 
 Example: Generate the config files for a set of MD
 runs for a high temperature RIP run.
@@ -148,7 +148,7 @@ def prepare_high(pdb, sim_dir):
   pdb = os.path.abspath(pdb)
   soup = pdbatoms.Soup(pdb)
   pdb_code = os.path.splitext(pdb)[0]
-  var_name = 'rip'
+  var_name = 'high_rip'
   for i_res, res in enumerate(soup.residues()):
     if res.type not in data.solvent_res_types:
       if force.get_n_chi(res) and res.type != 'PRO':
@@ -174,7 +174,7 @@ def prepare_low(pdb, sim_dir):
   pdb = os.path.abspath(pdb)
   soup = pdbatoms.Soup(pdb)
   pdb_code = os.path.splitext(pdb)[0]
-  var_name = 'rip'
+  var_name = 'low_rip'
   for i_res, res in enumerate(soup.residues()):
     if res.type not in data.solvent_res_types:
       if force.get_n_chi(res) and res.type != 'PRO':
@@ -589,16 +589,16 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
 
 if __name__ == "__main__":
   args = docopt(__doc__)
-  if args['high']:
+  if  args['prep'] and args['high']:
     prepare_high(args['<pdb>'], args['<out_dir>'])
-  elif args['low']:
+  elif args['prep'] and args['low']:
     prepare_low(args['<pdb>'], args['<out_dir>'])
   elif args['run']:
     for param in args['<param>']:
       process_config(param)
-  elif args['flex']:
+  elif args['summarize'] and args['flex']:
     analyze_flex_rip_dir(args['<pdb>'], args['<rip_dir>'])
-  elif args['couple']:
+  elif args['summarize'] and args['couple']:
     analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
 
 
