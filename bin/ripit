@@ -5,8 +5,8 @@ Run RIP residue perturbation MD simulations for a
 PDB structure. Note residues are counted from 0, 
 which is Python-style counting
 
-Usage: ripit prep high <pdb> <out_dir>
-       ripit prep low <pdb> <out_dir>
+Usage: ripit prep high_rip <pdb> <out_dir>
+       ripit prep low_rip <pdb> <out_dir>
        ripit run <param> ...
        ripit extract couplings <pdb> <rip_dir>
        ripit extract flexibility <pdb> <rip_dir>
@@ -45,17 +45,6 @@ from pdbremix import v3
 from pdbremix import trajectory
 from pdbremix import pymol
 
-
-
-def make_restraint_pdb(
-    in_md, residue_indices, out_pdb, is_backbone_only=True):
-  soup = simulate.soup_from_restart_files(in_md)
-  for i_res in residue_indices:
-    for a in soup.residue(i_res).atoms():
-      if is_backbone_only and a.type not in data.backbone_atoms:
-        continue
-      a.bfactor = 1.0
-  soup.write_pdb(out_pdb)
 
 
 def run_equil(params):
@@ -211,6 +200,7 @@ def get_matrix_from_dir(
   for res_dir in get_res_dir_list(rip_dir):
     i_res = int(res_dir)
     fname = os.path.join(rip_dir, res_dir, md_var_fname)
+    print fname
     if not os.path.isfile(fname):
       md = os.path.join(rip_dir, res_dir, 'md')
       trajectory.analyze_trajectory(md)
@@ -350,6 +340,14 @@ def analyze_flex_rip_dir(pdb, rip_dir):
   write_soup_bfactor(
       soup, vals, os.path.join(out_dir, 'fluctuation.pdb'))
   write_vals(vals, os.path.join(out_dir, 'fluctuations.txt'))
+  
+  for res_dir in get_res_dir_list(rip_dir):
+    res_pdb = os.path.join(rip_dir, res_dir, 'md.last.pdb')
+    res_soup = pdbatoms.Soup(res_pdb)
+    bfactors = matrix[int(res_dir),:]
+    out_pdb = os.path.join(out_dir, 'dev.res' + res_dir + '.pdb')
+    write_soup_bfactor(res_soup, bfactors, out_pdb)
+
 
 
 ###################################################
@@ -589,9 +587,9 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
 
 if __name__ == "__main__":
   args = docopt(__doc__)
-  if  args['prep'] and args['high']:
+  if  args['prep'] and args['high_rip']:
     prepare_high(args['<pdb>'], args['<out_dir>'])
-  elif args['prep'] and args['low']:
+  elif args['prep'] and args['low_rip']:
     prepare_low(args['<pdb>'], args['<out_dir>'])
   elif args['run']:
     for param in args['<param>']:
