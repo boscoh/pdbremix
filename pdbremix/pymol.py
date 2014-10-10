@@ -315,11 +315,11 @@ def soup_to_bfactor_png(
   temp_pdb = util.temp_fname('.pdb')
   soup.load_residue_bfactors(bfactors)
   soup.write_pdb(temp_pdb)
-  max_bfactor = rescale_positive_bfactors_pdb(
+  temp_pdb2, max_bfactor = rescale_positive_bfactors_pdb(
       temp_pdb, lower_bfactor, upper_bfactor)
   script = ""
   script += bfactor_script(
-       temp_pdb, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
+       temp_pdb2, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
   if highlight_res is not None:
     script += highlight_res_script(highlight_res)
     script += hide_backbone_sticks_script
@@ -337,6 +337,8 @@ def soup_to_bfactor_png(
   open(pml, 'w').write(script)
   run_pymol_script(pml, width, height)
   util.clean_fname(temp_pdb)
+  util.clean_fname(temp_pdb2)
+  util.clean_fname(pml)
 
 
 def split_resname(resname):
