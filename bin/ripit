@@ -302,10 +302,8 @@ def write_soup_bfactor(soup, bfactors, pdb):
 
 def write_matrix_png(matrix, png, max_val=None):
   pylab.clf()
+  ax = pylab.gca()
   
-  # make room for legend
-  pylab.axes([.1, .1, .7, .8])
-
   # draw heat map
   plot = pylab.imshow(matrix, interpolation='none', vmax=max_val)
   plot.set_cmap('Reds')
@@ -325,6 +323,17 @@ def write_matrix_png(matrix, png, max_val=None):
     pylab.scatter(
         x_vals, y_vals, s=size, marker='o', 
         facecolor='g', edgecolor='none') 
+
+  # renumber for 1-based for residues
+  x_ticks = ax.get_xticks().tolist()
+  x_labels = [str(int(x+1)) for x in x_ticks]
+  ax.set_xticklabels(x_labels)
+
+  # renumber for 1-based for residues
+  y_ticks = ax.get_yticks().tolist()
+  y_labels = [str(int(y+1)) for y in y_ticks]
+  ax.set_yticklabels(y_labels)
+
   pylab.xlim([-0.5, n-0.5])
   pylab.ylim([-0.5, n-0.5])
 
@@ -389,36 +398,46 @@ def analyze_flex_rip_dir(pdb, rip_dir):
 
 flex_template = """
 <html>
-<head><title>{{attributes['name']}}</title></head>
+<head>
+  <title>{{attributes['name']}}</title>
+  <style>
+    div {
+      float: left;
+      padding: 2em 1em 0 0;
+      width:260px;
+    }
+  </style>
+</head>
 <body>
-
-  <div style="font-size:2em; padding:2em; text-align:left">
-    {{attributes['name']}}
+  <h1> {{attributes['name']}} </h1>
+  <div style="width:400px">
+    <img style="width:400px" src="map.png">
+    <br>
+    RMSD fluctuation map; each row corresponds to a RIP simulation.
+  </div>
+  <div>
+    <img style="width:260px" src="strength.png">
+    <br>
+    Red(10): number of residues perturbed by this residue
+  </div>
+  <div>
+    <img style="width:260px" src="flexibility.png">
+    <br>
+    Red(10): number of residues that can perturb this residue
+  </div>
+  <div>
+    <img style="width:260px" src="fluctuation.png">
+    <br>
+    Red(5.0): average amount of RMSD fluctuation
   </div>
 
-  <table>
-    <tr>
-      <td style="width:260px; vertical-align:top;">
-        <img style="height:260px" src="map.png">
-      </td>
-      <td style="width:260px; vertical-align:top;">
-        <img style="height:260px" src="strength.png">
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <img style="height:260px" src="flexibility.png">
-      </td>
-      <td>
-        <img style="height:260px" src="fluctuation.png">
-      </td>
-    </tr>
-  </table>
-  <hr>
+  <br clear="all">
+
   {% for entry in attributes['residues']: %}
-    <div style="float:left; padding:1em 1em 0em 0em;">
-      <div>{{entry['resnum']}}</div>
-      <img style="height:260px" src="{{entry['plot_png']}}">
+    <div style="float:left; padding:2em 0.5em 0em 0em;">
+      {{entry['resnum']}}
+      <br/>
+      <img style="width:260px" src="{{entry['plot_png']}}">
     </div>
   {% endfor %}
 
@@ -426,7 +445,8 @@ flex_template = """
 """
 
 
-def make_bfactor_png(pdb, png, upper_bfactor=15, is_putty=False):
+def make_bfactor_png(
+    pdb, png, upper_bfactor=15, is_putty=False, highlight_res=None):
   if os.path.isfile(png):
     return
   soup = pdbatoms.Soup(pdb)
@@ -435,7 +455,9 @@ def make_bfactor_png(pdb, png, upper_bfactor=15, is_putty=False):
     if res.has_atom('CA'):
       bfactors.append(res.atom('CA').bfactor)
   pymol.soup_to_bfactor_png(
-      soup, png, bfactors, upper_bfactor=upper_bfactor, 
+      soup, png, bfactors, 
+      highlight_res=highlight_res,
+      upper_bfactor=upper_bfactor, 
       is_putty=is_putty)
 
 
@@ -466,11 +488,16 @@ def make_html_in_flex_dir(flex_dir):
     pdb_pairs.append((i_residue, resnum, dev_pdb))
   pdb_pairs.sort()
 
+  soup = pdbatoms.Soup(os.path.join(flex_dir, 'ref.pdb'))
   for i_residue, resnum, dev_pdb in pdb_pairs:
     png = dev_pdb.replace('.pdb', '.png')
-    make_bfactor_png(dev_pdb, png, 15, True)
+    highlight_res = str(i_residue+1)
+    make_bfactor_png(dev_pdb, png, 15, True, highlight_res)
     png = os.path.relpath(png, flex_dir)
-    attributes['residues'].append({'resnum':resnum, 'plot_png':png})
+    attributes['residues'].append({
+        'resnum':resnum.upper()+'-'+soup.residue(i_residue).type, 
+        'plot_png':png
+    })
 
   html = Template(flex_template).render(attributes=attributes)
   open(os.path.join(flex_dir, 'index.html'), 'w').write(html)
@@ -615,23 +642,29 @@ def get_cutoff_from_matrix(matrix):
 
 def plot_heat_png(png, y_vals, y_min, y_max, i_res):
   pylab.clf()
+  ax = pylab.gca()
   n_res = len(y_vals)
+
+  # draw heat for all residues
   x_vals = [i-0.5+0.1 for i in range(n_res)]
-  pylab.bar(x_vals, y_vals, edgecolor='none', width=0.8)
+  pylab.bar(x_vals, y_vals, color='#AAFFAA', edgecolor='none', width=1.0)
+ 
+  # highlight RIP'ed residue
+  just_rip = [0 for i in range(len(y_vals))]
+  just_rip[i_res] = y_vals[i_res]
+  pylab.bar(x_vals, just_rip, color='#33FF33', edgecolor='none', width=1.0)
+
+  # draw 95% cutoff for min_val
   pylab.plot([-0.5, n_res], [y_min, y_min], color="red")
-  y_rip = y_vals[i_res]
-  y_arrow = y_rip + y_max*0.15
-  y_text = y_arrow + y_max*0.02
-  y_diff = y_arrow - y_rip - y_max*0.04
-  pylab.arrow(
-      i_res, y_arrow, 0, -y_diff, 
-      edgecolor="green", facecolor="green",
-      head_width=0.1, head_length=y_max*0.02)
-  pylab.text(
-      i_res, y_text, "RIP", color="green",
-      horizontalalignment='center')
+
+  # renumber for 1-based for residues
+  x_ticks = ax.get_xticks().tolist()
+  x_labels = [str(int(x+1)) for x in x_ticks]
+  ax.set_xticklabels(x_labels)
+
   pylab.xlim([-0.5, n_res-0.5])
   pylab.ylim([0, y_max])
+
   pylab.savefig(png)
 
 
@@ -677,25 +710,79 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
 
 template = """
 <html>
-<head><title>{{attributes['name']}}</title></head>
+<head>
+  <title>{{attributes['name']}}</title>
+  <style>
+    div {
+      float: left;
+      padding: 2em 1em 0 0;
+      width:260px;
+    }
+  </style>
+</head>
 <body>
-
-  <div style="font-size:2em; padding:2em; text-align:left">
-    {{attributes['name']}}
+  <h1> {{attributes['name']}} </h1>
+  <div style="width:400px">
+    <img style="width:400px" src="heatflow.png">
+    <br>
+    Energy flow map; each row corresponds to a RIP simulation.
   </div>
+  <div style="width:400px" >
+    <img style="width:400px" src="pathway.png">
+    <br>
+    Filtered out disconnected, too close interactions.
+  </div>
+  <div style="width:400px" >
+    <img style="width:400px" src="coupling.png">
+    <br>
+    Only look for directly connected residues.
+  </div>
+  
+  <br clear=all>
+  <br>
+  <br>
 
   {% for entry in attributes['residues']: %}
-  <table style="width:100%; border-top:1px solid #CCC">
-    <td style="width:260px; vertical-align:top;">
-      <span style="font-size:1.5em;">{{entry['resnum']}}</span>
-      <br />
-      <img style="height:150px" src="{{entry['png']}}">
+  <table style="width:100%; margin-top:1.5em;">
+    <td  style="width:250px"; vertical-align:top;">
+      {{entry['resnum']}}
+      <br/>
+      <img style="width:250px" src="{{entry['png']}}">
+    </td>
+    <td style="vertical-align:top;">
+      {% for title, pdb_png in entry['pdb_pngs']: %}
+        <div style="float:left; padding-right:1em">
+          {{title}}
+          <br>
+          <img style="height:250px" src="{{pdb_png}}">
+        </div>
+      {% endfor %}
     </td>
   </table>
   {% endfor %}
-
-</body></html>
+</body>
+</html>
 """
+
+
+def make_coupling_png(pdb, png):
+  if os.path.isfile(png):
+    return
+  soup = pdbatoms.Soup(pdb)
+  bfactors = []
+  highlight_res = None
+  for i_res, res in enumerate(soup.residues()):
+    if res.has_atom('CA'):
+      bfactor = res.atom('CA').bfactor
+      bfactors.append(bfactor)
+      if bfactor > 1.0:
+        highlight_res=str(i_res+1)
+  pymol.soup_to_bfactor_png(
+      soup, png, bfactors, 
+      highlight_res=highlight_res,
+      lower_bfactor=0.5,
+      upper_bfactor=1.0,
+      is_putty=False)
 
 
 def make_html_in_couplings_dir(couplings_dir):
@@ -711,15 +798,35 @@ def make_html_in_couplings_dir(couplings_dir):
   min_val = get_cutoff_from_matrix(heatflow)
   max_val = min_val*2.0
 
+  soup = pdbatoms.Soup(os.path.join(couplings_dir, 'ref.pdb'))
+
   attributes = { 'name': 'Heat Flow', 'residues': [] }
   n_res = heatflow.shape[0]
   for i_res in range(n_res):
     if sum(heatflow[i_res]) > 0:
       resnum = 'res%d' % (i_res+1)
       png = 'heat.%s.png' % resnum
+      entry = { 
+          'resnum':resnum.upper()+'-'+soup.residue(i_res).type, 
+          'png': png,
+          'pdb_pngs': [] }
+      attributes['residues'].append(entry)
       full_png = os.path.join(couplings_dir, png)
-      plot_heat_png(full_png, heatflow[i_res], min_val, 0.2, i_res)
-      attributes['residues'].append({ 'resnum':resnum, 'png': png })
+      if not os.path.isfile(full_png):
+        plot_heat_png(full_png, heatflow[i_res], min_val, 0.2, i_res)
+      tag = os.path.join(couplings_dir, 'coupling.'+resnum+'.*')
+      for fname in glob.glob(tag):
+        m = re.search(r'coupling\.res\d+\.(res\d+).pdb', fname)
+        if not m:
+          continue
+        resnum2 = m.group(1)
+        m = re.search(r'res(\d+)', resnum2)
+        i_res2 = int(m.group(1))
+        pdb = 'coupling.%s.%s.pdb' % (resnum, resnum2)
+        tag2 = resnum2.upper() + '-' + soup.residue(i_res2).type
+        png = pdb.replace('.pdb', '.png')
+        make_coupling_png(pdb, png)
+        entry['pdb_pngs'].append(('-> '+tag2,png))
 
   html = Template(template).render(attributes=attributes)
   open(os.path.join(couplings_dir, 'index.html'), 'w').write(html)
@@ -727,20 +834,23 @@ def make_html_in_couplings_dir(couplings_dir):
 
 if __name__ == "__main__":
   args = docopt(__doc__)
-  if  args['prep'] and args['high_rip']:
-    prepare_high(args['<pdb>'], args['<out_dir>'])
-  elif args['prep'] and args['low_rip']:
-    prepare_low(args['<pdb>'], args['<out_dir>'])
-  elif args['run']:
+  if  args['prep']:
+    if args['high_rip']:
+      prepare_high(args['<pdb>'], args['<out_dir>'])
+    elif args['low_rip']:
+      prepare_low(args['<pdb>'], args['<out_dir>'])
+  if args['run']:
     for param in args['<param>']:
       process_config(param)
-  elif args['extract'] and args['flexibility']:
-    analyze_flex_rip_dir(args['<pdb>'], args['<rip_dir>'])
-  elif args['html'] and args['flexibility']:
-    make_html_in_flex_dir(args['<flex_dir>'])
-  elif args['extract'] and args['couplings']:
-    analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
-  elif args['html'] and args['couplings']:
-    make_html_in_couplings_dir(args['<flex_dir>'])
+  if args['extract']:
+    if args['flexibility']:
+      analyze_flex_rip_dir(args['<pdb>'], args['<rip_dir>'])
+    if args['extract'] and args['couplings']:
+      analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
+  if args['html']:
+    if args['flexibility']:
+      make_html_in_flex_dir(args['<flex_dir>'])
+    if args['couplings']:
+      make_html_in_couplings_dir(args['<flex_dir>'])
 
 

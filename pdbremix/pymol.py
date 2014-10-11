@@ -246,6 +246,7 @@ def ligands_as_sticks_script(pdbs, color=""):
 highlight_res_script = """
 select highlight, %(res)s
 show stick, highlight
+color green, highlight
 """
 
 
@@ -321,7 +322,7 @@ def soup_to_bfactor_png(
   script += bfactor_script(
        temp_pdb2, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
   if highlight_res is not None:
-    script += highlight_res_script(highlight_res)
+    script += highlight_res_script % {'res':'res '+highlight_res}
     script += hide_backbone_sticks_script
   if 'frame_pymol_script' in soup.__dict__:
     script += soup.frame_pymol_script
@@ -390,6 +391,7 @@ def get_pdb_transform(pdb, center_res, top_res):
   del soup
   return result
 
+
 def make_pdb_png(
     png, pdbs, bgcolor="white", center_res=None, top_res=None,
     highlight_res=None, is_sticks=True, is_putty=False,
@@ -422,7 +424,7 @@ def make_pdb_png(
     script += "show stick\n"
   script += ligands_as_sticks_script(pdbs)
   if highlight_res:
-    script += highlight_res_script(highlight_res)
+    script += highlight_res_script % {'res':'res '+highlight_res}
   script += hide_backbone_sticks_script
   # script += "clip far, 5\n"
   script += "save %s\n" % png
@@ -433,10 +435,5 @@ def make_pdb_png(
   util.clean_fname(*temp_pdbs)
 
 
-def make_pair_pdb_png(soup, i, j, png):
-  bfactors = [0.0 for k in range(soup.n_residue())]
-  bfactors[i] = 1.0
-  bfactors[j] = 1.0
-  soup_to_bfactor_png(soup, png, bfactors, 0.5, 1.0)
 
 
