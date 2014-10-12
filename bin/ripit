@@ -366,7 +366,7 @@ def analyze_flex_rip_dir(pdb, rip_dir):
   soup = pdbatoms.Soup(pdb)
   has_ca = lambda r: r.has_atom('CA')
   n_res = len(filter(has_ca, soup.residues()))
-  shutil.copy(pdb, os.path.join(rip_dir, 'ref.pdb'))
+  shutil.copy(pdb, os.path.join(out_dir, 'ref.pdb'))
 
   matrix = get_matrix_from_dir(n_res, rip_dir, 'md.dev.per_frame')
 
@@ -492,7 +492,7 @@ def make_html_in_flex_dir(flex_dir):
   for i_residue, resnum, dev_pdb in pdb_pairs:
     png = dev_pdb.replace('.pdb', '.png')
     highlight_res = str(i_residue+1)
-    make_bfactor_png(dev_pdb, png, 15, True, highlight_res)
+    make_bfactor_png(dev_pdb, png, 10, True, highlight_res)
     png = os.path.relpath(png, flex_dir)
     attributes['residues'].append({
         'resnum':resnum.upper()+'-'+soup.residue(i_residue).type, 
