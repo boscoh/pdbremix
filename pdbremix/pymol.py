@@ -370,6 +370,10 @@ def pdb_to_bfactor_png(
     bfactor_pdb, png, lower_bfactor=None, upper_bfactor=None, 
     highlight_res=None, is_putty=False, is_sticks=True,
     center_res=None, top_res=None, height=480, width=480):
+  """
+  Generates a bfactor-colored .png using the standard white-to-red
+  color scheme with a useful set of options.
+  """
 
   pdb, max_bfactor = rescale_positive_bfactors_pdb(
       bfactor_pdb, lower_bfactor, upper_bfactor)
@@ -405,6 +409,10 @@ def soup_to_bfactor_png(
     soup, png, bfactors, lower_bfactor=None, upper_bfactor=None,
     highlight_res=None, is_putty=False, is_sticks=True,
     center_res=None, top_res=None, height=480, width=480):
+  """
+  Wrapper around pdb_to_bfactor that loads in external values 
+  for the residue bfactors with a reusable soup object.
+  """
   pdb = util.temp_fname('.pdb')
   temp_fnames = [pdb]
   soup.load_residue_bfactors(bfactors)
