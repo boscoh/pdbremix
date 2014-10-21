@@ -169,19 +169,14 @@ def make_separate_chain_colors_script(pdbs):
   return ''.join(colors)
 
 
-load_color_b_script = """
-run %(color_b_py)s
+red_white_gradient_script = """\
+run %s
 color_b all, gradient=wr
-"""
+""" % os.path.join(data.data_dir, "color_b.py")
 
 
-def make_red_white_gradient_script():
-  color_py = os.path.join(data.data_dir, "color_b.py")
-  return load_color_b_script % { 'color_b_py': color_py }
-
-
-def blue_white_red_gradient_script():
-  return 'cmd.spectrum("b", "blue_white_red", selection="all");\n'
+blue_white_red_gradient_script = """\
+cmd.spectrum("b", "blue_white_red", selection="all");\n"""
 
 
 cartoon_script = """
@@ -282,7 +277,7 @@ def bfactor_script(pdb, lower_bfactor=None, upper_bfactor=None,
                    max_bfactor=None, is_putty=False):
   "Returns script that displays bfactors of pdb" 
   script = make_load_pdbs_script([pdb])
-  script += make_red_white_gradient_script()
+  script += red_white_gradient_script
   if is_putty:
     script += make_putty_script(get_scale_max(max_bfactor, upper_bfactor))
   else:
@@ -372,7 +367,8 @@ def pdb_to_bfactor_png(
     center_res=None, top_res=None, height=480, width=480):
   """
   Generates a bfactor-colored .png using the standard white-to-red
-  color scheme with a useful set of options.
+  color scheme with a useful set of options. highlight_res, 
+  center_res & top_res follow the 'A:10' style of residue naming.
   """
 
   pdb, max_bfactor = rescale_positive_bfactors_pdb(
@@ -390,7 +386,8 @@ def pdb_to_bfactor_png(
        max_bfactor, is_putty)
 
   if highlight_res is not None:
-    script += make_highlight_res_script(highlight_res)
+    pymol_res_id = get_pymol_id_from_res_tag(highlight_res)
+    script += make_highlight_res_script(pymol_res_id)
     script += hide_backbone_sticks_script
 
   script += "clip far, -20\n"

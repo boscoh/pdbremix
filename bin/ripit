@@ -290,7 +290,7 @@ def write_vals(vals, fname):
   open(fname, 'w').write(line)
 
 
-def write_soup_bfactor(soup, bfactors, pdb):
+def write_bfactor_png(soup, bfactors, pdb):
   for a in soup.atoms():
     a.bfactor = 0.0
   residues = [r for r in soup.residues() if r.has_atom('CA')]
@@ -373,17 +373,17 @@ def analyze_flex_rip_dir(pdb, rip_dir):
   write_matrix(matrix, os.path.join(out_dir, 'map.txt'))
   
   vals = count_vals_over_min_per_column(matrix, min_val)
-  write_soup_bfactor(
+  write_bfactor_png(
       soup, vals, os.path.join(out_dir, 'strength.pdb'))
   write_vals(vals, os.path.join(out_dir, 'strength.txt'))
 
   vals = count_vals_over_min_per_column(matrix.transpose(), min_val)
-  write_soup_bfactor(
+  write_bfactor_png(
       soup, vals, os.path.join(out_dir, 'flexibility.pdb'))
   write_vals(vals, os.path.join(out_dir, 'flexibility.txt'))
 
   vals = get_fluctuations_per_column(matrix, min_val)
-  write_soup_bfactor(
+  write_bfactor_png(
       soup, vals, os.path.join(out_dir, 'fluctuation.pdb'))
   write_vals(vals, os.path.join(out_dir, 'fluctuation.txt'))
   
@@ -392,7 +392,7 @@ def analyze_flex_rip_dir(pdb, rip_dir):
     res_soup = pdbatoms.Soup(res_pdb)
     bfactors = matrix[i_res,:]
     out_pdb = os.path.join(out_dir, 'dev.res%d.pdb' % (i_res+1))
-    write_soup_bfactor(res_soup, bfactors, out_pdb)
+    write_bfactor_png(res_soup, bfactors, out_pdb)
 
 
 
@@ -462,46 +462,42 @@ def make_bfactor_png(
 
 
 def make_html_in_flex_dir(flex_dir):
+  save_dir = os.getcwd()
+  os.chdir(flex_dir)
+
   attributes = {}
   attributes['name'] = 'flexibility analysis'
   attributes['residues'] = []
 
-  matrix = read_matrix(os.path.join(flex_dir, 'map.txt'))
   max_rmsd = 10
-  write_matrix_png(matrix, os.path.join(flex_dir, 'map.png'), max_rmsd)
+  matrix = read_matrix('map.txt')
+  write_matrix_png(matrix, 'map.png', max_rmsd)
 
-  pdb = os.path.join(flex_dir, 'strength.pdb')
-  png = os.path.join(flex_dir, 'strength.png')
-  make_bfactor_png(pdb, png, 10, False)
-
-  pdb = os.path.join(flex_dir, 'flexibility.pdb')
-  png = os.path.join(flex_dir, 'flexibility.png')
-  make_bfactor_png(pdb, png, 10, True)
-
-  pdb = os.path.join(flex_dir, 'fluctuation.pdb')
-  png = os.path.join(flex_dir, 'fluctuation.png')
-  make_bfactor_png(pdb, png, 5, True)
+  make_bfactor_png('strength.pdb', 'strength.png', 10, False)
+  make_bfactor_png('flexibility.pdb', 'flexibility.png', 10, True)
+  make_bfactor_png('fluctuation.pdb', 'fluctuation.png', 5, True)
 
   pdb_pairs = []
-  for dev_pdb in glob.glob(os.path.join(flex_dir, 'dev*pdb')):
+  for dev_pdb in glob.glob('dev*pdb'):
     i_residue, resnum = get_i_residue_resnum(dev_pdb)
     pdb_pairs.append((i_residue, resnum, dev_pdb))
   pdb_pairs.sort()
 
-  soup = pdbatoms.Soup(os.path.join(flex_dir, 'ref.pdb'))
+  soup = pdbatoms.Soup('ref.pdb')
   for i_residue, resnum, dev_pdb in pdb_pairs:
     png = dev_pdb.replace('.pdb', '.png')
     highlight_res = str(i_residue+1)
     make_bfactor_png(dev_pdb, png, 10, True, highlight_res)
-    png = os.path.relpath(png, flex_dir)
+    res_type = soup.residue(i_residue).type
     attributes['residues'].append({
-        'resnum':resnum.upper()+'-'+soup.residue(i_residue).type, 
-        'plot_png':png
+        'resnum': '%s-%s' % (resnum.upper(), res_type),
+        'plot_png': png
     })
 
   html = Template(flex_template).render(attributes=attributes)
-  open(os.path.join(flex_dir, 'index.html'), 'w').write(html)
+  open('index.html', 'w').write(html)
 
+  os.chdir(save_dir)
 
 
 ###################################################
@@ -647,12 +643,12 @@ def plot_heat_png(png, y_vals, y_min, y_max, i_res):
 
   # draw heat for all residues
   x_vals = [i-0.5+0.1 for i in range(n_res)]
-  pylab.bar(x_vals, y_vals, color='#AAFFAA', edgecolor='none', width=1.0)
+  pylab.bar(x_vals, y_vals, color='#DDAAAA', edgecolor='none', width=1.0)
  
   # highlight RIP'ed residue
   just_rip = [0 for i in range(len(y_vals))]
   just_rip[i_res] = y_vals[i_res]
-  pylab.bar(x_vals, just_rip, color='#33FF33', edgecolor='none', width=1.0)
+  pylab.bar(x_vals, just_rip, color='#009900', edgecolor='none', width=1.0)
 
   # draw 95% cutoff for min_val
   pylab.plot([-0.5, n_res], [y_min, y_min], color="red")
@@ -672,7 +668,7 @@ def write_coupling_pdb(soup, i_res, j_res, coupling_pdb):
   bfactors = [0 for i in range(len(soup.residues()))]
   bfactors[i_res] = 2.0
   bfactors[j_res] = 1.0
-  write_soup_bfactor(soup, bfactors, coupling_pdb)
+  write_bfactor_png(soup, bfactors, coupling_pdb)
 
 
 def analyze_couplings_rip_dir(pdb, rip_dir):
@@ -708,7 +704,7 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
         write_coupling_pdb(soup, i_res, j_res, coupling_pdb)
 
 
-template = """
+couplings_template = """
 <html>
 <head>
   <title>{{attributes['name']}}</title>
@@ -786,50 +782,59 @@ def make_coupling_png(pdb, png):
 
 
 def make_html_in_couplings_dir(couplings_dir):
-  heatflow = read_matrix(os.path.join(couplings_dir, 'heatflow.txt'))
-  write_matrix_png(heatflow, os.path.join(couplings_dir, 'heatflow.png'))
 
-  pathway = read_matrix(os.path.join(couplings_dir, 'pathway.txt'))
-  write_matrix_png(pathway, os.path.join(couplings_dir, 'pathway.png'))
+  save_dir = os.getcwd()
 
-  coupling = read_matrix(os.path.join(couplings_dir, 'coupling.txt'))
-  write_matrix_png(coupling, os.path.join(couplings_dir, 'coupling.png'))
+  os.chdir(couplings_dir)
+
+  heatflow = read_matrix('heatflow.txt')
+  write_matrix_png(heatflow, 'heatflow.png')
+
+  pathway = read_matrix('pathway.txt')
+  write_matrix_png(pathway, 'pathway.png')
+
+  coupling = read_matrix('coupling.txt')
+  write_matrix_png(coupling, 'coupling.png')
 
   min_val = get_cutoff_from_matrix(heatflow)
   max_val = min_val*2.0
 
-  soup = pdbatoms.Soup(os.path.join(couplings_dir, 'ref.pdb'))
+  soup = pdbatoms.Soup('ref.pdb')
 
   attributes = { 'name': 'Heat Flow', 'residues': [] }
   n_res = heatflow.shape[0]
-  for i_res in range(n_res):
-    if sum(heatflow[i_res]) > 0:
-      resnum = 'res%d' % (i_res+1)
-      png = 'heat.%s.png' % resnum
+  for i_res1 in range(n_res):
+    if sum(heatflow[i_res1]) > 0:
+      resnum1 = 'res%d' % (i_res1+1)
+      png = 'heat.%s.png' % resnum1
+      res_type1 = soup.residue(i_res1).type
       entry = { 
-          'resnum':resnum.upper()+'-'+soup.residue(i_res).type, 
+          'resnum': '%s-%s' % (resnum1.upper(), res_type1),
           'png': png,
           'pdb_pngs': [] }
       attributes['residues'].append(entry)
-      full_png = os.path.join(couplings_dir, png)
+      full_png = png
       if not os.path.isfile(full_png):
-        plot_heat_png(full_png, heatflow[i_res], min_val, 0.2, i_res)
-      tag = os.path.join(couplings_dir, 'coupling.'+resnum+'.*')
+        plot_heat_png(full_png, heatflow[i_res1], min_val, 0.2, i_res1)
+      tag = 'coupling.' + resnum1 + '.*'
       for fname in glob.glob(tag):
         m = re.search(r'coupling\.res\d+\.(res\d+).pdb', fname)
         if not m:
           continue
         resnum2 = m.group(1)
         m = re.search(r'res(\d+)', resnum2)
-        i_res2 = int(m.group(1))
-        pdb = 'coupling.%s.%s.pdb' % (resnum, resnum2)
-        tag2 = resnum2.upper() + '-' + soup.residue(i_res2).type
+        i_res2 = int(m.group(1)) - 1
+        pdb = 'coupling.%s.%s.pdb' % (resnum1, resnum2)
         png = pdb.replace('.pdb', '.png')
         make_coupling_png(pdb, png)
-        entry['pdb_pngs'].append(('-> '+tag2,png))
+        res_type2 = soup.residue(i_res2).type
+        tag2 = resnum2.upper() + '-' + res_type2
+        entry['pdb_pngs'].append(('-> '+tag2, png))
 
-  html = Template(template).render(attributes=attributes)
-  open(os.path.join(couplings_dir, 'index.html'), 'w').write(html)
+  html = Template(couplings_template).render(attributes=attributes)
+  open('index.html', 'w').write(html)
+
+  os.chdir(save_dir)
 
 
 if __name__ == "__main__":

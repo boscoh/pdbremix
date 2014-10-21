@@ -82,23 +82,23 @@ if __name__=="__main__":
     
   script = ""
   if arg['-g']:
-    script += pymol.bgcolor_script(arg['-g'])
-  script += pymol.load_pdbs_script(pdbs)
+    script += pymol.make_bgcolor_script(arg['-g'])
+  script += pymol.make_load_pdbs_script(pdbs)
   if is_bfactor:
-    script += pymol.red_white_gradient_script()
+    script += pymol.red_white_gradient_script
   elif is_polar:
-    script += pymol.blue_white_red_gradient_script()
+    script += pymol.blue_white_red_gradient_script
   else:
-    script += pymol.separate_chain_colors_script(pdbs)
+    script += pymol.make_separate_chain_colors_script(pdbs)
   if is_putty:
-    script += pymol.putty_script(pymol.get_scale_max(max_bfactor, upper_bfactor))
+    script += pymol.make_putty_script(pymol.get_scale_max(max_bfactor, upper_bfactor))
   else:
     script += pymol.cartoon_script
   if lower_bfactor is not None:
-    script += pymol.sticks_above_bfactor_script(lower_bfactor)
+    script += pymol.make_sticks_above_bfactor_script(lower_bfactor)
   else:
     script += "show stick\n"
-  script += pymol.ligands_as_sticks_script(pdbs)
+  script += pymol.make_ligands_as_sticks_script(pdbs)
   if arg['-e']:
     script += pymol.peptide_style_script
   script += pymol.hide_backbone_sticks_script
@@ -106,10 +106,10 @@ if __name__=="__main__":
     script += "hide stick\n"
   script += "remove resn XXX\n"
   if center_res:
-    script += "center %s\n" % pymol.pymol_id_from_res_tag(center_res)
+    script += "center %s\n" % pymol.get_pymol_id_from_res_tag(center_res)
   if highlight_res is not None:
-    res = pymol.pymol_id_from_res_tag(highlight_res)
-    script += pymol.highlight_res_script % { 'res':res }
+    res = pymol.get_pymol_id_from_res_tag(highlight_res)
+    script += pymol.make_highlight_res_script(res)
   if arg['-o']:
     script += "save %s\n" % out_file
   if arg['-q']:
