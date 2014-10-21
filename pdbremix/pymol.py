@@ -32,7 +32,7 @@ import pdbtext
 import protein
 
 
-def pymol_id_from_res_tag(tag):
+def get_pymol_id_from_res_tag(tag):
   chain_id, res_num, insert = pdbatoms.split_tag(tag)
   if chain_id == " ":
     return "resi %d" % res_num
@@ -148,11 +148,11 @@ def rescale_positive_negative_bfactor_pdbs(
 
 # PYMOL script functions and snippets
 
-def bgcolor_script(bg_color):
+def make_bgcolor_script(bg_color):
   return  "cmd.bg_color('%s');\n" % bg_color
 
   
-def load_pdbs_script(pdbs):
+def make_load_pdbs_script(pdbs):
   "Returns pymol script, name of pdbs"
   script = ""
   for pdb in pdbs:
@@ -161,7 +161,7 @@ def load_pdbs_script(pdbs):
   return script
   
 
-def separate_chain_colors_script(pdbs):
+def make_separate_chain_colors_script(pdbs):
   names = [os.path.basename(p).replace('.pdb', '') 
            for p in pdbs]
   colors = ['util.color_chains("(%s and elem c)")\n' % n 
@@ -175,7 +175,7 @@ color_b all, gradient=wr
 """
 
 
-def red_white_gradient_script():
+def make_red_white_gradient_script():
   color_py = os.path.join(data.data_dir, "color_b.py")
   return load_color_b_script % { 'color_b_py': color_py }
 
@@ -195,7 +195,7 @@ show cartoon
 """
 
 
-putty_template_script = """
+putty_script = """
 set cartoon_flat_sheets, 0
 set cartoon_putty_scale_max, %(scale_max)f
 set cartoon_putty_radius, 0.4
@@ -205,11 +205,11 @@ show cartoon
 """
 
 
-def putty_script(scale_max):
-  return putty_template_script % { 'scale_max': scale_max }
+def make_putty_script(scale_max):
+  return putty_script % { 'scale_max': scale_max }
 
 
-def sticks_above_bfactor_script(lower_bfactor):
+def make_sticks_above_bfactor_script(lower_bfactor):
   script = ""
   script += "select hot, b > %f or b < -%f\n" % \
              (lower_bfactor, lower_bfactor)
@@ -221,7 +221,7 @@ def sticks_above_bfactor_script(lower_bfactor):
   return script
     
     
-def ligands_as_sticks_script(pdbs, color=""):
+def make_ligands_as_sticks_script(pdbs, color=""):
   script = ""
   for pdb in pdbs:
     name = os.path.basename(pdb).replace('.pdb', '')
@@ -244,10 +244,14 @@ def ligands_as_sticks_script(pdbs, color=""):
 
 
 highlight_res_script = """
-select highlight, %(res)s
+select highlight, %s
 show stick, highlight
 color green, highlight
 """
+
+
+def make_highlight_res_script(pymol_res_id):
+  return highlight_res_script % pymol_res_id
 
 
 peptide_style_script = """
@@ -274,72 +278,25 @@ deselect
 """
 
 
-def run_pymol_script(pml, width=500, height=500):
-  is_quit = 'quit' in util.words_in_file(pml)
-  if is_quit:
-    pymol_batch = data.binary("pymol_batch")
-    cmd = pymol_batch + ' -c '
-  else:
-    pymol = data.binary("pymol")
-    cmd = pymol + " -q " # no splash screen
-  cmd += " -W %d -H %d " % (width, height)
-  cmd += pml
-  util.run_with_output(cmd)
-
-
-# Functions to generate PNG's with PYMOL
-
-
 def bfactor_script(pdb, lower_bfactor=None, upper_bfactor=None, 
                    max_bfactor=None, is_putty=False):
   "Returns script that displays bfactors of pdb" 
-  script = load_pdbs_script([pdb])
-  script += red_white_gradient_script()
+  script = make_load_pdbs_script([pdb])
+  script += make_red_white_gradient_script()
   if is_putty:
-    script += putty_script(get_scale_max(max_bfactor, upper_bfactor))
+    script += make_putty_script(get_scale_max(max_bfactor, upper_bfactor))
   else:
     script += cartoon_script
     script += "cartoon tube\n"
   if not is_putty:
     if lower_bfactor is not None:
-      script += sticks_above_bfactor_script(lower_bfactor)
+      script += make_sticks_above_bfactor_script(lower_bfactor)
     else:
       script += "show stick\n"
-  script += ligands_as_sticks_script([pdb])
+  script += make_ligands_as_sticks_script([pdb])
   script += hide_backbone_sticks_script
   return script
 
-
-def soup_to_bfactor_png(
-    soup, png, bfactors, lower_bfactor=None, upper_bfactor=None,
-    highlight_res=None, is_putty=False):
-  temp_pdb = util.temp_fname('.pdb')
-  soup.load_residue_bfactors(bfactors)
-  soup.write_pdb(temp_pdb)
-  temp_pdb2, max_bfactor = rescale_positive_bfactors_pdb(
-      temp_pdb, lower_bfactor, upper_bfactor)
-  script = ""
-  script += bfactor_script(
-       temp_pdb2, lower_bfactor, upper_bfactor, max_bfactor, is_putty)
-  if highlight_res is not None:
-    script += highlight_res_script % {'res':'res '+highlight_res}
-    script += hide_backbone_sticks_script
-  if 'frame_pymol_script' in soup.__dict__:
-    script += soup.frame_pymol_script
-  script += "clip far, -20\n"
-  script += "save %s\n" % png
-  script += "quit"
-  width, height = 480, 480
-  if 'width' in soup.__dict__:
-    width = soup.width
-  if 'height' in soup.__dict__:
-    height = soup.height
-  pml = 'temp.pml'
-  open(pml, 'w').write(script)
-  run_pymol_script(pml, width, height)
-  util.clean_fname(temp_pdb)
-  util.clean_fname(temp_pdb2)
-  util.clean_fname(pml)
 
 
 def split_resname(resname):
@@ -392,11 +349,84 @@ def get_pdb_transform(pdb, center_res, top_res):
   return result
 
 
-def make_pdb_png(
+
+def run_pymol_script(pml, width=500, height=500):
+  is_quit = 'quit' in util.words_in_file(pml)
+  if is_quit:
+    pymol_batch = data.binary("pymol_batch")
+    cmd = pymol_batch + ' -c '
+  else:
+    pymol = data.binary("pymol")
+    cmd = pymol + " -q " # no splash screen
+  cmd += " -W %d -H %d " % (width, height)
+  cmd += pml
+  util.run_with_output(cmd)
+
+
+# Functions to generate PNG's with PYMOL
+
+
+def pdb_to_bfactor_png(
+    bfactor_pdb, png, lower_bfactor=None, upper_bfactor=None, 
+    highlight_res=None, is_putty=False, is_sticks=True,
+    center_res=None, top_res=None, height=480, width=480):
+
+  pdb, max_bfactor = rescale_positive_bfactors_pdb(
+      bfactor_pdb, lower_bfactor, upper_bfactor)
+  temp_fnames = [pdb]
+
+  if center_res or top_res:
+    pdb = get_pdb_transform(pdb, center_res, top_res)
+    temp_fnames.append(pdb)
+
+  script = ""
+
+  script += bfactor_script(
+       pdb, lower_bfactor, upper_bfactor,
+       max_bfactor, is_putty)
+
+  if highlight_res is not None:
+    script += make_highlight_res_script(highlight_res)
+    script += hide_backbone_sticks_script
+
+  script += "clip far, -20\n"
+  script += "save %s\n" % png
+  script += "quit"
+
+  pml = util.fname_variant('temp.pml')
+  open(pml, 'w').write(script)
+  run_pymol_script(pml, width, height)
+  temp_fnames.append(pml)
+
+  util.clean_fname(*temp_fnames)
+
+
+def soup_to_bfactor_png(
+    soup, png, bfactors, lower_bfactor=None, upper_bfactor=None,
+    highlight_res=None, is_putty=False, is_sticks=True,
+    center_res=None, top_res=None, height=480, width=480):
+  pdb = util.temp_fname('.pdb')
+  temp_fnames = [pdb]
+  soup.load_residue_bfactors(bfactors)
+  soup.write_pdb(pdb)
+  pdb_to_bfactor_png(
+    pdb, png, lower_bfactor, upper_bfactor,
+    highlight_res, is_putty, is_sticks,
+    center_res, top_res, height, width)
+  util.clean_fname(*temp_fnames)
+
+
+def make_pdbs_png(
     png, pdbs, bgcolor="white", center_res=None, top_res=None,
     highlight_res=None, is_sticks=True, is_putty=False,
     width=480, height=480):
-  temp_pdbs = []
+
+  if 'transparent' in bgcolor:
+    script = 'set opaque_background, off\n'
+  else: 
+    script = make_bgcolor_script(bgcolor)
+
+  temp_fnames = []
   if center_res and top_res:
     transform = get_pdb_transform(pdbs[0], center_res, top_res)
     for i in range(len(pdbs)):
@@ -404,35 +434,40 @@ def make_pdb_png(
       soup.transform(transform)
       new_pdb = util.fname_variant(pdbs[i])
       soup.write_pdb(new_pdb)
-      temp_pdbs.append(new_pdb)
+      temp_fnames.append(new_pdb)
       pdbs[i] = new_pdb
       del soup
-  if 'transparent' in bgcolor:
-    script = 'set opaque_background, off\n'
-  else: 
-    script = bgcolor_script(bgcolor)
-  script += load_pdbs_script(pdbs)
-  script += separate_chain_colors_script(pdbs)
+
+  script += make_load_pdbs_script(pdbs)
+  script += make_separate_chain_colors_script(pdbs)
+
   if is_putty:
-    script += putty_script(get_scale_max(
+    script += make_putty_script(get_scale_max(
         max_bfactor, upper_bfactor))
   else:
-    script += cartoon_script()
+    script += cartoon_script
+
   if not is_sticks:
     script += "hide stick\n"
   else:
     script += "show stick\n"
-  script += ligands_as_sticks_script(pdbs)
+
+  script += make_ligands_as_sticks_script(pdbs)
+
   if highlight_res:
-    script += highlight_res_script % {'res':'res '+highlight_res}
+    script += make_highlight_res_script(highlight_res)
   script += hide_backbone_sticks_script
+
   # script += "clip far, 5\n"
   script += "save %s\n" % png
   script += "quit"
 
-  run_pymol_script(script, width, height)
+  pml = util.fname_variant('temp.pml')
+  open(pml, 'w').write(script)
+  run_pymol_script(pml, width, height)
+  temp_fnames.append(pml)
 
-  util.clean_fname(*temp_pdbs)
+  util.clean_fname(*temp_fnames)
 
 
 
