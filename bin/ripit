@@ -806,16 +806,15 @@ def make_html_in_couplings_dir(couplings_dir):
   for i_res1 in range(n_res):
     if sum(heatflow[i_res1]) > 0:
       resnum1 = 'res%d' % (i_res1+1)
-      png = 'heat.%s.png' % resnum1
+      heat_png = 'heat.%s.png' % resnum1
       res_type1 = soup.residue(i_res1).type
       entry = { 
           'resnum': '%s-%s' % (resnum1.upper(), res_type1),
-          'png': png,
+          'png': heat_png,
           'pdb_pngs': [] }
       attributes['residues'].append(entry)
-      full_png = png
-      if not os.path.isfile(full_png):
-        plot_heat_png(full_png, heatflow[i_res1], min_val, 0.2, i_res1)
+      if not os.path.isfile(heat_png):
+        plot_heat_png(heat_png, heatflow[i_res1], min_val, 0.2, i_res1)
       tag = 'coupling.' + resnum1 + '.*'
       for fname in glob.glob(tag):
         m = re.search(r'coupling\.res\d+\.(res\d+).pdb', fname)

@@ -176,7 +176,8 @@ color_b all, gradient=wr
 
 
 blue_white_red_gradient_script = """\
-cmd.spectrum("b", "blue_white_red", selection="all");\n"""
+cmd.spectrum("b", "blue_white_red", selection="all");
+"""
 
 
 cartoon_script = """

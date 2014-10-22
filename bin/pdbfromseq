@@ -1,0 +1,229 @@
+#!/usr/bin/env python
+
+__doc__ = """
+Creates a peptide in a PDB from a sequence
+
+usage: pdbfromseq [-h] <sequence> <pdb>
+
+<sequence>   amino acid sequence
+<pdb>        name of pdb
+"""
+
+import os
+
+from pdbremix import protein
+from pdbremix import data
+from pdbremix import pdbatoms
+from pdbremix import v3
+from pdbremix import rmsd
+from pdbremix.lib.docopt import docopt
+
+
+
+
+##############################################
+# routines to deal with backbone splicings
+##############################################
+
+
+template_pdb = os.path.join(data.data_dir, 'template.pdb')
+template_soup = pdbatoms.Soup(template_pdb)
+template_residues = [res.type for res in template_soup.residues()]
+
+
+
+def superposition(ref_crds, mov_crds):
+  ref_center = v3.get_center(ref_crds)
+  mov_center = v3.get_center(mov_crds)
+
+  ref_crds = [c - ref_center for c in ref_crds]
+  mov_crds = [c - mov_center for c in mov_crds]
+
+  trans_before = v3.translation(-mov_center)
+  rot_rmsd, rot = rmsd.pyqcprot_rmsd_rot(mov_crds, ref_crds)
+  trans_after = v3.translation(ref_center)
+
+  return v3.combine(trans_after, v3.combine(rot, trans_before))
+ 
+
+def get_atom_crds(soup, i_res, atom_types):
+  result = []
+  for atom_type in atom_types:
+    result.append(soup.residue(i_res).atom(atom_type).pos)
+  return result
+
+
+
+def project_prev_ca_c(soup, i):
+  """
+  Projects the position of the C and CA atoms of the residue that
+  would have been precedent to residue i.
+  """
+  if "ACE" in soup.residue(i).type:
+    raise ValueError, "Can't project in N-terminal direction from ACE"
+
+  if "NME" in soup.residue(i).type:
+    ca_type = "CH3"
+  else:
+    ca_type = "CA"
+
+  if soup.residue(i).has_atom("H"):
+    ref_crds = get_atom_crds(soup, i, [ca_type, 'N', 'H'])
+    mov_crds = get_atom_crds(template_soup, 1, ['CA', 'N', 'H'])
+
+  elif soup.residue(i).type == "PRO":
+    # special handling for PRO
+    ca = soup.residue(i).atom(ca_type).pos
+    n = soup.residue(i).atom("N").pos
+    cd = soup.residue(i).atom("CD").pos
+    diff = v3.cross(n - ca, cd - ca)
+    ref_crds = [ca, n, n + v3.norm(diff)]
+    ca = template_soup.residue(1).atom("CA").pos
+    n = template_soup.residue(1).atom("N").pos
+    h = template_soup.residue(1).atom("H").pos
+    diff = v3.cross(n - ca, h - ca)
+    mov_crds = [ca, n, n + v3.norm(diff)]
+
+  else:
+    # no H or PRO-CD: must assume a phi angle from template_soup
+    ref_crds = get_atom_crds(soup, i, ['N', ca_type, 'C'])
+    mov_crds = get_atom_crds(template_soup, 1, ['N','CA','C'])
+
+  mat = superposition(ref_crds, mov_crds)
+
+  c = template_soup.residue(0).atom("C").pos
+  ca = template_soup.residue(0).atom("CH3").pos
+  return v3.transform(mat, ca), v3.transform(mat, c)
+
+
+def get_n_peptide_crds(soup, i):
+  """
+  Get the crds for CA(i-1)-C(i-1)-N-CA
+  """
+  crds = []
+  if i > 0:
+    if "ACE" in soup.residue(i-1).type:
+      ca_type = "CH3"
+    else:
+      ca_type = "CA"
+    crds.extend(get_atom_crds(soup, i-1, [ca_type, 'C']))
+  else:
+    crds.extend(project_prev_ca_c(soup, i))
+  if "NME" in soup.residue(i).type:
+    ca_type = "CH3"
+  else:
+    ca_type = "CA"
+  crds.extend(get_atom_crds(soup, i, ["N", ca_type]))
+  return crds
+
+
+def project_next_n_ca(soup, i):
+  """
+  Get the crds for CA-C-N(i+1)-CA(i+1)
+  """
+  if "NME" in soup.residue(i).type:
+    raise ValueError, "Cant' project in C-terminal direction from NME"
+  if "ACE" in soup.residue(i).type:
+    ca_type = "CH3"
+  else:
+    ca_type = "CA"
+  ref_crds = get_atom_crds(soup, i, [ca_type, 'C', 'O'])
+  mov_crds = get_atom_crds(template_soup, 2, ['CA', 'C', 'O'])
+  mat = superposition(ref_crds, mov_crds)
+  n = template_soup.residue(3).atom("N").pos
+  ca = template_soup.residue(3).atom("CA").pos
+  return v3.transform(mat, n), v3.transform(mat, ca)
+
+
+def get_c_peptide_crds(soup, i):
+  if "ACE" in soup.residue(i).type:
+    ca_type = "CH3"
+  else:
+    ca_type = "CA"
+  crds = get_atom_crds(soup, i, [ca_type, 'C'])
+  if i < soup.n_residue()-1:
+    if "NME" in soup.residue(i+1).type:
+      ca_type = "CH3"
+    else:
+      ca_type = "CA"
+    crds.extend(get_atom_crds(soup, i+1, ['N', ca_type]))
+  else:
+    crds.extend(project_next_n_ca(soup, i))
+  return crds
+
+
+def splice_to_c_terminus(soup, insert):
+  n_res_soup = soup.n_residue()
+  insert.transform(
+      superposition(
+          get_c_peptide_crds(soup, n_res_soup-1),
+          get_n_peptide_crds(insert, 0)))
+  soup.insert_soup(n_res_soup, insert)
+
+
+def splice_to_n_terminus(soup, insert):
+  n_res_insert = insert.n_residue()
+  insert.transform(
+      superposition(
+          get_n_peptide_crds(soup, 0),
+          get_c_peptide_crds(insert, n_res_insert-1)))
+  soup.insert_soup(0, insert)
+
+
+def splice(soup, i, insert):
+  if i > 0:
+    insert.transform(
+        superposition(
+            get_c_peptide_crds(soup, i-1),
+            get_n_peptide_crds(insert, 0)))
+  if i < soup.n_residue():
+    k = insert.n_residue()
+    rot2 = superposition(
+        get_c_peptide_crds(insert, k-1),
+        get_n_peptide_crds(soup, i))
+    for res in soup.residues()[i:]:
+      res.transform(rot2)
+  for res in reversed(insert.residues()):
+    soup.insert_residue(i, res)
+
+
+def get_res_from_type(res_type):
+  for res in template_soup.residues():
+    if res_type == res.type:
+      return res.copy()
+  raise ValueError, "Don't have template for %s", res_type
+
+
+def extend_with_res(soup, res_type):
+  j = template_residues.index(res_type)
+  n_res = soup.n_residue()
+  if soup.residue(n_res-1).type == "NME":
+    insert = template_soup.extract_soup(j, j+1)
+    splice(soup, n_res-1, insert)
+  else:
+    for a in ['OXT']:
+      if soup.residue(n_res-1).has_atom(a):
+        soup.residue(n_res-1).erase_atom(a)
+    insert = template_soup.extract_soup(j, j+1)
+    splice_to_c_terminus(soup, insert)
+
+
+def make_soup_from_sequence(sequence):
+  soup = pdbatoms.Soup()
+  res_type = data.res_char_to_name[sequence[0]]
+  res = get_res_from_type(res_type)
+  soup.append_residue(res)
+  soup.residue(0).set_num(1)
+  for char in sequence[1:]:
+    res_type = data.res_char_to_name[char]
+    extend_with_res(soup, res_type)
+  return soup
+
+
+arg = docopt(__doc__)
+soup = make_soup_from_sequence(arg['<sequence>'])
+soup.write_pdb(arg['<pdb>'])
+
+
+
+
