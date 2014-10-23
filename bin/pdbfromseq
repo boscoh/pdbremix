@@ -151,12 +151,8 @@ def get_res_from_type(res_type):
 def extend_with_res(soup, res_type):
   j = template_residues.index(res_type)
   n_res = soup.n_residue()
-  if soup.residue(n_res-1).type == "NME":
-    insert = template_soup.extract_soup(j, j+1)
-    splice(soup, n_res-1, insert)
-  else:
-    insert = template_soup.extract_soup(j, j+1)
-    splice_to_c_terminus(soup, insert)
+  insert = template_soup.extract_soup(j, j+1)
+  splice_to_c_terminus(soup, insert)
 
 
 def make_soup_from_sequence(sequence):
