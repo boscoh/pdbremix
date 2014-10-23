@@ -20,12 +20,6 @@ from pdbremix.lib.docopt import docopt
 
 
 
-
-##############################################
-# routines to deal with backbone splicings
-##############################################
-
-
 template_pdb = os.path.join(data.data_dir, 'template.pdb')
 template_soup = pdbatoms.Soup(template_pdb)
 template_residues = [res.type for res in template_soup.residues()]
@@ -35,14 +29,11 @@ template_residues = [res.type for res in template_soup.residues()]
 def superposition(ref_crds, mov_crds):
   ref_center = v3.get_center(ref_crds)
   mov_center = v3.get_center(mov_crds)
-
   ref_crds = [c - ref_center for c in ref_crds]
   mov_crds = [c - mov_center for c in mov_crds]
-
   trans_before = v3.translation(-mov_center)
   rot_rmsd, rot = rmsd.pyqcprot_rmsd_rot(mov_crds, ref_crds)
   trans_after = v3.translation(ref_center)
-
   return v3.combine(trans_after, v3.combine(rot, trans_before))
  
 
@@ -53,81 +44,52 @@ def get_atom_crds(soup, i_res, atom_types):
   return result
 
 
+##############################################
+# routines to deal with backbone splicings
+##############################################
 
-def project_prev_ca_c(soup, i):
-  """
-  Projects the position of the C and CA atoms of the residue that
-  would have been precedent to residue i.
-  """
-  if "ACE" in soup.residue(i).type:
-    raise ValueError, "Can't project in N-terminal direction from ACE"
 
-  if "NME" in soup.residue(i).type:
-    ca_type = "CH3"
-  else:
-    ca_type = "CA"
-
-  if soup.residue(i).has_atom("H"):
-    ref_crds = get_atom_crds(soup, i, [ca_type, 'N', 'H'])
-    mov_crds = get_atom_crds(template_soup, 1, ['CA', 'N', 'H'])
-
-  elif soup.residue(i).type == "PRO":
-    # special handling for PRO
-    ca = soup.residue(i).atom(ca_type).pos
+def project_prev_ca_c_crds(soup, i):
+  "Projects crds of CA and C of residue precedent to i"
+  # as PRO has cis-peptide bond, use plane vector instead of C
+  if soup.residue(i).type == "PRO":
+    ca = soup.residue(i).atom("CA").pos
     n = soup.residue(i).atom("N").pos
     cd = soup.residue(i).atom("CD").pos
-    diff = v3.cross(n - ca, cd - ca)
-    ref_crds = [ca, n, n + v3.norm(diff)]
-    ca = template_soup.residue(1).atom("CA").pos
-    n = template_soup.residue(1).atom("N").pos
-    h = template_soup.residue(1).atom("H").pos
-    diff = v3.cross(n - ca, h - ca)
-    mov_crds = [ca, n, n + v3.norm(diff)]
+    plane = v3.cross(n - ca, cd - ca)
+    ref_crds = [ca, n, n + v3.norm(plane)]
 
+    ca = template_soup.residue(2).atom("CA").pos
+    n = template_soup.residue(2).atom("N").pos
+    h = template_soup.residue(2).atom("H").pos
+    plane = v3.cross(n - ca, h - ca)
+    mov_crds = [ca, n, n + v3.norm(plane)]
   else:
-    # no H or PRO-CD: must assume a phi angle from template_soup
-    ref_crds = get_atom_crds(soup, i, ['N', ca_type, 'C'])
-    mov_crds = get_atom_crds(template_soup, 1, ['N','CA','C'])
+    ref_crds = get_atom_crds(soup, i, ['N', "CA", 'C'])
+    mov_crds = get_atom_crds(template_soup, 2, ['N','CA','C'])
 
   mat = superposition(ref_crds, mov_crds)
 
-  c = template_soup.residue(0).atom("C").pos
-  ca = template_soup.residue(0).atom("CH3").pos
+  c = template_soup.residue(1).atom("C").pos
+  ca = template_soup.residue(1).atom("CA").pos
+
   return v3.transform(mat, ca), v3.transform(mat, c)
 
 
 def get_n_peptide_crds(soup, i):
-  """
-  Get the crds for CA(i-1)-C(i-1)-N-CA
-  """
+  "Get crds for CA(i-1)-C(i-1)-N-CA"
   crds = []
   if i > 0:
-    if "ACE" in soup.residue(i-1).type:
-      ca_type = "CH3"
-    else:
-      ca_type = "CA"
-    crds.extend(get_atom_crds(soup, i-1, [ca_type, 'C']))
+    crds.extend(get_atom_crds(soup, i-1, ["CA", 'C']))
   else:
-    crds.extend(project_prev_ca_c(soup, i))
-  if "NME" in soup.residue(i).type:
-    ca_type = "CH3"
-  else:
-    ca_type = "CA"
-  crds.extend(get_atom_crds(soup, i, ["N", ca_type]))
+    crds.extend(project_prev_ca_c_crds(soup, i))
+  crds.extend(get_atom_crds(soup, i, ["N", "CA"]))
   return crds
 
 
-def project_next_n_ca(soup, i):
-  """
-  Get the crds for CA-C-N(i+1)-CA(i+1)
-  """
-  if "NME" in soup.residue(i).type:
-    raise ValueError, "Cant' project in C-terminal direction from NME"
-  if "ACE" in soup.residue(i).type:
-    ca_type = "CH3"
-  else:
-    ca_type = "CA"
-  ref_crds = get_atom_crds(soup, i, [ca_type, 'C', 'O'])
+def project_next_n_ca_crds(soup, i):
+  "Get crds for CA-C-N(i+1)-CA(i+1)"
+  ref_crds = get_atom_crds(soup, i, ["CA", 'C', 'O'])
   mov_crds = get_atom_crds(template_soup, 2, ['CA', 'C', 'O'])
   mat = superposition(ref_crds, mov_crds)
   n = template_soup.residue(3).atom("N").pos
@@ -136,19 +98,11 @@ def project_next_n_ca(soup, i):
 
 
 def get_c_peptide_crds(soup, i):
-  if "ACE" in soup.residue(i).type:
-    ca_type = "CH3"
-  else:
-    ca_type = "CA"
-  crds = get_atom_crds(soup, i, [ca_type, 'C'])
+  crds = get_atom_crds(soup, i, ["CA", 'C'])
   if i < soup.n_residue()-1:
-    if "NME" in soup.residue(i+1).type:
-      ca_type = "CH3"
-    else:
-      ca_type = "CA"
-    crds.extend(get_atom_crds(soup, i+1, ['N', ca_type]))
+    crds.extend(get_atom_crds(soup, i+1, ['N', "CA"]))
   else:
-    crds.extend(project_next_n_ca(soup, i))
+    crds.extend(project_next_n_ca_crds(soup, i))
   return crds
 
 
@@ -201,9 +155,6 @@ def extend_with_res(soup, res_type):
     insert = template_soup.extract_soup(j, j+1)
     splice(soup, n_res-1, insert)
   else:
-    for a in ['OXT']:
-      if soup.residue(n_res-1).has_atom(a):
-        soup.residue(n_res-1).erase_atom(a)
     insert = template_soup.extract_soup(j, j+1)
     splice_to_c_terminus(soup, insert)
 
