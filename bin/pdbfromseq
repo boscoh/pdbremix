@@ -19,11 +19,15 @@ from pdbremix import rmsd
 from pdbremix.lib.docopt import docopt
 
 
-
 template_pdb = os.path.join(data.data_dir, 'template.pdb')
 template_soup = pdbatoms.Soup(template_pdb)
 template_residues = [res.type for res in template_soup.residues()]
 
+
+def make_soup_from_aa(aa):
+  res_type = data.res_char_to_name[aa]
+  j = template_residues.index(res_type)
+  return template_soup.extract_soup(j, j+1)
 
 
 def superposition(ref_crds, mov_crds):
@@ -141,34 +145,11 @@ def splice(soup, i, insert):
     soup.insert_residue(i, res)
 
 
-def get_res_from_type(res_type):
-  for res in template_soup.residues():
-    if res_type == res.type:
-      return res.copy()
-  raise ValueError, "Don't have template for %s", res_type
-
-
-def extend_with_res(soup, res_type):
-  j = template_residues.index(res_type)
-  n_res = soup.n_residue()
-  insert = template_soup.extract_soup(j, j+1)
-  splice_to_c_terminus(soup, insert)
-
-
-def make_soup_from_sequence(sequence):
-  soup = pdbatoms.Soup()
-  res_type = data.res_char_to_name[sequence[0]]
-  res = get_res_from_type(res_type)
-  soup.append_residue(res)
-  soup.residue(0).set_num(1)
-  for char in sequence[1:]:
-    res_type = data.res_char_to_name[char]
-    extend_with_res(soup, res_type)
-  return soup
-
-
 arg = docopt(__doc__)
-soup = make_soup_from_sequence(arg['<sequence>'])
+sequence = arg['<sequence>']
+soup = make_soup_from_aa(sequence[0])
+for aa in sequence[1:]:
+  splice_to_c_terminus(soup, make_soup_from_aa(aa))
 soup.write_pdb(arg['<pdb>'])
 
 
