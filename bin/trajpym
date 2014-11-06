@@ -21,7 +21,7 @@ Options:
 
 import os
 from pdbremix.lib.docopt import docopt
-from pdbremix import traj
+from pdbremix import trajectory
 from pdbremix import data
 
 
@@ -76,7 +76,7 @@ deselect
 
 
 def secondary_structure_in_frames_script(md):
-  n_frame = traj.open_trajectory(md).n_frame
+  n_frame = trajectory.open_trajectory(md).n_frame
   ss_lines = ['dss all, %s\n' % (i+1) for i in range(n_frame)]
   return ''.join(ss_lines)
 
