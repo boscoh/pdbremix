@@ -10,8 +10,8 @@ Usage: ripit prep high_rip <pdb> <out_dir>
        ripit run <param> ...
        ripit extract couplings <pdb> <rip_dir>
        ripit extract flexibility <pdb> <rip_dir>
-       ripit html flexibility <flex_dir>
-       ripit html couplings <flex_dir>
+       ripit html flexibility <flexibility_dir>
+       ripit html couplings <couplings_dir>
 
 Example: Generate the config files for a set of MD
 runs for a high temperature RIP run.
@@ -401,6 +401,9 @@ flex_template = """
 <head>
   <title>{{attributes['name']}}</title>
   <style>
+    html {
+      font-family: Helvetica;
+    }
     div {
       float: left;
       padding: 2em 1em 0 0;
@@ -612,7 +615,7 @@ def make_pathway_from_heatflow(heatflow, min_val, pdb):
     filter_immediate_neighbors(i, pathway, min_val)
     filter_disconnected_residues(
         i, pathway, min_val, soup)
-    filter_short_pathways(i, pathway, min_val)
+    # filter_short_pathways(i, pathway, min_val)
   return pathway
 
 
@@ -709,6 +712,12 @@ couplings_template = """
 <head>
   <title>{{attributes['name']}}</title>
   <style>
+    html {
+      font-family: Helvetica;
+    }
+    body {
+      padding: 50px;
+    }
     div {
       float: left;
       padding: 2em 1em 0 0;
@@ -726,12 +735,12 @@ couplings_template = """
   <div style="width:400px" >
     <img style="width:400px" src="pathway.png">
     <br>
-    Filtered out disconnected, too close interactions.
+    Connected Pathways; energy above threshold, links connected residues to RIP residue, exclude sequential neighbors.
   </div>
   <div style="width:400px" >
     <img style="width:400px" src="coupling.png">
     <br>
-    Only look for directly connected residues.
+    Couplings: directly connected residues.
   </div>
   
   <br clear=all>
@@ -853,8 +862,8 @@ if __name__ == "__main__":
       analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
   if args['html']:
     if args['flexibility']:
-      make_html_in_flex_dir(args['<flex_dir>'])
+      make_html_in_flex_dir(args['<flexibility_dir>'])
     if args['couplings']:
-      make_html_in_couplings_dir(args['<flex_dir>'])
+      make_html_in_couplings_dir(args['<couplings_dir>'])
 
 
