@@ -33,9 +33,6 @@ import shutil
 import re
 
 import numpy as np
-from matplotlib import pylab
-
-from jinja2 import Template
 
 from pdbremix import pdbatoms
 from pdbremix import simulate
@@ -861,6 +858,9 @@ if __name__ == "__main__":
     if args['extract'] and args['couplings']:
       analyze_couplings_rip_dir(args['<pdb>'], args['<rip_dir>'])
   if args['html']:
+    # only import here, allowing clusters to work with other part
+    from matplotlib import pylab
+    from jinja2 import Template
     if args['flexibility']:
       make_html_in_flex_dir(args['<flexibility_dir>'])
     if args['couplings']:
