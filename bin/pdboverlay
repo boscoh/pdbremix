@@ -9,7 +9,7 @@ Usage: pdboverlay [-s -f] <pdb> ...
 
 Options:
 -f    only take 1st model conformation
--s    don't show 
+-s    don't show
 
 Intermediate files are saved in the 'pdboverlay' directory.
 If restarted with no parameters and `pdboverlay` exists,
@@ -19,7 +19,7 @@ will load results from 'pdboverlay'.
 
 import os
 import shutil
-import glob 
+import glob
 import sys
 
 from pdbremix import pymol
@@ -137,8 +137,8 @@ def read_clustalw2_aln(aln):
           alignments[seqid] = ""
         alignments[seqid] += alignment
   return alignments
-  
-    
+
+
 def convert_alignment_to_residue_map(align):
   residue_map = []
   i_res_in_seqid = 0
@@ -149,7 +149,7 @@ def convert_alignment_to_residue_map(align):
     else:
       residue_map.append(-1)
   return residue_map
-    
+
 
 def get_ca_pos(res, aa):
   if res.type not in data.res_name_to_char:
@@ -231,12 +231,12 @@ def make_rmsd_bfactor_pdbs(clustalw_aln, pdbs):
     pdb = pdbs[int(seqid[:-4])]
     soup.write_pdb(pdb)
     print "Made", pdb
-          
+
 
 def pymol_script(pdbs):
-  script = pymol.bgcolor_script('black')
-  script += pymol.load_pdbs_script(pdbs)
-  script += pymol.red_white_gradient_script()
+  script = pymol.make_bgcolor_script('black')
+  script += pymol.make_load_pdbs_script(pdbs)
+  script += pymol.red_white_gradient_script
   script += pymol.cartoon_script
   script += "cartoon tube\n"
   script += "set cartoon_tube_radius, 0.2\n"
@@ -244,9 +244,10 @@ def pymol_script(pdbs):
   script += "set cartoon_rect_width, 0.2\n"
   script += "set cartoon_oval_width, 0.2\n"
   script += "color blue, b<0\n"
-  script += pymol.ligands_as_sticks_script(pdbs, 'green')
+  script += pymol.make_ligands_as_sticks_script(pdbs, 'green')
   script += "hide everything, resn HOH\n"
   return script
+
 
 
 if __name__ == "__main__":
@@ -299,4 +300,4 @@ if __name__ == "__main__":
 
   if not arg['-s']:
     pymol.run_pymol_script('overlay.pml')
-  
+
