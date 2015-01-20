@@ -703,6 +703,13 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
             out_dir, 'coupling.res%d.res%d.pdb' % (i_res+1, j_res+1))
         write_coupling_pdb(soup, i_res, j_res, coupling_pdb)
 
+  coupled_residues = [0 for i in range(n_res)]
+  for i_res in range(n_res):
+    for j_res in range(n_res):
+      if coupling[i_res,j_res] > 0:
+        coupled_residues[i_res] = 1
+        coupled_residues[j_res] = 1 
+  write_bfactor_png(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
 
 couplings_template = """
 <html>
