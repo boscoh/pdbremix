@@ -287,7 +287,7 @@ def write_vals(vals, fname):
   open(fname, 'w').write(line)
 
 
-def write_bfactor_png(soup, bfactors, pdb):
+def write_bfactor_pdb(soup, bfactors, pdb):
   for a in soup.atoms():
     a.bfactor = 0.0
   residues = [r for r in soup.residues() if r.has_atom('CA')]
@@ -370,17 +370,17 @@ def analyze_flex_rip_dir(pdb, rip_dir):
   write_matrix(matrix, os.path.join(out_dir, 'map.txt'))
   
   vals = count_vals_over_min_per_column(matrix, min_val)
-  write_bfactor_png(
+  write_bfactor_pdb(
       soup, vals, os.path.join(out_dir, 'strength.pdb'))
   write_vals(vals, os.path.join(out_dir, 'strength.txt'))
 
   vals = count_vals_over_min_per_column(matrix.transpose(), min_val)
-  write_bfactor_png(
+  write_bfactor_pdb(
       soup, vals, os.path.join(out_dir, 'flexibility.pdb'))
   write_vals(vals, os.path.join(out_dir, 'flexibility.txt'))
 
   vals = get_fluctuations_per_column(matrix, min_val)
-  write_bfactor_png(
+  write_bfactor_pdb(
       soup, vals, os.path.join(out_dir, 'fluctuation.pdb'))
   write_vals(vals, os.path.join(out_dir, 'fluctuation.txt'))
   
@@ -389,7 +389,7 @@ def analyze_flex_rip_dir(pdb, rip_dir):
     res_soup = pdbatoms.Soup(res_pdb)
     bfactors = matrix[i_res,:]
     out_pdb = os.path.join(out_dir, 'dev.res%d.pdb' % (i_res+1))
-    write_bfactor_png(res_soup, bfactors, out_pdb)
+    write_bfactor_pdb(res_soup, bfactors, out_pdb)
 
 
 
@@ -668,7 +668,7 @@ def write_coupling_pdb(soup, i_res, j_res, coupling_pdb):
   bfactors = [0 for i in range(len(soup.residues()))]
   bfactors[i_res] = 2.0
   bfactors[j_res] = 1.0
-  write_bfactor_png(soup, bfactors, coupling_pdb)
+  write_bfactor_pdb(soup, bfactors, coupling_pdb)
 
 
 def analyze_couplings_rip_dir(pdb, rip_dir):
@@ -709,7 +709,7 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
       if coupling[i_res,j_res] > 0:
         coupled_residues[i_res] = 1
         coupled_residues[j_res] = 1 
-  write_bfactor_png(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
+  write_bfactor_pdb(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
 
 couplings_template = """
 <html>
