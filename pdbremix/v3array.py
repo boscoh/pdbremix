@@ -108,6 +108,14 @@ def mag(v):
   return math.sqrt(x*x + y*y + z*z)
 
 
+def mag2(v):
+  """
+  Returns square of the magnitude of v.
+  """
+  x, y, z = v
+  return x*x + y*y + z*z
+
+
 def scale(v, s):
   """
   Returns vector that is v scaled (multiplied) by s
