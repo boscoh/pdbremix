@@ -60,6 +60,13 @@ def mag(vector):
   return np.sqrt(np.dot(vector, vector))
 
 
+def mag2(vector):
+  """
+  Returns square of the magnitude of a vector
+  """
+  return np.dot(vector, vector)
+
+
 def scale(vector, s):
   """
   Returns vector that has been scaled by s.
