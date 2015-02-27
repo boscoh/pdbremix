@@ -17,7 +17,7 @@ Usage: pdbasa [-h -o -n <n_sphere>] <in_pdb> [<out_pdb>]
   -o  use optimized routine
 """
 
-from pdbremix.asa import calculate_asa, calculate_asa_opt
+from pdbremix.asa import calculate_asa, calculate_asa_optimized
 from pdbremix import pdbatoms
 from pdbremix.lib.docopt import docopt
 
