@@ -6,7 +6,7 @@ Calculates the accessible surface-area a PDB file.
 Algorithm adapted from Rose lab's chasa.py implementation of
 Shrake & Rupley (19743) JMB:351. (c) 2007 Bosco Ho.
 
-Usage: pdbasa [-h -n <n_sphere>] <in_pdb> [<out_pdb>]
+Usage: pdbasa [-h -o -n <n_sphere>] <in_pdb> [<out_pdb>]
 
   <out_pdb>   PDB file in which the atomic ASA values are written 
               to the b-factor column.
@@ -14,9 +14,10 @@ Usage: pdbasa [-h -n <n_sphere>] <in_pdb> [<out_pdb>]
               dot-density for the calculation (default=960). The 
               more points, the more accurate (but slower) the 
               calculation. 
+  -o  use optimized routine
 """
 
-from pdbremix.asa import calculate_asa
+from pdbremix.asa import calculate_asa, calculate_asa_optimized
 from pdbremix import pdbatoms
 from pdbremix.lib.docopt import docopt
 
@@ -31,7 +32,10 @@ if __name__ == "__main__":
   atoms = pdbatoms.read_pdb(arg['<in_pdb>'])
   pdbatoms.add_radii(atoms)
 
-  asas = calculate_asa(atoms, 1.4, n_sphere)
+  if arg['-o']:
+    asas = calculate_asa_optimized(atoms, 1.4, n_sphere)
+  else:
+    asas = calculate_asa(atoms, 1.4, n_sphere)
   print "%.1f angstrom squared." % sum(asas)
 
   if arg['<out_pdb>']:
