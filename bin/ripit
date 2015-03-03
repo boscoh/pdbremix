@@ -63,7 +63,7 @@ def run_equil(params):
 
   temperature = params['equil_temperature']
 
-  simulate.minimize(params['ff'], '../sim', 'min')
+  simulate.minimize(params['ff'], '../sim', 'min', n_step=10000)
 
   print "> Heating to %dK" % temperature
   simulate.langevin_thermometer(
