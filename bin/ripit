@@ -67,19 +67,28 @@ def run_equil(params):
 
   print "> Heating to %dK" % temperature
   simulate.langevin_thermometer(
-      params['ff'], 'min', 1000, temperature, 'heat', 50)
+      params['ff'], 'min', 1000, temperature, 'heat1', 50)
 
   print "> Constant energy relaxation"
   simulate.constant_energy(
-      params['ff'], 'heat', 1000, 'const', 50)
+      params['ff'], 'heat1', 1000, 'const2', 50)
 
   print "> Reheat to %dK" % temperature
   simulate.langevin_thermometer(
-      params['ff'], 'const', 1000, temperature, 'reheat', 50)
+      params['ff'], 'const2', 5000, temperature, 'heat3', 50)
+
+  print "> Constant energy relaxation"
+  simulate.constant_energy(
+      params['ff'], 'heat3', 1000, 'const4', 50)
+
+  print "> Reheat to %dK" % temperature
+  simulate.langevin_thermometer(
+      params['ff'], 'const4', 5000, temperature, 'heat5', 50)
 
   print "> Merge into single equil trajecotry"
   simulate.merge_trajectories(
-      params['ff'], 'equil', ['heat', 'const', 'reheat'])
+      params['ff'], 'equil', 
+      ['heat1', 'const2', 'heat3', 'const4', 'heat5'])
 
   util.write_dict('equil.config', params)
 
