@@ -716,7 +716,7 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
   coupling = make_coupling_from_pathway(pathway, min_val, pdb)
   write_matrix(coupling, os.path.join(out_dir, 'coupling.txt'))
 
-  tertiary = make_tertiary_from_coupling(pathway, pdb)
+  tertiary = make_tertiary_from_coupling(coupling, pdb)
   write_matrix(tertiary, os.path.join(out_dir, 'tertiary.txt'))
 
   soup = pdbatoms.Soup(pdb)
