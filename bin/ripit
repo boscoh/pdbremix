@@ -46,6 +46,7 @@ from pdbremix import data
 from pdbremix import v3
 from pdbremix import trajectory
 from pdbremix import pymol
+from pdbremix import spacehash
 
 
 
@@ -636,6 +637,18 @@ def make_coupling_from_pathway(pathway, min_val, pdb):
   return coupling
 
 
+def make_tertiary_from_coupling(coupling, pdb):
+  soup = pdbatoms.Soup(pdb)
+  spacehash.find_ss_by_bb_hbonds(soup)
+  n_res = coupling.shape[0]
+  tertiary = np.zeros((n_res, n_res), float)
+  for i in range(n_res):
+    for j in range(n_res):
+      if coupling[i, j] and not spacehash.is_ss_contact(soup, i, j):
+          tertiary[i, j] += 1.0
+  return tertiary
+
+
 def get_cutoff_from_matrix(matrix):
   vals = [d for d in matrix.flatten() if d > 0.0]
   n = float(len(vals))
@@ -703,6 +716,9 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
   coupling = make_coupling_from_pathway(pathway, min_val, pdb)
   write_matrix(coupling, os.path.join(out_dir, 'coupling.txt'))
 
+  tertiary = make_tertiary_from_coupling(pathway, pdb)
+  write_matrix(tertiary, os.path.join(out_dir, 'tertiary.txt'))
+
   soup = pdbatoms.Soup(pdb)
   for i_res, res_dir in get_res_dir_list(rip_dir):
     for j_res in range(n_res):
@@ -719,6 +735,7 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
         coupled_residues[i_res] = 1
         coupled_residues[j_res] = 1 
   write_bfactor_pdb(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
+
 
 couplings_template = """
 <html>
@@ -754,6 +771,11 @@ couplings_template = """
     <img style="width:400px" src="coupling.png">
     <br>
     Couplings: directly connected residues.
+  </div>
+  <div style="width:400px" >
+    <img style="width:400px" src="tertiary.png">
+    <br>
+    Tertiary couplings: directly connected residues that are not in the same piece of secondary structure.
   </div>
   
   <br clear=all>
@@ -817,6 +839,9 @@ def make_html_in_couplings_dir(couplings_dir):
 
   coupling = read_matrix('coupling.txt')
   write_matrix_png(coupling, 'coupling.png')
+
+  tertiary = read_matrix('tertiary.txt')
+  write_matrix_png(coupling, 'tertiary.png')
 
   min_val = get_cutoff_from_matrix(heatflow)
   max_val = min_val*2.0
