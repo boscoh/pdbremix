@@ -736,6 +736,14 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
         coupled_residues[j_res] = 1 
   write_bfactor_pdb(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
 
+  tertiary_residues = [0 for i in range(n_res)]
+  for i_res in range(n_res):
+    for j_res in range(n_res):
+      if tertiary[i_res,j_res] > 0:
+        tertiary_residues[i_res] = 1
+        tertiary_residues[j_res] = 1 
+  write_bfactor_pdb(soup, tertiary_residues, os.path.join(out_dir, 'tertiaries.pdb'))
+
 
 couplings_template = """
 <html>
