@@ -394,10 +394,12 @@ def run_tleap(
   # use best force-field for the 2 versions of AMBER author has tested
   if 'AMBER11' in force_field:
     params['amber_ff'] = "leaprc.ff99SB"
+  elif 'AMBER14' in force_field:
+    params['amber_ff'] = "leaprc.ff14SB"
   elif 'AMBER8' in force_field:
     params['amber_ff'] = "leaprc.ff96"
   else:
-    raise Exception("Don't know which version of AMBER(8|11) to use.")
+    raise Exception("Don't know which version of AMBER(8|11|14) to use.")
 
   # make the tleap input script
   script = force_field_script

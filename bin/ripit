@@ -72,19 +72,19 @@ def run_equil(params):
 
   print "> Constant energy relaxation"
   simulate.constant_energy(
-      params['ff'], 'heat1', 1000, 'const2', 50)
+      params['ff'], 'heat1', 10000, 'const2', 50)
 
   print "> Reheat to %dK" % temperature
   simulate.langevin_thermometer(
-      params['ff'], 'const2', 5000, temperature, 'heat3', 50)
+      params['ff'], 'const2', 1000, temperature, 'heat3', 50)
 
   print "> Constant energy relaxation"
   simulate.constant_energy(
-      params['ff'], 'heat3', 1000, 'const4', 50)
+      params['ff'], 'heat3', 10000, 'const4', 50)
 
   print "> Reheat to %dK" % temperature
   simulate.langevin_thermometer(
-      params['ff'], 'const4', 5000, temperature, 'heat5', 50)
+      params['ff'], 'const4', 1000, temperature, 'heat5', 50)
 
   print "> Merge into single equil trajecotry"
   simulate.merge_trajectories(
@@ -157,7 +157,7 @@ def prepare_high(pdb, sim_dir):
         config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
         print res.tag(), res.type, '->', util.relpath(config)
         params = {
-          'ff': 'AMBER11-GBSA',
+          'ff': 'AMBER14-GBSA',
           'pdb': pdb,
           'i_residue': i_res,
           'resnum': resnum,
@@ -185,7 +185,7 @@ def prepare_low(pdb, sim_dir):
         config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
         print res.tag(), res.type, '->', util.relpath(config)
         params = {
-          'ff': 'AMBER11-GBSA',
+          'ff': 'AMBER14-GBSA',
           'pdb': pdb,
           'i_residue': i_res,
           'resnum': resnum,
@@ -513,31 +513,6 @@ def make_html_in_flex_dir(flex_dir):
 ###################################################
 # COUPLING analysis routines
 
-def is_connected(i, j, soup, cutoff=3.5):
-  if i == j:
-    return False
-  min_dist = 1000.0
-  for atom_i in soup.residue(i).atoms():
-    for atom_j in soup.residue(j).atoms():
-      dist = v3.distance(atom_i.pos, atom_j.pos)
-      if dist < min_dist:
-        min_dist = dist
-  return min_dist < cutoff
-
-
-backbone = ['CA', 'HA', 'N', 'H', 'O', 'C']
-def is_sidechain_connected(i, j, soup, cutoff=3.5):
-  if abs(i-j) <= 2:
-    return False
-  min_dist = 1000.0
-  sidechain_atoms_i = [a for a in soup.residue(i).atoms() 
-                       if a.type not in backbone]
-  for atom_i in sidechain_atoms_i:
-    for atom_j in soup.residue(j).atoms():
-      dist = v3.distance(atom_i.pos, atom_j.pos)
-      if dist < min_dist:
-        min_dist = dist
-  return min_dist < cutoff
 
 
 def merge_residues(residues1, residues2):
@@ -548,7 +523,7 @@ def merge_residues(residues1, residues2):
   
 def get_connected_residues(i, residues, soup):
   connected_residues = [i]
-  neighbors = [j for j in residues if is_connected(i, j, soup)]
+  neighbors = [j for j in residues if protein.is_connected(i, j, soup)]
   connected_residues.extend(neighbors)
   non_neighbors = [j for j in residues if j not in neighbors]
   if non_neighbors:
@@ -566,14 +541,14 @@ def indices_above_threshold(matrix, i, min_val):
 
 def neighbors_above_threshold(i, matrix, min_val, soup):
   residues = indices_above_threshold(matrix, i, min_val)
-  return [j for j in residues if is_sidechain_connected(i, j, soup)]
+  return [j for j in residues if protein.is_sidechain_connected(i, j, soup)]
 
   
 def filter_disconnected_residues(i, matrix, min_val, soup):
   n_res = matrix.shape[0]
   residues = indices_above_threshold(matrix, i, min_val)
   neighbors = [j for j in residues 
-               if is_sidechain_connected(i, j, soup)]
+               if protein.is_sidechain_connected(i, j, soup)]
   non_neighbors = [j for j in residues if j not in neighbors]
   connected_residues = [i]
   for j in neighbors:
@@ -589,18 +564,10 @@ def filter_indirectly_coupled(i, matrix, min_val, soup):
   n_res = matrix.shape[0]
   residues = indices_above_threshold(matrix, i, min_val)
   neighbors = [j for j in residues 
-               if is_sidechain_connected(i, j, soup)]
+               if protein.is_sidechain_connected(i, j, soup)]
   for j in range(n_res):
     if j not in neighbors:
       matrix[i, j] = 0.0    
-
-
-def filter_short_pathways(i, matrix, min_val):
-  n_res = matrix.shape[0]
-  n_above_min_val = sum([1 for v in matrix[i,:] if v >= min_val])
-  if n_above_min_val < 3:
-    for j in range(n_res):
-      matrix[i, j] = 0.0
 
 
 def filter_immediate_neighbors(i, matrix, min_val):
@@ -622,7 +589,6 @@ def make_pathway_from_heatflow(heatflow, min_val, pdb):
     filter_immediate_neighbors(i, pathway, min_val)
     filter_disconnected_residues(
         i, pathway, min_val, soup)
-    # filter_short_pathways(i, pathway, min_val)
   return pathway
 
 

@@ -133,7 +133,37 @@ def find_chains(soup):
         chain_id = string.ascii_uppercase[i_chain]
 
 
+def is_connected(i, j, soup, cutoff=3.5):
+  if i == j:
+    return False
+  min_dist = 1000.0
+  for atom_i in soup.residue(i).atoms():
+    for atom_j in soup.residue(j).atoms():
+      dist = v3.distance(atom_i.pos, atom_j.pos)
+      if dist < min_dist:
+        min_dist = dist
+  return min_dist < cutoff
+
+
+backbone = ['CA', 'HA', 'N', 'H', 'O', 'C']
+def is_sidechain_connected(i, j, soup, cutoff=3.5):
+  if abs(i-j) <= 2:
+    return False
+  min_dist = 1000.0
+  sidechain_atoms_i = [a for a in soup.residue(i).atoms() 
+                       if a.type not in backbone]
+  for atom_i in sidechain_atoms_i:
+    for atom_j in soup.residue(j).atoms():
+      dist = v3.distance(atom_i.pos, atom_j.pos)
+      if dist < min_dist:
+        min_dist = dist
+  return min_dist < cutoff
+
+
 def find_bb_hbonds(residues):
+
+    cutoff_d_of_n_o = 3.5
+
     vertices = []
     atoms = []
     for i_residue, residue in enumerate(residues):
@@ -148,9 +178,7 @@ def find_bb_hbonds(residues):
             atom = residue.atom('N')
             atoms.append(atom)
             vertices.append(atom.pos)
-
-    cutoff_d_of_n_o = 3.5
-
+    
     for i, j in spacehash.SpaceHash(vertices).close_pairs():
         if abs(i - j) < 3:
             continue
@@ -167,6 +195,12 @@ def find_bb_hbonds(residues):
         if v3.distance(o.pos, n.pos) < cutoff_d_of_n_o:
             o.residue.co_partners.append(n.residue.i)
             n.residue.nh_partners.append(o.residue.i)
+
+
+def unique_append(a_list, item):
+    if item not in a_list:
+        a_list.append(item)
+        a_list.sort()
 
 
 def find_ss_by_bb_hbonds(soup):
@@ -205,11 +239,6 @@ def find_ss_by_bb_hbonds(soup):
         if not (0 <= j_res < n_res):
             return False
         return j_res in residues[i_res].co_partners
-
-    def unique_append(a_list, item):
-        if item not in a_list:
-            a_list.append(item)
-            a_list.sort()
 
     def make_alpha_contacts(i_res, j_res):
         unique_append(residues[i_res].alpha_contacts, j_res)
