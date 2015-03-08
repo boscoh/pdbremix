@@ -16,6 +16,7 @@ import pdbatoms
 import util
 import pdbtext
 import v3
+import spacehash
 
 
 def strip_solvent_pdb(pdb):
@@ -130,5 +131,152 @@ def find_chains(soup):
       if not is_connected_to_next:
         i_chain += 1
         chain_id = string.ascii_uppercase[i_chain]
+
+
+def find_bb_hbonds(residues):
+    vertices = []
+    atoms = []
+    for i_residue, residue in enumerate(residues):
+        residue.i = i_residue
+        for atom in residue.atoms():
+            atom.residue = residue
+        if residue.has_atom('O'):
+            atom = residue.atom('O')
+            atoms.append(atom)
+            vertices.append(atom.pos)
+        if residue.has_atom('N'):
+            atom = residue.atom('N')
+            atoms.append(atom)
+            vertices.append(atom.pos)
+
+    cutoff_d_of_n_o = 3.5
+
+    for i, j in spacehash.SpaceHash(vertices).close_pairs():
+        if abs(i - j) < 3:
+            continue
+
+        if atoms[i].element == 'O' and atoms[j].element == 'N':
+            o = atoms[i]
+            n = atoms[j]
+        elif atoms[i].element == 'N' and atoms[j].element == 'O':
+            n = atoms[i]
+            o = atoms[j]
+        else:
+            continue
+
+        if v3.distance(o.pos, n.pos) < cutoff_d_of_n_o:
+            o.residue.co_partners.append(n.residue.i)
+            n.residue.nh_partners.append(o.residue.i)
+
+
+def find_ss_by_bb_hbonds(soup):
+    """
+    Analyzes a protein soup and adds the fields to each residue
+    to indicate secondary-structure:
+
+      -  res.co_partners = []
+      -  res.nh_partners = []
+      -  res.beta_contacts = []
+      -  res.alpha_contacts = []
+      -  res.ss = "C"
+      -  res.ss_contacts = []
+
+    The key field is ss_contacts which lists the indices of the
+    residues that are naturally in contact due to secondary-structure
+    geometry.
+    """
+
+    residues = soup.residues()
+    n_res = len(residues)
+
+    for res in residues:
+        res.co_partners = []
+        res.nh_partners = []
+        res.beta_contacts = []
+        res.alpha_contacts = []
+        res.ss_contacts = []
+        res.ss = "C"
+
+    find_bb_hbonds(residues)
+
+    def is_conh(i_res, j_res):
+        if not (0 <= i_res < n_res):
+            return False
+        if not (0 <= j_res < n_res):
+            return False
+        return j_res in residues[i_res].co_partners
+
+    def unique_append(a_list, item):
+        if item not in a_list:
+            a_list.append(item)
+            a_list.sort()
+
+    def make_alpha_contacts(i_res, j_res):
+        unique_append(residues[i_res].alpha_contacts, j_res)
+        unique_append(residues[j_res].alpha_contacts, i_res)
+
+    for i_res in range(n_res):
+        if is_conh(i_res - 1, i_res + 3) and is_conh(i_res, i_res + 4):
+            # alpha-helix
+            for j_res in range(i_res, i_res + 4):
+                residues[j_res].ss = 'H'
+            make_alpha_contacts(i_res + 3, i_res)
+            make_alpha_contacts(i_res + 4, i_res)
+
+    def make_beta_contact(i_res, j_res):
+        unique_append(residues[i_res].beta_contacts, j_res)
+        unique_append(residues[i_res].beta_contacts, j_res-1)
+        unique_append(residues[i_res].beta_contacts, j_res+1)
+
+    def make_beta_contacts(i_res, j_res):
+        make_beta_contact(i_res, j_res)
+        make_beta_contact(j_res, i_res)
+
+    for i_res in range(n_res):
+        for j_res in range(n_res):
+            is_beta = False
+            if abs(i_res - j_res) <= 2:
+                # can't have beta contacts 2 or less apart
+                is_beta = False
+            elif is_conh(i_res, j_res) and is_conh(j_res, i_res):
+                # anti-parallel beta-sheet h-bonded pair
+                is_beta = True
+            elif is_conh(i_res - 1, j_res + 1) and is_conh(i_res + 1, j_res - 1):
+                # anti-parallel beta-sheet non-h-bonded pair
+                is_beta = True
+            elif is_conh(i_res, j_res - 1) and is_conh(j_res - 1, i_res):
+                # parallel beta sheet pairs
+                is_beta = True
+            if is_beta:
+                make_beta_contacts(i_res, j_res)
+                residues[i_res].ss = "E"
+                residues[j_res].ss = "E"
+    
+    def check_piece_is_e(i_res, j_res):
+        for k_res in range(i_res, j_res+1):
+            if k_res < 0 or k_res >= n_res:
+                return False
+            if residues[k_res].ss != "E":
+                return False
+        return True
+
+    # add cross-strand i->j-2 contacts as beta
+    # TODO: distinguish hb and non-hb pairs
+    for i_res in range(n_res):
+        if residues[i_res].ss == "E":
+            for j_res in residues[i_res].beta_contacts:
+                if check_piece_is_e(j_res - 2, j_res):
+                    unique_append(residues[i_res].beta_contacts, j_res - 2)
+                    unique_append(residues[j_res - 2].beta_contacts, i_res)
+                if check_piece_is_e(j_res, j_res + 2):
+                    unique_append(residues[i_res].beta_contacts, j_res + 2)
+                    unique_append(residues[j_res + 2].beta_contacts, i_res)
+
+    for i_res in range(n_res):
+      residue = residues[i_res]
+      residue.ss_contacts.extend(residue.alpha_contacts)
+      residue.ss_contacts.extend(residue.beta_contacts)
+
+
 
 

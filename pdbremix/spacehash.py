@@ -4,6 +4,13 @@ import v3
 
 
 class SpaceHash(object):
+    """
+    A geometrical object to sort a set of vertices into disjoint
+    boxes to optimize pair sorting by distance.
+
+    The boxes are defined by div, and close pairs generates listing
+    of indices of the vertices that are within div apart.
+    """
 
     def __init__(self, vertices, div=5.3, padding=0.05):
         self.vertices = vertices
@@ -63,113 +70,4 @@ class SpaceHash(object):
                     if i_vertex0 < i_vertex1:
                         yield i_vertex0, i_vertex1
 
-
-def find_bb_hbonds(residues):
-    vertices = []
-    atoms = []
-    for i_residue, residue in enumerate(residues):
-        residue.i = i_residue
-        for atom in residue.atoms():
-            atom.residue = residue
-        if residue.has_atom('O'):
-            atom = residue.atom('O')
-            atoms.append(atom)
-            vertices.append(atom.pos)
-        if residue.has_atom('N'):
-            atom = residue.atom('N')
-            atoms.append(atom)
-            vertices.append(atom.pos)
-    d = 3.5
-    for i, j in SpaceHash(vertices).close_pairs():
-        if atoms[i].element == 'O' and atoms[j].element == 'N':
-            o = atoms[i]
-            n = atoms[j]
-        elif atoms[i].element == 'N' and atoms[j].element == 'O':
-            n = atoms[i]
-            o = atoms[j]
-        else:
-            continue
-        if abs(o.residue.i - n.residue.i) < 3:
-            continue
-        if v3.distance(o.pos, n.pos) < d:
-            o.residue.co_partners.append(n.residue.i)
-            n.residue.nh_partners.append(o.residue.i)
-
-
-def find_ss_by_bb_hbonds(soup):
-    residues = soup.residues()
-    n_res = len(residues)
-
-    for res in residues:
-        res.co_partners = []
-        res.nh_partners = []
-        res.beta_contacts = []
-        res.alpha_contacts = []
-        res.ss = "C"
-
-    find_bb_hbonds(residues)
-
-    def is_conh(i_res, j_res):
-        if not (0 <= i_res < n_res):
-            return False
-        if not (0 <= j_res < n_res):
-            return False
-        return j_res in residues[i_res].co_partners
-
-    def unique_append(a_list, item):
-        if item not in a_list:
-            a_list.append(item)
-            a_list.sort()
-
-    def make_alpha_contacts(i_res, j_res):
-        unique_append(residues[i_res].alpha_contacts, j_res)
-        unique_append(residues[j_res].alpha_contacts, i_res)
-
-    for i_res in range(n_res):
-        # alpha-helix
-        if is_conh(i_res - 1, i_res + 3) and is_conh(i_res, i_res + 4):
-            for j_res in range(i_res, i_res + 4):
-                residues[j_res].ss = 'H'
-            make_alpha_contacts(i_res + 3, i_res)
-            make_alpha_contacts(i_res + 4, i_res)
-
-        # 3-10 helix
-        if is_conh(i_res - 1, i_res + 2) and is_conh(i_res, i_res + 3):
-            for j_res in range(i_res, i_res + 3):
-                residues[j_res].ss = 'H'
-            make_alpha_contacts(i_res + 3, i_res)
-
-    def make_beta_contacts(i_res, j_res):
-        unique_append(residues[i_res].beta_contacts, j_res)
-        unique_append(residues[j_res].beta_contacts, i_res)
-
-    for i_res in range(n_res):
-        for j_res in range(n_res):
-            if abs(i_res - j_res) < 3:
-                continue
-
-            # anti-parallel beta-sheet h-bonded pair
-            if is_conh(i_res, j_res) and is_conh(j_res, i_res):
-                make_beta_contacts(i_res, j_res)
-                residues[i_res].ss = "E"
-                residues[j_res].ss = "E"
-
-            # anti-parallel beta-sheet non-h-bonded pair
-            if is_conh(i_res - 1, j_res + 1) and is_conh(i_res + 1, j_res - 1):
-                residues[i_res].ss = "E"
-                residues[j_res].ss = "E"
-                make_beta_contacts(i_res, j_res)
-
-            # parallel beta sheet pairs
-            if is_conh(i_res, j_res - 1) and is_conh(j_res - 1, i_res):
-                make_beta_contacts(i_res, j_res)
-                residues[i_res].ss = "E"
-                residues[j_res].ss = "E"
-    
-    # TODO: check for anti-parallel cross-strand i->j-2 contacts
-
-def is_ss_contact(soup, i_res, j_res):
-    residue = soup.residues()[i_res]
-    return j_res in residue.beta_contacts or \
-           j_res in residue.alpha_contacts
 

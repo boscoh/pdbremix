@@ -46,7 +46,7 @@ from pdbremix import data
 from pdbremix import v3
 from pdbremix import trajectory
 from pdbremix import pymol
-from pdbremix import spacehash
+from pdbremix import protein
 
 
 
@@ -605,7 +605,7 @@ def filter_short_pathways(i, matrix, min_val):
 
 def filter_immediate_neighbors(i, matrix, min_val):
   n_res = matrix.shape[0]
-  test_j = [j for j in range(i-1, i+1+1) 
+  test_j = [j for j in range(i-2, i+2+1) 
             if j>=0 and j<n_res and i!=j]
   for j in test_j:
     matrix[i,j] = 0.0
@@ -639,13 +639,14 @@ def make_coupling_from_pathway(pathway, min_val, pdb):
 
 def make_tertiary_from_coupling(coupling, pdb):
   soup = pdbatoms.Soup(pdb)
-  spacehash.find_ss_by_bb_hbonds(soup)
+  protein.find_ss_by_bb_hbonds(soup)
+  residues = soup.residues()
   n_res = coupling.shape[0]
   tertiary = np.zeros((n_res, n_res), float)
   for i in range(n_res):
     for j in range(n_res):
-      if coupling[i, j] and not spacehash.is_ss_contact(soup, i, j):
-          tertiary[i, j] += 1.0
+      if coupling[i, j] and not j in residues[i].ss_contacts:
+          tertiary[i, j] = 1.0
   return tertiary
 
 
@@ -693,6 +694,18 @@ def write_coupling_pdb(soup, i_res, j_res, coupling_pdb):
   write_bfactor_pdb(soup, bfactors, coupling_pdb)
 
 
+def write_cumulative_coupling_pdb(png, pdb, matrix):
+  soup = pdbatoms.Soup(pdb)
+  n_res = len(soup.residues())
+  residues = [0 for i in range(n_res)]
+  for i_res in range(n_res):
+    for j_res in range(n_res):
+      if matrix[i_res,j_res] > 0:
+        residues[i_res] = 1
+        residues[j_res] = 1 
+  write_bfactor_pdb(soup, residues, png)
+
+
 def analyze_couplings_rip_dir(pdb, rip_dir):
   out_dir = os.path.join(rip_dir, '..', 'couplings')
   if not os.path.isdir(out_dir):
@@ -700,49 +713,11 @@ def analyze_couplings_rip_dir(pdb, rip_dir):
 
   shutil.copy(pdb, os.path.join(out_dir, 'ref.pdb'))
 
-  has_ca = lambda r: r.has_atom('CA')
-  n_res = len(filter(has_ca, pdbatoms.Soup(pdb).residues()))
-
+  n_res = len(pdbatoms.Soup(pdb).residues())
   heatflow = get_matrix_from_dir(
       n_res, rip_dir, 'md.kin.per_frame')
-  write_matrix(heatflow, os.path.join(out_dir, 'heatflow.txt'))
-
-  min_val = get_cutoff_from_matrix(heatflow)
-  max_val = min_val*2.0
-
-  pathway = make_pathway_from_heatflow(heatflow, min_val, pdb)
-  write_matrix(pathway, os.path.join(out_dir, 'pathway.txt'))
-
-  coupling = make_coupling_from_pathway(pathway, min_val, pdb)
-  write_matrix(coupling, os.path.join(out_dir, 'coupling.txt'))
-
-  tertiary = make_tertiary_from_coupling(coupling, pdb)
-  write_matrix(tertiary, os.path.join(out_dir, 'tertiary.txt'))
-
-  soup = pdbatoms.Soup(pdb)
-  for i_res, res_dir in get_res_dir_list(rip_dir):
-    for j_res in range(n_res):
-      if coupling[i_res,j_res] > 0:
-        print i_res, j_res
-        coupling_pdb = os.path.join(
-            out_dir, 'coupling.res%d.res%d.pdb' % (i_res+1, j_res+1))
-        write_coupling_pdb(soup, i_res, j_res, coupling_pdb)
-
-  coupled_residues = [0 for i in range(n_res)]
-  for i_res in range(n_res):
-    for j_res in range(n_res):
-      if coupling[i_res,j_res] > 0:
-        coupled_residues[i_res] = 1
-        coupled_residues[j_res] = 1 
-  write_bfactor_pdb(soup, coupled_residues, os.path.join(out_dir, 'couplings.pdb'))
-
-  tertiary_residues = [0 for i in range(n_res)]
-  for i_res in range(n_res):
-    for j_res in range(n_res):
-      if tertiary[i_res,j_res] > 0:
-        tertiary_residues[i_res] = 1
-        tertiary_residues[j_res] = 1 
-  write_bfactor_pdb(soup, tertiary_residues, os.path.join(out_dir, 'tertiaries.pdb'))
+  write_matrix(
+      heatflow, os.path.join(out_dir, 'heatflow.txt'))
 
 
 couplings_template = """
@@ -758,7 +733,7 @@ couplings_template = """
     }
     div {
       float: left;
-      padding: 2em 1em 0 0;
+      padding-top: 1.5em;
       width:260px;
     }
   </style>
@@ -783,28 +758,63 @@ couplings_template = """
   <div style="width:400px" >
     <img style="width:400px" src="tertiary.png">
     <br>
-    Tertiary couplings: directly connected residues that are not in the same piece of secondary structure.
+    Tertiary couplings: couplings not in same secondary structure
   </div>
   
   <br clear=all>
   <br>
   <br>
 
-  {% for entry in attributes['residues']: %}
-  <table style="width:100%; margin-top:1.5em;">
-    <td  style="width:250px"; vertical-align:top;">
-      {{entry['resnum']}}
-      <br/>
-      <img style="width:250px" src="{{entry['png']}}">
+  <table width="100%" style="width:100%; border-top:1px solid #AAA;">
+    <td width="250px" style="border-right:1px solid #AAA; vertical-align:top;">
+      <div> Heat Response </div>
     </td>
-    <td style="vertical-align:top;">
-      {% for title, pdb_png in entry['pdb_pngs']: %}
-        <div style="float:left; padding-right:1em">
-          {{title}}
-          <br>
-          <img style="height:250px" src="{{pdb_png}}">
-        </div>
-      {% endfor %}
+    <td>
+      <table width="100%; height=100%">
+        <td width="50%" style="padding:0 1.5em 1.5em 1.5em; background-color:#FFF9F9; border-right:1px solid #AAA; ">
+          <div style="width:100%"> Tertiary Couplings </div>
+        </td>
+        <td width="50%" style="padding:0 1.5em 1.5em 1.5em; background-color:#F9F9FF; vertical-align:top;">
+          <div style="width:100%"> Same Secondary-Structure Couplings </div>
+        </td>
+      </table>
+    </td>
+  </table>
+
+  {% for entry in attributes['residues']: %}
+  <table width="100%" style="width:100%; border-top:1px solid #AAA;">
+    <td width="250px" style="border-right:1px solid #AAA; vertical-align:top;">
+      <div>
+        {{entry['resnum']}}
+        <br/>
+        <img style="width:250px" src="{{entry['png']}}">
+      </div>
+    </td>
+    <td>
+      <table width="100%; height=100%">
+        <td width="50%" style="padding:0 1.5em 1.5em 1.5em; background-color:#FFF9F9; border-right:1px solid #AAA; ">
+          <div style="min-height:200px; width:100%; vertical-align:top; padding:0;">
+            {% for title, pdb_png in entry['tertiary_pdb_pngs']: %}
+              <div style="float:left; padding-right:1em">
+                {{title}}
+                <br>
+                <img style="height:250px" src="{{pdb_png}}">
+              </div>
+            {% endfor %}
+          </div>
+        </td>
+        <td width="50%" style="padding:0 1.5em 1.5em 1.5em; background-color:#F9F9FF; vertical-align:top;">
+          <div style="min-height:200px; width: 100%; vertical-align:top; padding:0;">
+            {% for title, pdb_png in entry['non_tertiary_pdb_pngs']: %}
+              <div style="float:left; padding-right:1em">
+                {{title}}
+                <br>
+                <img style="height:250px" src="{{pdb_png}}">
+              </div>
+            {% endfor %}
+          </div>
+        </td>
+      </table>
     </td>
   </table>
   {% endfor %}
@@ -836,54 +846,79 @@ def make_coupling_png(pdb, png):
 def make_html_in_couplings_dir(couplings_dir):
 
   save_dir = os.getcwd()
-
   os.chdir(couplings_dir)
+  pdb = 'ref.pdb'
 
   heatflow = read_matrix('heatflow.txt')
   write_matrix_png(heatflow, 'heatflow.png')
 
-  pathway = read_matrix('pathway.txt')
-  write_matrix_png(pathway, 'pathway.png')
-
-  coupling = read_matrix('coupling.txt')
-  write_matrix_png(coupling, 'coupling.png')
-
-  tertiary = read_matrix('tertiary.txt')
-  write_matrix_png(coupling, 'tertiary.png')
-
   min_val = get_cutoff_from_matrix(heatflow)
   max_val = min_val*2.0
+  n_res = heatflow.shape[0]
 
-  soup = pdbatoms.Soup('ref.pdb')
+  pathway = make_pathway_from_heatflow(heatflow, min_val, pdb)
+  write_matrix(pathway, 'pathway.txt')
+  write_matrix_png(pathway, 'pathway.png')
+  
+  coupling = make_coupling_from_pathway(pathway, min_val, pdb)
+  write_matrix(coupling, 'coupling.txt')
+  write_matrix_png(coupling, 'coupling.png')
+  write_cumulative_coupling_pdb('coupling.pdb', pdb, coupling)
+
+  tertiary = make_tertiary_from_coupling(coupling, pdb)
+  write_matrix(tertiary, 'tertiary.txt')
+  write_matrix_png(tertiary, 'tertiary.png')
+  write_cumulative_coupling_pdb('tertiary.pdb', pdb, tertiary)
+
+  soup = pdbatoms.Soup(pdb)
+  n_res = len(soup.residues())
+  for i_res in range(n_res):
+    for j_res in range(n_res):
+      if coupling[i_res,j_res] > 0:
+        coupling_pdb = 'coupling.res%d.res%d.pdb' % (i_res+1, j_res+1)
+        write_coupling_pdb(soup, i_res, j_res, coupling_pdb)
 
   attributes = { 'name': 'Heat Flow', 'residues': [] }
-  n_res = heatflow.shape[0]
+
   for i_res1 in range(n_res):
-    if sum(heatflow[i_res1]) > 0:
-      resnum1 = 'res%d' % (i_res1+1)
-      heat_png = 'heat.%s.png' % resnum1
-      res_type1 = soup.residue(i_res1).type
-      entry = { 
-          'resnum': '%s-%s' % (resnum1.upper(), res_type1),
-          'png': heat_png,
-          'pdb_pngs': [] }
-      attributes['residues'].append(entry)
-      if not os.path.isfile(heat_png):
-        plot_heat_png(heat_png, heatflow[i_res1], min_val, 0.2, i_res1)
-      tag = 'coupling.' + resnum1 + '.*'
-      for fname in glob.glob(tag):
-        m = re.search(r'coupling\.res\d+\.(res\d+).pdb', fname)
-        if not m:
-          continue
-        resnum2 = m.group(1)
-        m = re.search(r'res(\d+)', resnum2)
-        i_res2 = int(m.group(1)) - 1
-        pdb = 'coupling.%s.%s.pdb' % (resnum1, resnum2)
-        png = pdb.replace('.pdb', '.png')
-        make_coupling_png(pdb, png)
-        res_type2 = soup.residue(i_res2).type
-        tag2 = resnum2.upper() + '-' + res_type2
-        entry['pdb_pngs'].append(('-> '+tag2, png))
+    if not sum(heatflow[i_res1]) > 0:
+      continue
+
+    resnum1 = 'res%d' % (i_res1+1)
+    res_type1 = soup.residue(i_res1).type
+    res_tag1 = '%s-%s' % (resnum1.upper(), res_type1)
+
+    heat_png = 'heat.%s.png' % resnum1
+    if not os.path.isfile(heat_png):
+      plot_heat_png(heat_png, heatflow[i_res1], min_val, 0.2, i_res1)
+
+    entry = { 
+        'resnum': res_tag1,
+        'png': heat_png,
+        'tertiary_pdb_pngs': [],
+        'non_tertiary_pdb_pngs': [],
+    }
+
+    for fname in glob.glob('coupling.' + resnum1 + '.*'):
+      m = re.search(r'coupling\.res\d+\.(res\d+).pdb', fname)
+      if not m:
+        continue
+      resnum2 = m.group(1)
+      m = re.search(r'res(\d+)', resnum2)
+      i_res2 = int(m.group(1)) - 1
+      res_type2 = soup.residue(i_res2).type
+      res_tag2 = resnum2.upper() + '-' + res_type2
+
+      pdb = 'coupling.%s.%s.pdb' % (resnum1, resnum2)
+      png = pdb.replace('.pdb', '.png')
+      make_coupling_png(pdb, png)
+
+      if tertiary[i_res1, i_res2]:
+        entry['tertiary_pdb_pngs'].append(('-> '+res_tag2, png))
+      else:
+        entry['non_tertiary_pdb_pngs'].append(('-> '+res_tag2, png))
+
+    attributes['residues'].append(entry)
 
   html = Template(couplings_template).render(attributes=attributes)
   open('index.html', 'w').write(html)
