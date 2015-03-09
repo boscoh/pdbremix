@@ -332,25 +332,15 @@ def write_bfactor_pdb(soup, bfactors, pdb):
 
 
 def make_ticks_labels(n):
-  labels = [1]
-  if n < 20:
-    step = 1
-  elif n < 30:
-    step = 2
-  elif n < 60:
-    step = 5
-  elif n < 200:
-    step = 10
-  elif n < 100:
-    step = 50
-  else:
-    step = 100
-  labels.extend(range(step, n + 1, step))
-  labels.append(n)
+  steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500]
+  for step in steps:
+    if int(n/step) <= 10:
+      break
+  labels = [1] + list(range(step, n + 1, step)) + [n]
   labels = list(sorted(set(labels)))
   ticks = [x - 1 for x in labels]
   labels = map(str, labels)
-  return xticks, labels
+  return ticks, labels
 
 
 def write_matrix_png(matrix, png, max_val=None):
@@ -683,9 +673,9 @@ def plot_heat_png(png, y_vals, y_min, y_max, i_res):
   pylab.ylim([0, y_max])
 
   # renumber for 1-based for residues
-  x_ticks = ax.get_xticks().tolist()
-  x_labels = [str(int(x+1)) for x in x_ticks]
-  ax.set_xticklabels(x_labels)
+  ticks, labels = make_ticks_labels(n_res)
+  ax.set_xticks(ticks)
+  ax.set_xticklabels(labels)
 
   pylab.savefig(png)
 
