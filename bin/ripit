@@ -142,6 +142,17 @@ def process_config(config):
     open(done, 'w').write('done')
 
 
+def is_rippable_res(res):
+  res_type = res.type
+  if res_type in data.solvent_res_types:
+    return False
+  if res_type in ['PRO', 'GLY']:
+    return False
+  if not res.has_atom('CA'):
+    return False
+  return force.get_n_chi(res) > 0
+
+
 def prepare_high(pdb, sim_dir):
   if not sim_dir:
     sim_dir = os.getcwd()
@@ -151,23 +162,23 @@ def prepare_high(pdb, sim_dir):
   pdb_code = os.path.splitext(pdb)[0]
   var_name = 'high_rip'
   for i_res, res in enumerate(soup.residues()):
-    if res.type not in data.solvent_res_types:
-      if force.get_n_chi(res) and res.type != 'PRO':
-        resnum = 'res%d' % (i_res+1)
-        config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
-        print res.tag(), res.type, '->', util.relpath(config)
-        params = {
-          'ff': 'AMBER14-GBSA',
-          'pdb': pdb,
-          'i_residue': i_res,
-          'resnum': resnum,
-          'rip_temperature': 300,
-          'equil_temperature': 300,
-          'n_step': 10000, 
-          'var_name': var_name,
-          'sim_dir': sim_dir,
-        }
-        util.write_dict(config, params)
+    if not is_rippable_res(res):
+      continue
+    resnum = 'res%d' % (i_res+1)
+    config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
+    print res.tag(), res.type, '->', util.relpath(config)
+    params = {
+      'ff': 'AMBER14-GBSA',
+      'pdb': pdb,
+      'i_residue': i_res,
+      'resnum': resnum,
+      'rip_temperature': 300,
+      'equil_temperature': 300,
+      'n_step': 10000, 
+      'var_name': var_name,
+      'sim_dir': sim_dir,
+    }
+    util.write_dict(config, params)
 
 
 def prepare_low(pdb, sim_dir):
@@ -179,27 +190,27 @@ def prepare_low(pdb, sim_dir):
   pdb_code = os.path.splitext(pdb)[0]
   var_name = 'low_rip'
   for i_res, res in enumerate(soup.residues()):
-    if res.type not in data.solvent_res_types:
-      if force.get_n_chi(res) and res.type != 'PRO':
-        resnum = 'res%d' % (i_res+1)
-        config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
-        print res.tag(), res.type, '->', util.relpath(config)
-        params = {
-          'ff': 'AMBER14-GBSA',
-          'pdb': pdb,
-          'i_residue': i_res,
-          'resnum': resnum,
-          'rip_temperature': 26,
-          'equil_temperature': 10,
-          'n_step': 5000, 
-          'var_name': var_name,
-          'sim_dir': sim_dir,
-        }
-        util.write_dict(config, params)
+    if not is_rippable_res(res):
+      continue
+    resnum = 'res%d' % (i_res+1)
+    config = '%s.%s.%s.config' % (pdb_code, var_name, resnum)
+    print res.tag(), res.type, '->', util.relpath(config)
+    params = {
+      'ff': 'AMBER14-GBSA',
+      'pdb': pdb,
+      'i_residue': i_res,
+      'resnum': resnum,
+      'rip_temperature': 26,
+      'equil_temperature': 10,
+      'n_step': 5000, 
+      'var_name': var_name,
+      'sim_dir': sim_dir,
+    }
+    util.write_dict(config, params)
 
 
 ############################################
-# flexibility RIP-analysis 
+# residue MD directories referencing functions
 
 
 def get_i_residue_resnum(fname):
@@ -222,6 +233,10 @@ def get_res_dir_list(rip_dir):
     res_dir_pairs.append((i_residue, test_dir))
   res_dir_pairs.sort()
   return res_dir_pairs
+
+
+############################################
+# 2D-nmatrix functions
 
 
 def get_matrix_from_dir(
@@ -292,6 +307,15 @@ def read_matrix(fname):
   return result
 
 
+def get_cutoff_from_matrix(matrix):
+  vals = [d for d in matrix.flatten() if d > 0.0]
+  n = float(len(vals))
+  avg = sum(vals)/n
+  var = sum((v-avg)**2 for v in vals)/n
+  std = math.sqrt(var)
+  return avg + 2.0*std
+
+
 def write_vals(vals, fname):
   line = ' '.join(map(str, vals))
   open(fname, 'w').write(line)
@@ -305,6 +329,28 @@ def write_bfactor_pdb(soup, bfactors, pdb):
     for a in res.atoms():
       a.bfactor = bfactor
   soup.write_pdb(pdb)
+
+
+def make_ticks_labels(n):
+  labels = [1]
+  if n < 20:
+    step = 1
+  elif n < 30:
+    step = 2
+  elif n < 60:
+    step = 5
+  elif n < 200:
+    step = 10
+  elif n < 100:
+    step = 50
+  else:
+    step = 100
+  labels.extend(range(step, n + 1, step))
+  labels.append(n)
+  labels = list(sorted(set(labels)))
+  ticks = [x - 1 for x in labels]
+  labels = map(str, labels)
+  return xticks, labels
 
 
 def write_matrix_png(matrix, png, max_val=None):
@@ -331,20 +377,21 @@ def write_matrix_png(matrix, png, max_val=None):
         x_vals, y_vals, s=size, marker='o', 
         facecolor='g', edgecolor='none') 
 
-  # renumber for 1-based for residues
-  x_ticks = ax.get_xticks().tolist()
-  x_labels = [str(int(x+1)) for x in x_ticks]
-  ax.set_xticklabels(x_labels)
-
-  # renumber for 1-based for residues
-  y_ticks = ax.get_yticks().tolist()
-  y_labels = [str(int(y+1)) for y in y_ticks]
-  ax.set_yticklabels(y_labels)
-
   pylab.xlim([-0.5, n-0.5])
   pylab.ylim([-0.5, n-0.5])
 
+  # renumber for 1-based for residues
+  ticks, labels = make_ticks_labels(n)
+  ax.set_xticks(ticks)
+  ax.set_xticklabels(labels)
+  ax.set_yticks(ticks)
+  ax.set_yticklabels(labels)
+
   pylab.savefig(png)
+
+
+############################################
+# RIP-flexibility analysis
 
 
 def get_fluctuations_per_column(matrix, min_val):
@@ -371,10 +418,9 @@ def analyze_flex_rip_dir(pdb, rip_dir):
     os.makedirs(out_dir)
 
   soup = pdbatoms.Soup(pdb)
-  has_ca = lambda r: r.has_atom('CA')
-  n_res = len(filter(has_ca, soup.residues()))
   shutil.copy(pdb, os.path.join(out_dir, 'ref.pdb'))
 
+  n_res = len(soup.residues())
   matrix = get_matrix_from_dir(n_res, rip_dir, 'md.dev.per_frame')
 
   write_matrix(matrix, os.path.join(out_dir, 'map.txt'))
@@ -616,15 +662,6 @@ def make_tertiary_from_coupling(coupling, pdb):
   return tertiary
 
 
-def get_cutoff_from_matrix(matrix):
-  vals = [d for d in matrix.flatten() if d > 0.0]
-  n = float(len(vals))
-  avg = sum(vals)/n
-  var = sum((v-avg)**2 for v in vals)/n
-  std = math.sqrt(var)
-  return avg + 2.0*std
-
-
 def plot_heat_png(png, y_vals, y_min, y_max, i_res):
   pylab.clf()
   ax = pylab.gca()
@@ -642,13 +679,13 @@ def plot_heat_png(png, y_vals, y_min, y_max, i_res):
   # draw 95% cutoff for min_val
   pylab.plot([-0.5, n_res], [y_min, y_min], color="red")
 
+  pylab.xlim([-0.5, n_res-0.5])
+  pylab.ylim([0, y_max])
+
   # renumber for 1-based for residues
   x_ticks = ax.get_xticks().tolist()
   x_labels = [str(int(x+1)) for x in x_ticks]
   ax.set_xticklabels(x_labels)
-
-  pylab.xlim([-0.5, n_res-0.5])
-  pylab.ylim([0, y_max])
 
   pylab.savefig(png)
 
