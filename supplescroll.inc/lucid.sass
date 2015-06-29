@@ -1,7 +1,7 @@
 $highlight-color: #EEF
 $medium-highlight-color: #E3E3FF
 $dark-highlight-color: #AAE
-
+$text-color: #333
 /* layout
 body 
   /* from http://subtlepatterns.com/paper/
@@ -9,54 +9,86 @@ body
   background-repeat: repeat
   padding-left: 15px
   padding-right: 15px
+
 #table-of-contents 
-  display: none
   position: absolute
   background-color: #EEE
   width: 200px
-  padding-top: 160px
+  padding-top: 10px
   overflow: auto
   height: 100%
 #main-text 
   position: absolute
   background-color: white
   width: 420px
-  padding: 0px 120px 0px 30px
+  padding: 0px 50px 0px 30px
   height: 100%
   overflow: auto
 #figure-list 
   position: absolute
-  display: none
   height: 100%
   overflow: auto
   background-color: #EEE
+#navbar, 
 #table-of-contents, 
 #figure-list 
   /* from http://subtlepatterns.com/crossword/
   background-image: url(crossword.png)
   background-repeat: repeat
 
+/* navbar and menu icon
+$line-color: $text-color
+$back-color: white
+#navbar
+  position: absolute
+  overflow: hidden
+  height: 25px
+  line-height: 25px
+  width: 100%
+  white-space: nowrap
+#toc-trigger 
+  float: left
+  cursor: pointer
+  margin-right: 1em
+  margin-left: 0em
+  padding-top: 5px
+  padding-bottom: 5px
+  height: 15px
+#hamburger
+  width: 25px
+  height: 15px
+  background: linear-gradient(to bottom, $line-color, $line-color 20%, $back-color 20%, $back-color 40%,  $line-color 40%, $line-color 60%, $back-color 60%, $back-color 80%, $line-color 80%, $line-color 100%)
+#navbar
+  text-transform: uppercase
+  font-size: 12px
+  padding-top: 10px
+  padding-bottom: 10px
+  padding-left: 20px
+  padding-right: 0px
+  border-bottom: 1px solid #DDD
+
+
 /* font styles
 body
   font-family: 'Helvetica Neue', sans-serif
   letter-spacing: 0.05em
   font-size: 14px
-  color: #333
+  color: $text-color
   line-height: 1.5em 
 h1, h2, h3, h4, h5, h6, h7 
   font-family: "Helvetica Neue", sans-serif
-  color: #333
+  color: $text-color
   letter-spacing: 0.1em
   font-weight: 300
   line-height: 1em 
-  padding-top: 3em
-  padding-bottom: 0 
+  margin-top: 3em
+  margin-bottom: 0 
 h1 
-  font-size: 45px 
+  font-size: 27px 
   letter-spacing: 0.1em
   text-transform: uppercase
-  padding-top: 100px
-  padding-bottom: 0em 
+  margin-top: 100px
+  margin-bottom: 0em 
 h2 
   font-size: 23px
   letter-spacing: 0.1em
@@ -80,20 +112,28 @@ code, pre
   background-color: #F9F9F9
   border: 1px solid #DDD
   border-radius: 5px
-  color: #333
+  color: $text-color
   font-size: 12px 
   line-height: 1.5em 
 
 #table-of-contents 
   font-size: 12px
   line-height: 1.2em
+  padding-left: 10px
+  padding-right: 50px
+  color: #555
+  a, a:visited
+    text-decoration: none
+    color: #555
 .toc
   a, a:visited
     color: #555
     border-left: 3px solid transparent
-    padding-left: 10px
-    padding-right: 20px
     &.active
+      margin-left: -10px
+      padding-left: 10px
+      margin-right: -50px
+      padding-right: 50px
       background-color: $highlight-color
       border-left: 3px solid $dark-highlight-color
 
@@ -106,8 +146,6 @@ code, pre
       background-color: #DDDDF9
     background-color: #DDF
     padding: 5px 10px
-    img
-      width: 100%
   .timestamp 
     margin-top: 6em
     text-align: right
@@ -118,6 +156,7 @@ code, pre
   font-size: 12px
   line-height: 1.2em
   .fig-in-figlist
+    padding-right: 50px
     border-right: 3px solid transparent
     &.active
       border-right: 3px solid $dark-highlight-color
@@ -129,11 +168,8 @@ code, pre
 @media screen and (max-width: 1200px) 
   #main-text,
   .fig-in-figlist
-    padding-left: 15px
-    padding-right: 15px
   h1 
-    padding-top: 2em
-    font-size: 30px
+    margin-top: 2em
   h2 
     font-size: 18px
   h3, h4, h5, h6, h7 

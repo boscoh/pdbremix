@@ -5,7 +5,14 @@
   %link{rel:'stylesheet', href:'{{ page.include_dir }}/lucid.css'}
   - if page.title:
     %title {{ page.title }}
+
 %body
+  #navbar
+    #toc-trigger
+      #hamburger
+    - if page.breadcrumb:
+      {{ page.breadcrumb }}
+    %br{clear:'all'}
   #table-of-contents.touchscroll
   #main-text.touchscroll
     .relative_position
@@ -19,3 +26,5 @@
 %script{type:'text/javascript', src:'{{ page.include_dir }}/supplescroll.js'}
 %script{type:'text/javascript', src:'{{ page.include_dir }}/page.js'}
 
+- if page.postpend:
+  {{ page.postpend }}

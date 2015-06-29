@@ -6,11 +6,10 @@ body {
 }
 
 #table-of-contents {
-  display: none;
   position: absolute;
   background-color: #EEE;
   width: 200px;
-  padding-top: 160px;
+  padding-top: 10px;
   overflow: auto;
   height: 100%;
 }
@@ -19,22 +18,56 @@ body {
   position: absolute;
   background-color: white;
   width: 420px;
-  padding: 0px 120px 0px 30px;
+  padding: 0px 50px 0px 30px;
   height: 100%;
   overflow: auto;
 }
 
 #figure-list {
   position: absolute;
-  display: none;
   height: 100%;
   overflow: auto;
   background-color: #EEE;
 }
 
-#table-of-contents, #figure-list {
+#navbar, #table-of-contents, #figure-list {
   background-image: url(crossword.png);
   background-repeat: repeat;
+}
+
+#navbar {
+  position: absolute;
+  overflow: hidden;
+  height: 25px;
+  line-height: 25px;
+  width: 100%;
+}
+
+#toc-trigger {
+  float: left;
+  cursor: pointer;
+  margin-right: 1em;
+  margin-left: 0em;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  height: 15px;
+}
+
+#hamburger {
+  width: 25px;
+  height: 15px;
+  background: linear-gradient(to bottom, #333, #333 20%, white 20%, white 40%, #333 40%,
+    #333 60%, white 60%, white 80%, #333 80%, #333);
+}
+
+#navbar {
+  text-transform: uppercase;
+  font-size: 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  padding-right: 0px;
+  border-bottom: 1px solid #DDD;
 }
 
 body {
@@ -51,16 +84,16 @@ h1, h2, h3, h4, h5, h6, h7 {
   letter-spacing: 0.1em;
   font-weight: 300;
   line-height: 1em;
-  padding-top: 3em;
-  padding-bottom: 0;
+  margin-top: 3em;
+  margin-bottom: 0;
 }
 
 h1 {
-  font-size: 45px;
+  font-size: 27px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding-top: 100px;
-  padding-bottom: 0em;
+  margin-top: 100px;
+  margin-bottom: 0em;
 }
 
 h2 {
@@ -106,15 +139,24 @@ code, pre {
 #table-of-contents {
   font-size: 12px;
   line-height: 1.2em;
+  padding-left: 10px;
+  padding-right: 50px;
+  color: #555;
+}
+#table-of-contents a, #table-of-contents a:visited {
+  text-decoration: none;
+  color: #555;
 }
 
 .toc a, .toc a:visited {
   color: #555;
   border-left: 3px solid transparent;
-  padding-left: 10px;
-  padding-right: 20px;
 }
 .toc a.active, .toc a:visited.active {
+  margin-left: -10px;
+  padding-left: 10px;
+  margin-right: -50px;
+  padding-right: 50px;
   background-color: #EEF;
   border-left: 3px solid #AAE;
 }
@@ -130,9 +172,6 @@ code, pre {
   border: 1px solid #BBE;
   background-color: #DDDDF9;
 }
-#main-text .fig-in-text img {
-  width: 100%;
-}
 #main-text .timestamp {
   margin-top: 6em;
   text-align: right;
@@ -145,6 +184,7 @@ code, pre {
   line-height: 1.2em;
 }
 #figure-list .fig-in-figlist {
+  padding-right: 50px;
   border-right: 3px solid transparent;
 }
 #figure-list .fig-in-figlist.active {
@@ -157,13 +197,11 @@ code, pre {
 }
 
 @media screen and (max-width: 1200px) {
-  #main-text, .fig-in-figlist {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
+  #main-text, .fig-in-figlist;
+}
+@media screen and (max-width: 1200px) {
   h1 {
-    padding-top: 2em;
-    font-size: 30px;
+    margin-top: 2em;
   }
   h2 {
     font-size: 18px;

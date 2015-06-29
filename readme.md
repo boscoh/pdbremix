@@ -520,7 +520,10 @@ Now you've happily loaded a PDB structure into Soup, you might want to do some m
 
 `asa` - calculates the accessible surface-area of every atom in list of atoms, with respect to the other atoms.
 
+	from pdbremix import pdbatoms
 	from pdbremix import asa
+
+	pdbatoms.add_radii(atoms)
 	asa.calculate_asa(atoms, probe, n_sphere_point=960)
 
 which assigns the asa to to each `atom.asa`

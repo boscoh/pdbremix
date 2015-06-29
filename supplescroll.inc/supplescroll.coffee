@@ -10,9 +10,9 @@
 
 
 is_onscreen = (parent_div, div) ->
-  x1 = parent_div.scrollTop()
+  x1 = parent_div.offset().top
   x2 = x1 + parent_div.height()
-  y1 = div.position().top
+  y1 = div.offset().top 
   y2 = y1 + div.outerHeight(true)
   if x1 <= y1 and y1 <= x2
     return true
@@ -28,6 +28,8 @@ is_onscreen = (parent_div, div) ->
 class FigureList
   # text_href must be 'position:relative'
   constructor: (@toc_href, @text_href, @figlist_href) ->
+    $.scrollTo.defaults.axis = 'y'
+    
     # initialize properties
     @selected_figlink = null
     @selected_header = null
@@ -42,6 +44,7 @@ class FigureList
 
     if @figlist_href != ''
       @transfer_figs()
+      @make_reflinks()
       @make_figlinks()
       $(@figlist_href).append(
           $('<div>').addClass('page-filler'))
@@ -63,6 +66,12 @@ class FigureList
           fig = $(hash)
           # wait till all assets have been loaded!
           fig.ready(@select_figlink_fn(figlink))
+    else if hash.slice(0, 4) == '#ref'
+      for reflink in @reflinks
+        if reflink.attr('href') == hash
+          ref = $(hash)
+          # wait till all assets have been loaded!
+          ref.ready(@select_figlink_fn(reflink))
 
   make_toc: ->
     toc = $(@toc_href)
@@ -98,7 +107,8 @@ class FigureList
       div_id = $(div_dom).attr('id')
       if div_id? and div_id[0..2] == 'fig'
         div = $(div_dom)
-        div.prepend('(Figure ' + num_fig + '). ') 
+        # div.prepend('(Figure ' + num_fig + '). ') 
+        div.prepend(' ') 
         new_div = div.clone()
         div.addClass('fig-in-text')
         new_div.addClass('fig-in-figlist')
@@ -111,6 +121,7 @@ class FigureList
     @fig_hrefs = []
     @fig_href_from_orig = {}
     @fig_label_dict = {}
+    @figlinks = []
 
     # find all figures in the figlist, and change their id's to figure{n}
     n_fig = 1
@@ -129,10 +140,10 @@ class FigureList
 
     # find all figlinks, and set their href's and id's
     n_figlink = 1
-    @figlinks = []
     for figlink_dom in $(@text_href).find('a[href*="fig"]')
       figlink = $(figlink_dom)
 
+      # make an ID for a figlink so backlinks can point to it
       figlink_id = 'figlink'+n_figlink
       figlink.attr('id', figlink_id)
       figlink.addClass('figlink')
@@ -141,10 +152,13 @@ class FigureList
       orig_fig_href = figlink.attr('href')
 
       if orig_fig_href of @fig_href_from_orig
+        # figure out from the figlink what figure it points
+        # to and what the new figure id is
         fig_href = @fig_href_from_orig[orig_fig_href]
         i_fig =  @i_fig_dict[fig_href]
-        figlink_label = '(Figure ' + i_fig + ')&rArr;'
-        figlink.html(figlink_label)
+        # figlink_label = 'Figure ' + i_fig + '&rArr;'
+        # figlink.html(figlink_label)
+        figlink.append('&rArr;')
         figlink.attr('href', fig_href)
 
         figlink_href = '#'+figlink_id
@@ -167,6 +181,53 @@ class FigureList
       num_fig = i + 1
       fig_label = @fig_label_dict[fig_href]
       $(fig_href).prepend(fig_label)
+
+  make_reflinks: () ->
+    @ref_hrefs = []
+    @ref_label_dict = {}
+    @reflinks = []
+
+    # find all figures in the figlist, and change their id's to figure{n}
+    for ref_div_dom in $(@figlist_href).find('a')
+      ref = $(ref_div_dom)
+      ref_id = ref.attr('id')
+      if ref_id? and ref_id[0..3] == 'ref-'
+        ref_href = '#' + ref_id
+        @ref_hrefs.push(ref_href)
+        # initialize DOM object for reverse_links
+        @ref_label_dict[ref_href] = $('<span>')
+
+    # find all reflinks, set their href's and id's
+    n_reflink = 1
+    for reflink_dom in $(@text_href).find('a[href*="ref"]')
+      reflink = $(reflink_dom)
+
+      # make an ID for a reflink so backlinks can point to it
+      reflink_id = 'reflink'+n_reflink
+      reflink.attr('id', reflink_id)
+      reflink.append('&rArr;')
+      reflink.addClass('reflink')
+      reflink.click(@select_figlink_fn(reflink))
+      @reflinks.push(reflink)
+      n_reflink += 1
+
+      # check for actural ref's pointed to by reflink
+      # and makes a dangling DOM object for a reverse_link
+      ref_href = reflink.attr('href')
+      if ref_href in @ref_hrefs
+        reflink_href = '#'+reflink_id
+        reverse_link = $('<a>').append('&lArr;').attr('href', reflink_href)
+        finish = ()=>
+          return
+        click_fn = @scroll_to_href_in_text_fn(reflink_href, false, finish)
+        reverse_link.click(click_fn)
+        @ref_label_dict[ref_href].append(reverse_link)
+
+    for ref_href in @ref_hrefs
+      ref = $(@figlist_href).find(ref_href)
+      ref_label = @ref_label_dict[ref_href]
+      ref.parent().prepend(' ')
+      ref.parent().prepend(ref_label)
 
   select_figlink: (figlink) ->
     if @selected_figlink == figlink
@@ -192,7 +253,7 @@ class FigureList
         @scroll_to_next_figlink()
     figlist = $(@figlist_href)
     text = $(@text_href)
-    if figlist.css('display') == 'none'
+    if figlist.css('visibility') == 'hidden'
       target = text
     else
       target = figlist
@@ -286,60 +347,6 @@ build_page = (toc_href, text_href, figlist_href) ->
     window.figure_list = new FigureList(toc_href, text_href, figlist_href)
 
 
-# convenience resizing functions with regular API to
-# do resizing of elements
-
-set_outer_height = (div, height) ->
-  margin = div.outerHeight(true) - div.innerHeight()
-  margin += parseInt(div.css('padding-top'))
-  margin += parseInt(div.css('padding-bottom'))
-  div.height(height - margin)
-
-set_outer_width = (div, width) ->
-  margin = div.outerWidth(true) - div.innerWidth()
-  margin += parseInt(div.css('padding-left'))
-  margin += parseInt(div.css('padding-right'))
-  div.width(width - margin)
-
-get_outer_width = (div) -> div.outerWidth(true)
-
-get_spacing_width = (div) -> 
-  get_outer_width(div) - get_content_width(div)
-
-get_outer_height = (div) -> div.outerHeight(true)
-
-get_content_width = (div) ->
-  width = div.innerWidth()
-  width -= parseInt(div.css('padding-left'))
-  width -= parseInt(div.css('padding-right'))
-  width
-
-get_content_height = (div) ->
-  height = div.innerHeight()
-  height -= parseInt(div.css('padding-top'))
-  height -= parseInt(div.css('padding-bottom'))
-  height
-
-get_bottom = (div) -> div.position().top + div.outerHeight(true)
-
-get_right = (div) -> div.position().left + div.outerWidth(true)
-
-get_top = (div) -> div.position().top
-
-get_left = (div) -> div.position().left
-
-set_top = (div, top) -> div.css('top', top)
-
-set_left = (div, left) -> div.css('left', left)
-
-resize_img_dom = (img_dom, width) ->
-  img_elem = $(img_dom)
-  if img_dom.naturalWidth > 0 and img_dom.naturalWidth < width
-    img_elem.css('width', '')
-  else
-    img_elem.css('width', '100%')
-
-
 # routines to handle the touchscroll on iOS devices
 
 # figure out the DOM element that has triggered
@@ -375,20 +382,6 @@ init_touchscroll = () ->
 
 window.supplescroll = {
   build_page: build_page,
-  set_outer_height: set_outer_height, 
-  set_outer_width: set_outer_width,
-  get_outer_width: get_outer_width,
-  get_spacing_width: get_spacing_width,
-  get_outer_height: get_outer_height,
-  get_content_width: get_content_width, 
-  get_content_height: get_content_height,
-  get_bottom: get_bottom,
-  get_right: get_right,
-  get_left: get_left,
-  get_top: get_top,
-  set_top: set_top, 
-  set_left: set_left, 
-  resize_img_dom: resize_img_dom,
   init_touchscroll: init_touchscroll
 }
 
