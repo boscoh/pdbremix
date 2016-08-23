@@ -1,6 +1,8 @@
 title: pdbremix documentation
 ---
 ---
+# python version 2 not 3
+
 
 # pdbremix
 
@@ -33,6 +35,11 @@ From here, you can access unit tests and example scripts.
 
 There are many wonderful tools in structural biology that have less-than-stellar interfaces. `pdbremix` wraps these tools to make them easier to use.
 
+all the commands are stored in the bin directory, 
+
+for linux, I suggest you add the bin path to the PATH variable, then use the follow command.
+
+
 To check which tools can be accessed from the path:
 
 	> checkpdbremix
@@ -41,6 +48,9 @@ Use the `-o` flag to get the binary config file to override (with exotic flags):
 
 	> vi `checkpdbremix -o`
 
+For windows, change directory to bin ;
+        > python checkpdbremix
+         
 
 ## Tools to analyze PDB structures
 
