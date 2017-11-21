@@ -127,7 +127,7 @@ class Grid:
               f.write(atom.pdb_str() + '\n')
 
         
-def volume(atoms, grid_spacing, pdb=""):
+def volume(atoms, grid_spacing, pdb="",verbose=True):
   """
   Returns the volume of a list of atoms, and writes a PDB file of
   fictious atoms to fill the volume.
@@ -135,18 +135,22 @@ def volume(atoms, grid_spacing, pdb=""):
   center = pdbatoms.get_center(atoms)
   width = pdbatoms.get_width(atoms, center) + 4.0
   grid = Grid(grid_spacing, width, center)
-  print "%d atoms, grid %d x %d x %d points, width %.2f angstroms" % \
+  if verbose:
+    print "%d atoms, grid %d x %d x %d points, width %.2f angstroms" % \
           (len(atoms), grid.n, grid.n, grid.n, grid.actual_width)
   for atom in atoms:
     grid.exclude_sphere(atom.pos, atom.radius)
   d_volume = float(grid_spacing)**3
   volume = grid.n_excluded()*d_volume
-  print "Volume %.1f angstroms^3 (%d x %.3f angstroms^3)" \
-          % (volume, grid.n_excluded(), d_volume)
+  if verbose:
+    print "Volume %.1f angstroms^3 (%d x %.3f angstroms^3)" \
+            % (volume, grid.n_excluded(), d_volume)
   if pdb:
-    print "Warning: there will probably be more residues/atoms " \
-          "than PDB can uniquely number"
+    if verbose:
+      print "Warning: there will probably be more residues/atoms " \
+            "than PDB can uniquely number"
+      print pdb
     grid.write_pdb(pdb)
-    print pdb
+  return volume
 
     
